@@ -1,0 +1,67 @@
+# 服务端口集中配置：所有服务的容器端口与默认主机端口在此定义。
+# 用于向导 step-2「暴露端口」的展示与生成 compose 时的端口映射。
+# 修改此处即可统一影响 UI 默认值与 compose 生成逻辑。
+ports:
+  - serviceKey: stargate    # compose 服务名，用于 ApplyPorts 映射
+    optionId: portStargate  # 表单字段名，与 cmd_gen options 一致
+    containerPort: "80"
+    defaultHostPort: "80"
+    labelKey: portStargateLabel
+    descKey: portStargateDesc
+    showWhenOption: exposePorts
+  - serviceKey: warden
+    optionId: portWarden
+    containerPort: "8081"
+    defaultHostPort: "8081"
+    labelKey: portWardenLabel
+    descKey: portWardenDesc
+    showWhenOption: exposePorts
+  - serviceKey: herald
+    optionId: portHerald
+    containerPort: "8082"
+    defaultHostPort: "8082"
+    labelKey: portHeraldLabel
+    descKey: portHeraldDesc
+    showWhenOption: exposePorts
+  - serviceKey: herald-dingtalk
+    optionId: portHeraldDingtalk
+    containerPort: "8083"
+    defaultHostPort: "8083"
+    labelKey: portHeraldDingtalkLabel
+    descKey: portHeraldDingtalkDesc
+    showWhenOption: exposePorts
+  - serviceKey: herald-totp
+    optionId: portHeraldTotp
+    containerPort: "8084"
+    defaultHostPort: "8084"
+    labelKey: portHeraldTotpLabel
+    descKey: portHeraldTotpDesc
+    showWhenOption: exposePorts
+  - serviceKey: herald-smtp
+    optionId: portHeraldSmtp
+    containerPort: "8085"
+    defaultHostPort: "8085"
+    labelKey: portHeraldSmtpLabel
+    descKey: portHeraldSmtpDesc
+    showWhenOption: exposePorts
+  - serviceKey: warden-redis
+    optionId: portWardenRedis
+    containerPort: "6379"
+    defaultHostPort: "6379"
+    labelKey: portWardenRedisLabel
+    descKey: portWardenRedisDesc
+    showWhenOption: exposePorts
+  - serviceKey: herald-redis
+    optionId: portHeraldRedis
+    containerPort: "6379"
+    defaultHostPort: "6379"
+    labelKey: portHeraldRedisLabel
+    descKey: portHeraldRedisDesc
+    showWhenOption: exposePorts
+  - serviceKey: owlmail
+    optionId: portOwlmail
+    containerPort: "1080"
+    defaultHostPort: "1080"
+    labelKey: portOwlmailLabel
+    descKey: portOwlmailDesc
+    showWhenOption: smtpUseOwlmail

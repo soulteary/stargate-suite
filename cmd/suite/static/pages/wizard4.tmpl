@@ -1,0 +1,31 @@
+{{define "content-wizard-4"}}
+<div class="main-view main-view-wizard">
+	<div class="wizard-toolbar mb-4">
+		<a href="/" class="btn btn-link text-body-secondary px-0" data-i18n="backToChoice">← 返回选择</a>
+	</div>
+	{{template "step-nav" .}}
+	<form id="form-step-4" class="form wizard-form" method="post" action="/wizard/step-4">
+		<section class="config-step-block" data-step="4">
+			<h2 class="step-heading mb-2" data-i18n="step4Warden">4. Warden（看守 - 白名单用户）</h2>
+			<p class="step-desc text-body-secondary mb-4" data-i18n="step4WardenDesc">白名单用户数据与 API。</p>
+			<p class="step-desc scenario-step-note mb-4" id="scenario-step4-note" style="display:none;"></p>
+			<fieldset class="field-group config-options-cols border-0 p-0">
+				{{range .Services}}{{if eq .Id "warden"}}{{$s := .}}
+				{{range $s.Sections}}
+				<div class="env-group mb-4" data-section-key="{{.TitleKey}}">
+					{{if .TitleKey}}<h3 class="section-title h6 mb-3" data-i18n="{{.TitleKey}}"></h3>{{end}}
+					{{range .EnvVars}}
+					{{template "env-field" (dict "Var" . "Suffix" $s.Id)}}
+					{{end}}
+				</div>
+				{{end}}
+				{{end}}{{end}}
+			</fieldset>
+			<div class="step-actions pt-2">
+				<a href="/wizard/step-3" class="btn btn-outline-secondary" data-i18n="stepPrev">上一步</a>
+				<button type="submit" class="btn btn-primary btn-lg" data-i18n="stepNext">下一步</button>
+			</div>
+		</section>
+	</form>
+</div>
+{{end}}

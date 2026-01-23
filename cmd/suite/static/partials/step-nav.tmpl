@@ -1,0 +1,11 @@
+{{define "step-nav"}}
+<nav class="step-nav step-nav-labeled mb-4" aria-label="Configuration steps">
+	<a href="/wizard/step-1" class="step-nav-item{{if eq .Page "wizard-1"}} active{{end}}"><span class="step-num">1</span><span class="step-label" data-i18n="step1ComposeTypeShort">场景预设</span></a>
+	<a href="/wizard/step-2" class="step-nav-item{{if eq .Page "wizard-2"}} active{{end}}"><span class="step-num">2</span><span class="step-label" data-i18n="step2GeneralOptionsShort">通用</span></a>
+	<a href="/wizard/step-3" class="step-nav-item{{if eq .Page "wizard-3"}} active{{end}}"><span class="step-num">3</span><span class="step-label" data-i18n="step3StargateShort">Stargate</span></a>
+	<a href="/wizard/step-4" class="step-nav-item{{if eq .Page "wizard-4"}} active{{end}}"><span class="step-num">4</span><span class="step-label" data-i18n="step4WardenShort">Warden</span></a>
+	<a href="/wizard/step-5" class="step-nav-item{{if eq .Page "wizard-5"}} active{{end}}"><span class="step-num">5</span><span class="step-label" data-i18n="step5HeraldShort">Herald</span></a>
+	<a href="/keys" class="step-nav-item{{if eq .Page "keys"}} active{{end}}"><span class="step-num">6</span><span class="step-label" data-i18n="step6KeysShort">密钥与 API Key</span></a>
+	<a href="/review" class="step-nav-item{{if eq .Page "review"}} active{{end}}"><span class="step-num">7</span><span class="step-label" data-i18n="step7ReviewShort">确认生成</span></a>
+</nav>
+{{end}}

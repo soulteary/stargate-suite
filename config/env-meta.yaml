@@ -1,0 +1,338 @@
+# env-meta: single source for env key order, comments, which services use them, and optional defaults.
+# Used by composegen for .env order, compose comments, and default .env body. Add new env vars here
+# (and in compose/canonical + config services/providers) instead of editing composegen.go.
+
+order:
+  - HERALD_IMAGE
+  - WARDEN_IMAGE
+  - STARGATE_IMAGE
+  - HERALD_REDIS_IMAGE
+  - WARDEN_REDIS_IMAGE
+  - STARGATE_REDIS_IMAGE
+  - HERALD_REDIS_ADDR
+  - HERALD_REDIS_PASSWORD
+  - HERALD_REDIS_DB
+  - WARDEN_REDIS_ADDR
+  - WARDEN_REDIS_PASSWORD
+  - WARDEN_REDIS_PASSWORD_FILE
+  - WARDEN_REDIS_ENABLED
+  - WARDEN_DATA_FILE
+  - HERALD_REDIS_DATA_PATH
+  - WARDEN_REDIS_DATA_PATH
+  - PROTECTED_IMAGE
+  - AUTH_HOST
+  - WARDEN_URL
+  - HERALD_URL
+  - STARGATE_DOMAIN
+  - PROTECTED_DOMAIN
+  - STARGATE_PREFIX
+  - PROTECTED_PREFIX
+  - USER_HEADER_NAME
+  - LOGIN_PAGE_TITLE
+  - LOGIN_PAGE_FOOTER_TEXT
+  - COOKIE_DOMAIN
+  - LANGUAGE
+  - PASSWORDS
+  - PORT
+  - HERALD_API_KEY
+  - HERALD_HMAC_SECRET
+  - WARDEN_API_KEY
+  - WARDEN_ENABLED
+  - HERALD_ENABLED
+  - WARDEN_OTP_ENABLED
+  - WARDEN_OTP_SECRET_KEY
+  - LOGIN_SMS_ENABLED
+  - LOGIN_EMAIL_ENABLED
+  - SESSION_STORAGE_ENABLED
+  - SESSION_STORAGE_REDIS_ADDR
+  - SESSION_STORAGE_REDIS_PASSWORD
+  - SESSION_STORAGE_REDIS_DB
+  - SESSION_STORAGE_REDIS_KEY_PREFIX
+  - HERALD_TLS_CA_CERT_FILE
+  - HERALD_TLS_CLIENT_CERT_FILE
+  - HERALD_TLS_CLIENT_KEY_FILE
+  - HERALD_TLS_SERVER_NAME
+  - STEP_UP_ENABLED
+  - STEP_UP_PATHS
+  - HERALD_TOTP_HMAC_SECRET
+  - WARDEN_CACHE_TTL
+  - AUDIT_LOG_ENABLED
+  - AUDIT_LOG_FORMAT
+  - OTLP_ENABLED
+  - OTLP_ENDPOINT
+  - AUTH_REFRESH_ENABLED
+  - AUTH_REFRESH_INTERVAL
+  - DEBUG
+  - MODE
+  - LOG_LEVEL
+  - INTERVAL
+  - WARDEN_REMOTE_CONFIG
+  - WARDEN_REMOTE_KEY
+  - WARDEN_HTTP_TIMEOUT
+  - WARDEN_HTTP_MAX_IDLE_CONNS
+  - WARDEN_HTTP_INSECURE_TLS
+  - HERALD_TEST_MODE
+  - CHALLENGE_EXPIRY
+  - CODE_LENGTH
+  - MAX_ATTEMPTS
+  - PROVIDER_FAILURE_POLICY
+  - RESEND_COOLDOWN
+  - LOCKOUT_DURATION
+  - IDEMPOTENCY_KEY_TTL
+  - ALLOWED_PURPOSES
+  - SERVICE_NAME
+  - HERALD_HMAC_KEYS
+  - RATE_LIMIT_PER_USER
+  - RATE_LIMIT_PER_IP
+  - RATE_LIMIT_PER_DESTINATION
+  - HERALD_DINGTALK_IMAGE
+  - HERALD_DINGTALK_API_URL
+  - HERALD_DINGTALK_API_KEY
+  - DINGTALK_APP_KEY
+  - DINGTALK_APP_SECRET
+  - DINGTALK_AGENT_ID
+  - DINGTALK_LOOKUP_MODE
+  - HERALD_DINGTALK_IDEMPOTENCY_TTL
+  - HERALD_SMTP_IMAGE
+  - HERALD_SMTP_API_URL
+  - HERALD_SMTP_API_KEY
+  - SMTP_HOST
+  - SMTP_PORT
+  - SMTP_USER
+  - SMTP_PASSWORD
+  - SMTP_FROM
+  - SMTP_USE_STARTTLS
+  - HERALD_SMTP_IDEMPOTENCY_TTL
+  - HERALD_TOTP_ENABLED
+  - HERALD_TOTP_BASE_URL
+  - HERALD_TOTP_API_KEY
+  - HERALD_TOTP_IMAGE
+  - HERALD_TOTP_ENCRYPTION_KEY
+  - HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL
+  - HERALD_TOTP_REDIS_ADDR
+  - HERALD_TOTP_REDIS_PASSWORD
+  - HERALD_TOTP_REDIS_DB
+  - HERALD_TOTP_PORT
+  - HERALD_TOTP_ISSUER
+  - HERALD_TOTP_PERIOD
+  - HERALD_TOTP_DIGITS
+  - HERALD_TOTP_SKEW
+  - HERALD_TOTP_ENROLL_TTL
+  - HERALD_TOTP_HMAC_KEYS
+  - HERALD_TOTP_SERVICE_NAME
+  - HERALD_TOTP_RATE_LIMIT_PER_SUBJECT
+  - HERALD_TOTP_RATE_LIMIT_PER_IP
+  - HERALD_BUILTIN_SMTP_HOST
+  - HERALD_BUILTIN_SMTP_PORT
+  - HERALD_BUILTIN_SMTP_USER
+  - HERALD_BUILTIN_SMTP_PASSWORD
+  - HERALD_BUILTIN_SMTP_FROM
+  - SMS_PROVIDER
+  - SMS_API_BASE_URL
+  - SMS_API_KEY
+  - HERALD_TLS_CERT_FILE
+  - HERALD_TLS_KEY_FILE
+  - HERALD_TLS_CA_CERT_FILE
+  - HERALD_TLS_CLIENT_CA_FILE
+  - HERALD_SESSION_STORAGE_ENABLED
+  - HERALD_SESSION_DEFAULT_TTL
+  - HERALD_SESSION_KEY_PREFIX
+  - HERALD_AUDIT_ENABLED
+  - HERALD_AUDIT_MASK_DESTINATION
+  - HERALD_AUDIT_TTL
+  - HERALD_AUDIT_STORAGE_TYPE
+  - HERALD_AUDIT_DATABASE_URL
+  - HERALD_AUDIT_TABLE_NAME
+  - HERALD_AUDIT_FILE_PATH
+  - HERALD_AUDIT_LOKI_URL
+  - HERALD_AUDIT_WRITER_QUEUE_SIZE
+  - HERALD_AUDIT_WRITER_WORKERS
+  - HERALD_TEMPLATE_DIR
+  - HERALD_OTLP_ENABLED
+  - HERALD_OTLP_ENDPOINT
+  - WARDEN_DATA_DIR
+  - WARDEN_RESPONSE_FIELDS
+  - WARDEN_REMOTE_DECRYPT_ENABLED
+  - WARDEN_REMOTE_RSA_PRIVATE_KEY_FILE
+  - WARDEN_REMOTE_RSA_PRIVATE_KEY
+  - WARDEN_OTLP_ENABLED
+  - WARDEN_OTLP_ENDPOINT
+  - WARDEN_TRUSTED_PROXY_IPS
+  - WARDEN_HEALTH_CHECK_IP_WHITELIST
+  - WARDEN_IP_WHITELIST
+  - WARDEN_HMAC_KEYS
+  - WARDEN_HMAC_TIMESTAMP_TOLERANCE
+  - WARDEN_TLS_CERT
+  - WARDEN_TLS_KEY
+  - WARDEN_TLS_CA
+  - WARDEN_TLS_REQUIRE_CLIENT_CERT
+
+# Per-key: comment (for .env and compose), services (which compose service may use this env), default (optional)
+vars:
+  HERALD_IMAGE: { comment: "Herald Service Image", services: [], default: "ghcr.io/soulteary/herald:v0.9.0" }
+  WARDEN_IMAGE: { comment: "Warden Service Image", services: [], default: "ghcr.io/soulteary/warden:v0.13.0" }
+  STARGATE_IMAGE: { comment: "Stargate Service Image", services: [], default: "ghcr.io/soulteary/stargate:v0.11.0" }
+  HERALD_REDIS_IMAGE: { comment: "Herald Redis Image", services: [], default: "redis:8.4-alpine" }
+  WARDEN_REDIS_IMAGE: { comment: "Warden Redis Image", services: [], default: "redis:8.4-alpine" }
+  STARGATE_REDIS_IMAGE: { comment: "Stargate Redis Image", services: [], default: "redis:8.4-alpine" }
+  PROTECTED_IMAGE: { comment: "Protected service (whoami) image", services: [], default: "ghcr.io/traefik/whoami:v1.11" }
+  PORT: { comment: "服务监听端口", services: [stargate] }
+  REDIS_ADDR: { comment: "Herald Redis 地址 (host:port)，可通过 HERALD_REDIS_ADDR 覆盖", services: [herald] }
+  REDIS_PASSWORD: { comment: "Redis 密码，留空表示无认证", services: [herald] }
+  REDIS_DB: { comment: "Herald Redis 库号", services: [herald] }
+  LOG_LEVEL: { comment: "日志级别 (info/debug/warn/error)", services: [herald, herald-totp, herald-dingtalk, herald-smtp, warden] }
+  HERALD_REDIS_ADDR: { comment: "Herald Redis 地址", services: [herald], default: "herald-redis:6379" }
+  HERALD_REDIS_PASSWORD: { comment: "Herald Redis 密码", services: [herald], default: "" }
+  HERALD_REDIS_DB: { comment: "Herald Redis 库号", services: [herald], default: "0" }
+  WARDEN_REDIS_ADDR: { comment: "Warden Redis 地址", services: [warden], default: "warden-redis:6379" }
+  WARDEN_REDIS_PASSWORD: { comment: "Warden Redis 密码", services: [warden], default: "" }
+  WARDEN_REDIS_PASSWORD_FILE: { comment: "Warden Redis 密码文件路径", services: [warden] }
+  WARDEN_REDIS_ENABLED: { comment: "Warden 是否启用 Redis", services: [warden], default: "true" }
+  WARDEN_DATA_FILE: { comment: "Warden 本地用户数据文件路径", services: [warden] }
+  HERALD_REDIS_DATA_PATH: { comment: "Herald Redis 数据目录（绑定路径时）", services: [], default: "./data/herald-redis" }
+  WARDEN_REDIS_DATA_PATH: { comment: "Warden Redis 数据目录（绑定路径时）", services: [], default: "./data/warden-redis" }
+  API_KEY: { comment: "服务间 API 密钥，生产请修改", services: [] }
+  HMAC_SECRET: { comment: "Herald HMAC 签名密钥，生产请修改", services: [] }
+  HERALD_API_KEY: { comment: "Herald API 密钥", services: [herald, stargate] }
+  HERALD_HMAC_SECRET: { comment: "Herald HMAC 密钥", services: [herald, stargate] }
+  HERALD_TEST_MODE: { comment: "Herald 测试模式（免真实发送验证码）", services: [herald] }
+  PROVIDER_FAILURE_POLICY: { comment: "Provider 失败策略 (soft/strict)", services: [herald] }
+  CHALLENGE_EXPIRY: { comment: "验证码有效期", services: [herald] }
+  CODE_LENGTH: { comment: "验证码长度", services: [herald] }
+  MAX_ATTEMPTS: { comment: "单 challenge 最大验证次数", services: [herald] }
+  RESEND_COOLDOWN: { comment: "重发冷却时间", services: [herald] }
+  IDEMPOTENCY_KEY_TTL: { comment: "Herald 幂等键 TTL（0 表示使用 CHALLENGE_EXPIRY）", services: [herald] }
+  ALLOWED_PURPOSES: { comment: "Herald 允许的 purpose 列表", services: [herald], default: "login" }
+  SERVICE_NAME: { comment: "Herald 服务标识（HMAC 等）", services: [herald], default: "herald" }
+  HERALD_HMAC_KEYS: { comment: "Herald 多密钥 HMAC JSON", services: [herald] }
+  RATE_LIMIT_PER_USER: { comment: "Herald 每用户/小时限流", services: [herald] }
+  RATE_LIMIT_PER_IP: { comment: "Herald 每 IP/分钟限流", services: [herald] }
+  RATE_LIMIT_PER_DESTINATION: { comment: "Herald 每目标/小时限流", services: [herald] }
+  HERALD_DINGTALK_API_URL: { comment: "Herald 钉钉通道：herald-dingtalk 服务地址", services: [herald] }
+  HERALD_DINGTALK_API_KEY: { comment: "Herald 钉钉通道 API 密钥", services: [herald, herald-dingtalk] }
+  HERALD_DINGTALK_IMAGE: { comment: "herald-dingtalk 服务镜像", services: [], default: "ghcr.io/soulteary/herald-dingtalk:v0.5.0" }
+  DINGTALK_APP_KEY: { comment: "herald-dingtalk：钉钉应用 Key", services: [herald-dingtalk] }
+  DINGTALK_APP_SECRET: { comment: "herald-dingtalk：钉钉应用 Secret", services: [herald-dingtalk] }
+  DINGTALK_AGENT_ID: { comment: "herald-dingtalk：钉钉应用 AgentId", services: [herald-dingtalk] }
+  DINGTALK_LOOKUP_MODE: { comment: "herald-dingtalk：none=to 仅 userid；mobile=to 可为 userid 或手机号", services: [herald-dingtalk], default: "none" }
+  HERALD_DINGTALK_IDEMPOTENCY_TTL: { comment: "herald-dingtalk 幂等缓存 TTL（秒）", services: [herald-dingtalk] }
+  HERALD_SMTP_API_URL: { comment: "Herald 邮件通道：herald-smtp 服务地址", services: [herald] }
+  HERALD_SMTP_API_KEY: { comment: "Herald 邮件通道 API 密钥", services: [herald, herald-smtp] }
+  HERALD_SMTP_IMAGE: { comment: "herald-smtp 服务镜像", services: [], default: "ghcr.io/soulteary/herald-smtp:v0.2.0" }
+  SMTP_HOST: { comment: "herald-smtp：SMTP 服务器主机", services: [herald-smtp] }
+  SMTP_PORT: { comment: "herald-smtp：SMTP 端口", services: [herald-smtp] }
+  SMTP_USER: { comment: "herald-smtp：SMTP 用户名", services: [herald-smtp] }
+  SMTP_PASSWORD: { comment: "herald-smtp：SMTP 密码", services: [herald-smtp] }
+  SMTP_FROM: { comment: "herald-smtp：发件人邮箱", services: [herald-smtp] }
+  SMTP_USE_STARTTLS: { comment: "herald-smtp：是否使用 STARTTLS", services: [herald-smtp], default: "true" }
+  HERALD_SMTP_IDEMPOTENCY_TTL: { comment: "herald-smtp 幂等缓存 TTL（秒）", services: [herald-smtp] }
+  HERALD_TOTP_PORT: { comment: "herald-totp 监听端口", services: [herald-totp], default: ":8084" }
+  HERALD_TOTP_REDIS_ADDR: { comment: "herald-totp Redis 地址", services: [herald-totp], default: "herald-redis:6379" }
+  HERALD_TOTP_REDIS_PASSWORD: { comment: "herald-totp Redis 密码", services: [herald-totp] }
+  HERALD_TOTP_REDIS_DB: { comment: "herald-totp Redis 库号", services: [herald-totp], default: "0" }
+  HERALD_TOTP_ENCRYPTION_KEY: { comment: "herald-totp 32 字节 AES-256 加密密钥", services: [herald-totp] }
+  HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL: { comment: "herald-totp enroll 是否返回 secret_base32", services: [herald-totp] }
+  HERALD_TOTP_API_KEY: { comment: "herald-totp API 密钥", services: [stargate, herald-totp] }
+  HERALD_TOTP_ISSUER: { comment: "herald-totp TOTP Issuer", services: [herald-totp], default: "Herald" }
+  HERALD_TOTP_PERIOD: { comment: "herald-totp TOTP 周期（秒）", services: [herald-totp], default: "30" }
+  HERALD_TOTP_DIGITS: { comment: "herald-totp TOTP 位数（6 或 8）", services: [herald-totp], default: "6" }
+  HERALD_TOTP_SKEW: { comment: "herald-totp 时间步长偏移", services: [herald-totp], default: "1" }
+  HERALD_TOTP_ENROLL_TTL: { comment: "herald-totp 绑定流程临时状态 TTL", services: [herald-totp], default: "10m" }
+  HERALD_TOTP_HMAC_KEYS: { comment: "herald-totp 多密钥 HMAC JSON", services: [herald-totp] }
+  HERALD_TOTP_SERVICE_NAME: { comment: "herald-totp 服务名", services: [herald-totp], default: "herald-totp" }
+  HERALD_TOTP_RATE_LIMIT_PER_SUBJECT: { comment: "herald-totp 每 subject 每小时限流", services: [herald-totp], default: "20" }
+  HERALD_TOTP_RATE_LIMIT_PER_IP: { comment: "herald-totp 每 IP 每分钟限流", services: [herald-totp], default: "30" }
+  HERALD_BUILTIN_SMTP_HOST: { comment: "Herald 内置 SMTP 主机（未用 herald-smtp 时）", services: [herald] }
+  HERALD_BUILTIN_SMTP_PORT: { comment: "Herald 内置 SMTP 端口", services: [herald], default: "587" }
+  HERALD_BUILTIN_SMTP_USER: { comment: "Herald 内置 SMTP 用户名", services: [herald] }
+  HERALD_BUILTIN_SMTP_PASSWORD: { comment: "Herald 内置 SMTP 密码", services: [herald] }
+  HERALD_BUILTIN_SMTP_FROM: { comment: "Herald 内置 SMTP 发件人", services: [herald] }
+  SMS_PROVIDER: { comment: "Herald 短信供应商名称", services: [herald] }
+  SMS_API_BASE_URL: { comment: "Herald 短信 HTTP API base URL", services: [herald] }
+  SMS_API_KEY: { comment: "Herald 短信 API 密钥", services: [herald] }
+  HERALD_TLS_CERT_FILE: { comment: "Herald 服务端 TLS 证书路径", services: [herald] }
+  HERALD_TLS_KEY_FILE: { comment: "Herald 服务端 TLS 私钥路径", services: [herald] }
+  HERALD_TLS_CLIENT_CA_FILE: { comment: "Herald 客户端 CA（mTLS）别名", services: [herald] }
+  HERALD_SESSION_STORAGE_ENABLED: { comment: "Herald Redis 会话存储", services: [herald], default: "false" }
+  HERALD_SESSION_DEFAULT_TTL: { comment: "Herald 会话默认 TTL", services: [herald], default: "1h" }
+  HERALD_SESSION_KEY_PREFIX: { comment: "Herald 会话 Redis 键前缀", services: [herald], default: "session:" }
+  HERALD_AUDIT_ENABLED: { comment: "Herald 审计开关", services: [herald], default: "true" }
+  HERALD_AUDIT_MASK_DESTINATION: { comment: "Herald 审计脱敏目标地址", services: [herald], default: "false" }
+  HERALD_AUDIT_TTL: { comment: "Herald 审计记录 TTL", services: [herald], default: "168h" }
+  HERALD_AUDIT_STORAGE_TYPE: { comment: "Herald 审计存储类型", services: [herald] }
+  HERALD_AUDIT_DATABASE_URL: { comment: "Herald 审计数据库 URL", services: [herald] }
+  HERALD_AUDIT_TABLE_NAME: { comment: "Herald 审计表名", services: [herald], default: "audit_logs" }
+  HERALD_AUDIT_FILE_PATH: { comment: "Herald 审计文件路径", services: [herald] }
+  HERALD_AUDIT_LOKI_URL: { comment: "Herald 审计 Loki URL", services: [herald] }
+  HERALD_AUDIT_WRITER_QUEUE_SIZE: { comment: "Herald 审计写入队列大小", services: [herald], default: "1000" }
+  HERALD_AUDIT_WRITER_WORKERS: { comment: "Herald 审计写入 worker 数", services: [herald], default: "2" }
+  HERALD_TEMPLATE_DIR: { comment: "Herald 邮件/短信模板目录", services: [herald] }
+  HERALD_OTLP_ENABLED: { comment: "Herald OpenTelemetry 开关", services: [herald], default: "false" }
+  HERALD_OTLP_ENDPOINT: { comment: "Herald OTLP 端点", services: [herald] }
+  WARDEN_DATA_DIR: { comment: "Warden 本地用户数据目录（合并 *.json）", services: [warden] }
+  WARDEN_RESPONSE_FIELDS: { comment: "Warden API 响应字段白名单", services: [warden] }
+  WARDEN_REMOTE_DECRYPT_ENABLED: { comment: "Warden 远程响应 RSA 解密", services: [warden], default: "false" }
+  WARDEN_REMOTE_RSA_PRIVATE_KEY_FILE: { comment: "Warden RSA 私钥文件路径", services: [warden] }
+  WARDEN_REMOTE_RSA_PRIVATE_KEY: { comment: "Warden RSA 私钥内联 PEM", services: [warden] }
+  WARDEN_OTLP_ENABLED: { comment: "Warden OpenTelemetry 开关", services: [warden], default: "false" }
+  WARDEN_OTLP_ENDPOINT: { comment: "Warden OTLP 端点", services: [warden] }
+  WARDEN_TRUSTED_PROXY_IPS: { comment: "Warden 信任的代理 IP", services: [warden] }
+  WARDEN_HEALTH_CHECK_IP_WHITELIST: { comment: "Warden 健康检查 IP 白名单", services: [warden] }
+  WARDEN_IP_WHITELIST: { comment: "Warden 全局 IP 白名单", services: [warden] }
+  WARDEN_HMAC_KEYS: { comment: "Warden HMAC 密钥 JSON（服务间鉴权）", services: [warden] }
+  WARDEN_HMAC_TIMESTAMP_TOLERANCE: { comment: "Warden HMAC 时间戳容差（秒）", services: [warden] }
+  WARDEN_TLS_CERT: { comment: "Warden 服务端 TLS 证书路径", services: [warden] }
+  WARDEN_TLS_KEY: { comment: "Warden 服务端 TLS 私钥路径", services: [warden] }
+  WARDEN_TLS_CA: { comment: "Warden 客户端 CA（mTLS）", services: [warden] }
+  WARDEN_TLS_REQUIRE_CLIENT_CERT: { comment: "Warden 是否要求客户端证书", services: [warden], default: "false" }
+  MODE: { comment: "Warden 模式 (ONLY_LOCAL/REMOTE/HYBRID 等)", services: [warden] }
+  INTERVAL: { comment: "Warden 轮询间隔（秒）", services: [warden] }
+  WARDEN_REMOTE_CONFIG: { comment: "Warden 远程配置 URL", services: [warden] }
+  WARDEN_REMOTE_KEY: { comment: "Warden 远程配置认证 Header", services: [warden] }
+  WARDEN_HTTP_TIMEOUT: { comment: "Warden HTTP 请求超时（秒）", services: [warden] }
+  WARDEN_HTTP_MAX_IDLE_CONNS: { comment: "Warden HTTP 最大空闲连接数", services: [warden] }
+  WARDEN_HTTP_INSECURE_TLS: { comment: "Warden 是否跳过 TLS 校验", services: [warden] }
+  WARDEN_API_KEY: { comment: "Warden API 密钥", services: [warden] }
+  AUTH_HOST: { comment: "认证页 Host / 域名", services: [stargate], default: "auth.test.localhost" }
+  LOGIN_PAGE_TITLE: { comment: "登录页标题", services: [stargate] }
+  LOGIN_PAGE_FOOTER_TEXT: { comment: "登录页页脚文案", services: [stargate] }
+  COOKIE_DOMAIN: { comment: "Cookie 域名（多子域时设置）", services: [stargate] }
+  PASSWORDS: { comment: "登录密码配置，生产请修改", services: [stargate] }
+  LANGUAGE: { comment: "界面语言", services: [stargate] }
+  WARDEN_URL: { comment: "Stargate 调用 Warden 的地址", services: [stargate], default: "http://warden:8081" }
+  WARDEN_ENABLED: { comment: "是否启用 Warden", services: [stargate] }
+  WARDEN_CACHE_TTL: { comment: "Warden 缓存 TTL（秒）", services: [stargate] }
+  WARDEN_OTP_ENABLED: { comment: "是否启用 Warden OTP（遗留/兼容）", services: [stargate] }
+  WARDEN_OTP_SECRET_KEY: { comment: "Warden OTP 密钥（遗留/兼容）", services: [stargate] }
+  HERALD_URL: { comment: "Stargate 调用 Herald 的地址", services: [stargate], default: "http://herald:8082" }
+  HERALD_ENABLED: { comment: "是否启用 Herald", services: [stargate] }
+  HERALD_TLS_CA_CERT_FILE: { comment: "Herald mTLS：CA 证书（Stargate 校验 Herald；Herald 校验客户端）", services: [herald, stargate] }
+  HERALD_TLS_CLIENT_CERT_FILE: { comment: "Herald mTLS：客户端证书文件路径", services: [stargate] }
+  HERALD_TLS_CLIENT_KEY_FILE: { comment: "Herald mTLS：客户端私钥文件路径", services: [stargate] }
+  HERALD_TLS_SERVER_NAME: { comment: "Herald mTLS：服务端 SNI 名称", services: [stargate] }
+  LOGIN_SMS_ENABLED: { comment: "是否允许短信验证码登录", services: [stargate], default: "true" }
+  LOGIN_EMAIL_ENABLED: { comment: "是否允许邮箱验证码登录", services: [stargate], default: "true" }
+  SESSION_STORAGE_ENABLED: { comment: "是否启用会话存储", services: [stargate] }
+  SESSION_STORAGE_REDIS_ADDR: { comment: "会话存储 Redis 地址", services: [stargate] }
+  SESSION_STORAGE_REDIS_PASSWORD: { comment: "会话存储 Redis 密码", services: [stargate] }
+  SESSION_STORAGE_REDIS_DB: { comment: "会话存储 Redis 库号", services: [stargate] }
+  SESSION_STORAGE_REDIS_KEY_PREFIX: { comment: "会话存储 Redis 键前缀", services: [stargate] }
+  STEP_UP_ENABLED: { comment: "是否启用敏感路径二次验证（step-up）", services: [stargate] }
+  STEP_UP_PATHS: { comment: "需二次验证的路径模式，逗号分隔", services: [stargate] }
+  HERALD_TOTP_HMAC_SECRET: { comment: "Herald 调用 herald-totp 的 HMAC 密钥", services: [] }
+  HERALD_TOTP_ENABLED: { comment: "是否启用 herald-totp（TOTP 2FA）", services: [stargate] }
+  HERALD_TOTP_BASE_URL: { comment: "Herald 调用 herald-totp 的地址", services: [stargate], default: "http://herald-totp:8084" }
+  HERALD_TOTP_IMAGE: { comment: "herald-totp 服务镜像", services: [], default: "ghcr.io/soulteary/herald-totp:v0.3.0" }
+  AUDIT_LOG_ENABLED: { comment: "是否启用审计日志", services: [stargate] }
+  AUDIT_LOG_FORMAT: { comment: "审计日志格式 (json/text)", services: [stargate] }
+  OTLP_ENABLED: { comment: "是否启用 OpenTelemetry 导出", services: [stargate] }
+  OTLP_ENDPOINT: { comment: "OTLP 采集端地址", services: [stargate] }
+  AUTH_REFRESH_ENABLED: { comment: "是否启用会话期间授权信息刷新", services: [stargate] }
+  AUTH_REFRESH_INTERVAL: { comment: "授权信息刷新间隔", services: [stargate] }
+  USER_HEADER_NAME: { comment: "鉴权通过后转发给下游的用户头名称", services: [stargate], default: "X-Forwarded-User" }
+  STARGATE_DOMAIN: { comment: "Stargate 域名", services: [stargate], default: "auth.test.localhost" }
+  PROTECTED_DOMAIN: { comment: "受保护服务域名", services: [stargate], default: "whoami.test.localhost" }
+  STARGATE_PREFIX: { comment: "Stargate 路径前缀", services: [stargate], default: "stargate" }
+  PROTECTED_PREFIX: { comment: "受保护服务路径前缀", services: [stargate], default: "protected" }
+  LOCKOUT_DURATION: { comment: "Herald 锁定时长（超过最大尝试次数后）", services: [herald] }
+  DEBUG: { comment: "调试模式", services: [stargate] }

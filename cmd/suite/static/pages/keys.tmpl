@@ -1,0 +1,40 @@
+{{define "content-keys"}}
+<div id="panel-keys" class="main-view main-view-wizard">
+	<div class="wizard-toolbar mb-4">
+		<a href="/" class="btn btn-link text-body-secondary px-0" data-i18n="backToChoice">← 返回选择</a>
+	</div>
+	{{template "step-nav" .}}
+	<section class="config-step-block" data-step="6">
+		<h2 class="step-heading mb-2" data-i18n="keysTitle">密钥与 API Key 生成</h2>
+		<p class="step-desc text-body-secondary mb-4" data-i18n="keysDesc">生成适用于「生成部署配置」的各类密钥与 API Key。生成后可一键填入向导配置。</p>
+		<div class="form-actions keys-actions mb-4">
+			<button type="button" id="btn-generate-all-keys" class="btn btn-primary" data-i18n="btnGenerateAllKeys">全部重新生成</button>
+		</div>
+		<div class="keys-tool bg-light bg-opacity-50 mb-4">
+			<div class="keys-grid" id="keys-grid">
+				{{range .KeysStepVars}}
+				<div class="keys-row row g-3 align-items-start py-2" data-env="{{.Env}}"{{if .GenType}} data-gen-type="{{.GenType}}"{{end}}>
+					<div class="col-12 col-md-5 keys-meta">
+						<div class="keys-env"><code>{{.Env}}</code></div>
+						<div class="keys-label" data-i18n="{{.LabelKey}}"></div>
+						<p class="keys-desc-line config-desc small text-body-secondary mb-0" data-i18n="{{.DescKey}}"></p>
+					</div>
+					<div class="col-12 col-md-7 keys-value-wrap">
+						<input type="text" class="form-control keys-value" readonly data-env="{{.Env}}" placeholder="{{.Placeholder}}">
+						<div class="keys-buttons mt-2">
+							{{if .GenType}}<button type="button" class="btn btn-sm btn-primary keys-gen" data-env="{{.Env}}" data-i18n="keyBtnGenerate">生成</button> {{end}}
+							<button type="button" class="btn btn-sm btn-outline-secondary keys-copy" data-env="{{.Env}}" data-i18n="keyBtnCopy">复制</button>
+						</div>
+					</div>
+				</div>
+				{{end}}
+			</div>
+			<div id="keys-copy-status" class="visually-hidden" role="status" aria-live="polite"></div>
+		</div>
+		<div class="step-actions pt-2">
+			<a href="/wizard/step-5" class="btn btn-outline-secondary" data-i18n="stepPrev">上一步</a>
+			<a href="/review" class="btn btn-primary btn-lg" data-i18n="stepNext">下一步</a>
+		</div>
+	</section>
+</div>
+{{end}}

@@ -1,0 +1,41 @@
+English | [中文](README.zh-CN.md)
+
+# Traefik
+
+This directory is **documentation only**. The actual Traefik compose files live in `build/traefik/` (all-in-one) and `build/traefik-herald/`, `build/traefik-warden/`, `build/traefik-stargate/` (split). They are generated from canonical — run `make gen` before use so that `build/traefik/` exists.
+
+Traefik compose lives in **build/traefik/** (and split in `build/traefik-herald/`, etc.). All are **generated from canonical** — this directory holds docs only; there is no hand-edited compose here. Compose: [../README.md](../README.md), project: [../../README.md](../../README.md).
+
+**You must run `make gen` before using Traefik**, so that `build/traefik/` exists.
+
+## All-in-one (build/traefik)
+
+```bash
+docker network create traefik
+docker compose -f build/traefik/docker-compose.yml up -d
+# or make up-traefik
+```
+
+Stop: `make down-traefik` or `docker compose -f build/traefik/docker-compose.yml down`.
+
+## Split
+
+Generated from canonical; do not edit by hand. After changing canonical: `make gen`.
+
+| Dir | Contents |
+|-----|----------|
+| build/traefik-herald/ | Herald + herald-redis |
+| build/traefik-warden/ | Warden + warden-redis |
+| build/traefik-stargate/ | Stargate + whoami |
+
+```bash
+make net-traefik-split   # once: create the-gate-network, traefik
+make up-traefik-herald && make up-traefik-warden && make up-traefik-stargate
+# stop: make down-traefik-stargate, down-traefik-warden, down-traefik-herald
+```
+
+Split uses container names (the-gate-warden:8081, the-gate-herald:8082) on shared network `the-gate-network`.
+
+**Env:** .env or env vars — STARGATE_DOMAIN, PROTECTED_DOMAIN, AUTH_HOST, *_API_KEY, *_IMAGE. See root .env.example.
+
+See [../README](../README.md) · [../../README](../../README.md).

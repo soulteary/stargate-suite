@@ -1,0 +1,255 @@
+# 配置选项：镜像版本、健康检查、Traefik 网络、暴露端口、容器前缀、Redis 存储
+configSections:
+  - titleKey: imageVersionsSection
+    options:
+      - type: imageEnv
+        envName: HERALD_IMAGE
+        labelKey: heraldImageLabel
+        descKey: heraldImageDesc
+        default: "ghcr.io/soulteary/herald:v0.9.0"
+        placeholder: "ghcr.io/soulteary/herald:v0.9.0"
+      - type: imageEnv
+        envName: HERALD_TOTP_IMAGE
+        labelKey: heraldTotpImageLabel
+        descKey: heraldTotpImageDesc
+        default: "ghcr.io/soulteary/herald-totp:v0.3.0"
+        placeholder: "ghcr.io/soulteary/herald-totp:v0.3.0"
+        showWhenOption: totpEnabled
+      - type: imageEnv
+        envName: WARDEN_IMAGE
+        labelKey: wardenImageLabel
+        descKey: wardenImageDesc
+        default: "ghcr.io/soulteary/warden:v0.13.0"
+        placeholder: "ghcr.io/soulteary/warden:v0.13.0"
+      - type: imageEnv
+        envName: STARGATE_IMAGE
+        labelKey: stargateImageLabel
+        descKey: stargateImageDesc
+        default: "ghcr.io/soulteary/stargate:v0.11.0"
+        placeholder: "ghcr.io/soulteary/stargate:v0.11.0"
+      - type: imageEnv
+        envName: HERALD_REDIS_IMAGE
+        labelKey: heraldRedisImageLabel
+        descKey: heraldRedisImageDesc
+        default: "redis:8.4-alpine"
+        placeholder: "redis:8.4-alpine"
+      - type: imageEnv
+        envName: WARDEN_REDIS_IMAGE
+        labelKey: wardenRedisImageLabel
+        descKey: wardenRedisImageDesc
+        default: "redis:8.4-alpine"
+        placeholder: "redis:8.4-alpine"
+      - type: imageEnv
+        envName: STARGATE_REDIS_IMAGE
+        labelKey: stargateRedisImageLabel
+        descKey: stargateRedisImageDesc
+        default: "redis:8.4-alpine"
+        placeholder: "redis:8.4-alpine"
+      - type: imageEnv
+        envName: PROTECTED_IMAGE
+        labelKey: protectedImageLabel
+        descKey: protectedImageDesc
+        default: "ghcr.io/traefik/whoami:v1.11"
+        placeholder: "ghcr.io/traefik/whoami:v1.11"
+  - titleKey: healthCheckSection
+    options:
+      - type: checkbox
+        id: healthCheck
+        name: healthCheck
+        envName: healthCheck
+        labelKey: healthCheck
+        descKey: healthCheckDesc
+        default: true
+        fullRow: true
+      - type: text
+        id: healthCheckInterval
+        name: healthCheckInterval
+        envName: healthCheckInterval
+        labelKey: healthCheckIntervalLabel
+        descKey: healthCheckIntervalDesc
+        placeholder: "10s"
+        showWhenOption: healthCheck
+      - type: text
+        id: healthCheckStartPeriod
+        name: healthCheckStartPeriod
+        envName: healthCheckStartPeriod
+        labelKey: healthCheckStartPeriodLabel
+        descKey: healthCheckStartPeriodDesc
+        placeholder: "10s"
+        showWhenOption: healthCheck
+  - titleKey: traefikNetworkSection
+    options:
+      - type: checkbox
+        id: traefikNetwork
+        name: traefikNetwork
+        envName: traefikNetwork
+        labelKey: traefikNetwork
+        descKey: traefikNetworkDesc
+        default: true
+      - type: text
+        id: traefikNetworkName
+        name: traefikNetworkName
+        envName: traefikNetworkName
+        labelKey: traefikNetworkNameLabel
+        descKey: traefikNetworkNameDesc
+        default: "traefik"
+        placeholder: "traefik"
+        showWhenOption: traefikNetwork
+  # 暴露端口：勾选后下方端口表生效；端口列表来自 config/ports.yaml 集中配置与展示
+  - titleKey: exposePortsSection
+    options:
+      - type: checkbox
+        id: exposePorts
+        name: exposePorts
+        envName: exposePorts
+        labelKey: exposePorts
+        descKey: exposePortsDesc
+        default: true
+        fullRow: true
+      - type: ports
+        id: portsTable
+        name: portsTable
+        envName: ""
+        labelKey: portsTableLabel
+        descKey: portsTableDesc
+        showWhenOption: exposePorts
+  - titleKey: containerPrefixSection
+    options:
+      - type: text
+        id: containerNamePrefix
+        name: containerNamePrefix
+        envName: containerNamePrefix
+        labelKey: containerNamePrefixLabel
+        descKey: containerNamePrefixDesc
+        placeholderKey: containerPrefixPlaceholder
+  - titleKey: optionalChannelsSection
+    options:
+      - type: checkbox
+        id: dingtalkEnabled
+        name: dingtalkEnabled
+        envName: dingtalkEnabled
+        labelKey: dingtalkEnabledLabel
+        descKey: dingtalkEnabledDesc
+        default: false
+      - type: checkbox
+        id: smtpEnabled
+        name: smtpEnabled
+        envName: smtpEnabled
+        labelKey: smtpEnabledLabel
+        descKey: smtpEnabledDesc
+        default: false
+      - type: checkbox
+        id: smtpUseOwlmail
+        name: smtpUseOwlmail
+        envName: smtpUseOwlmail
+        labelKey: smtpUseOwlmailLabel
+        descKey: smtpUseOwlmailDesc
+        default: false
+        showWhenOption: smtpEnabled
+      - type: checkbox
+        id: totpEnabled
+        name: totpEnabled
+        envName: totpEnabled
+        labelKey: heraldTotpEnabledLabel
+        descKey: heraldTotpEnabledDesc
+        default: false
+  # Redis 相关设置集中在此：镜像、数据卷/路径、Stargate 会话、Warden、Herald
+  - titleKey: redisStorage
+    options:
+      - type: radio
+        name: redisStorage
+        id: redisStorageVolume
+        value: volume
+        labelKey: redisVolume
+        descKey: redisVolumeDesc
+        default: true
+      - type: radio
+        name: redisStorage
+        id: redisStoragePath
+        value: path
+        labelKey: redisPath
+        descKey: redisPathDesc
+      - type: redisPaths
+        paths:
+          - env: HERALD_REDIS_DATA_PATH
+            id: heraldRedisDataPath
+            labelKey: heraldRedisPathLabel
+            descKey: heraldRedisPathDesc
+            default: "./data/herald-redis"
+            placeholder: "./data/herald-redis"
+          - env: WARDEN_REDIS_DATA_PATH
+            id: wardenRedisDataPath
+            labelKey: wardenRedisPathLabel
+            descKey: wardenRedisPathDesc
+            default: "./data/warden-redis"
+            placeholder: "./data/warden-redis"
+      # Stargate 会话 Redis
+      - type: checkbox
+        id: sessionStorageEnabled
+        name: SESSION_STORAGE_ENABLED
+        envName: SESSION_STORAGE_ENABLED
+        labelKey: sessionStorageEnabledLabel
+        descKey: sessionStorageDesc
+        default: false
+        uncheckValue: "false"
+      - type: checkbox
+        id: sessionStorageRedisUseBuiltin
+        name: sessionStorageRedisUseBuiltin
+        envName: sessionStorageRedisUseBuiltin
+        labelKey: sessionStorageRedisUseBuiltinLabel
+        descKey: sessionStorageRedisUseBuiltinDesc
+        default: false
+        showWhenOption: sessionStorageEnabled
+      - type: text
+        id: sessionStorageRedisAddr
+        name: SESSION_STORAGE_REDIS_ADDR
+        envName: SESSION_STORAGE_REDIS_ADDR
+        labelKey: sessionStorageRedisAddrLabel
+        descKey: sessionStorageRedisAddrDesc
+        placeholder: "stargate-redis:6379"
+        showWhenOption: sessionStorageEnabled
+      - type: number
+        id: sessionStorageRedisDb
+        name: SESSION_STORAGE_REDIS_DB
+        envName: SESSION_STORAGE_REDIS_DB
+        labelKey: sessionStorageRedisDbLabel
+        descKey: sessionStorageRedisDbDesc
+        default: "0"
+        placeholder: "0"
+        min: 0
+        showWhenOption: sessionStorageEnabled
+      - type: text
+        id: sessionStorageRedisKeyPrefix
+        name: SESSION_STORAGE_REDIS_KEY_PREFIX
+        envName: SESSION_STORAGE_REDIS_KEY_PREFIX
+        labelKey: sessionStorageRedisKeyPrefixLabel
+        descKey: sessionStorageRedisKeyPrefixDesc
+        placeholder: ""
+        showWhenOption: sessionStorageEnabled
+      # Warden Redis
+      - type: checkbox
+        id: disableWardenRedisService
+        name: disableWardenRedisService
+        envName: disableWardenRedisService
+        labelKey: disableWardenRedisServiceLabel
+        descKey: disableWardenRedisServiceDesc
+        default: false
+        disablesOption: wardenRedisEnabled
+      - type: checkbox
+        id: wardenRedisEnabled
+        name: WARDEN_REDIS_ENABLED
+        envName: WARDEN_REDIS_ENABLED
+        labelKey: wardenRedisEnabledLabel
+        descKey: wardenRedisEnabledDesc
+        default: true
+        uncheckValue: "false"
+      # Herald Redis
+      - type: number
+        id: heraldRedisDb
+        name: HERALD_REDIS_DB
+        envName: HERALD_REDIS_DB
+        labelKey: heraldRedisDbLabel
+        descKey: heraldRedisDbDesc
+        default: "0"
+        placeholder: "0"
+        min: 0

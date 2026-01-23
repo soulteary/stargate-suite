@@ -1,0 +1,393 @@
+# Stargate Suite - Canonical Compose（单一数据源）
+#
+# 本文件为唯一数据源，用于通过 Web UI 或 make gen（Web API）生成以下 compose：
+#   - traefik：全量（Traefik + Stargate + Warden + Herald + 可选通道）
+#   - traefik-herald：仅 Herald + herald-totp + Redis
+#   - traefik-warden：仅 Warden + Redis
+#   - traefik-stargate：仅 Stargate + 受保护示例服务（依赖已独立启动的 Herald/Warden）
+#
+# 生成输出目录：build/<mode>/docker-compose.yml 与 build/<mode>/.env
+# 推荐用法：make gen 或 Web UI 生成后，执行：
+#   docker network create traefik   # 若使用 Traefik 接入
+#   docker compose -f build/traefik/docker-compose.yml up -d
+
+services:
+  # Herald（传令）- OTP/验证码服务，负责 challenge 创建、发送、校验与限流
+  herald:
+    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.9.0}
+    container_name: the-gate-herald
+    ports:
+      - "8082:8082"
+    environment:
+      - PORT=:8082
+      - REDIS_ADDR=${HERALD_REDIS_ADDR:-herald-redis:6379}
+      - REDIS_PASSWORD=${HERALD_REDIS_PASSWORD:-}
+      - REDIS_DB=${HERALD_REDIS_DB:-0}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - API_KEY=${HERALD_API_KEY:-test-herald-api-key}
+      - HMAC_SECRET=${HERALD_HMAC_SECRET:-test-hmac-secret}
+      - HERALD_TEST_MODE=${HERALD_TEST_MODE:-false}
+      - PROVIDER_FAILURE_POLICY=${PROVIDER_FAILURE_POLICY:-soft}
+      - CHALLENGE_EXPIRY=${CHALLENGE_EXPIRY:-5m}
+      - CODE_LENGTH=${CODE_LENGTH:-6}
+      - MAX_ATTEMPTS=${MAX_ATTEMPTS:-5}
+      - RESEND_COOLDOWN=${RESEND_COOLDOWN:-60s}
+      - LOCKOUT_DURATION=${LOCKOUT_DURATION:-10m}
+      - IDEMPOTENCY_KEY_TTL=${IDEMPOTENCY_KEY_TTL:-0}
+      - ALLOWED_PURPOSES=${ALLOWED_PURPOSES:-login}
+      - RATE_LIMIT_PER_USER=${RATE_LIMIT_PER_USER:-10}
+      - RATE_LIMIT_PER_IP=${RATE_LIMIT_PER_IP:-5}
+      - RATE_LIMIT_PER_DESTINATION=${RATE_LIMIT_PER_DESTINATION:-10}
+      - SERVICE_NAME=${SERVICE_NAME:-herald}
+      - HERALD_HMAC_KEYS=${HERALD_HMAC_KEYS:-}
+      # DingTalk channel (optional): Herald calls herald-dingtalk via HTTP; set when using DingTalk for verification code push
+      - HERALD_DINGTALK_API_URL=${HERALD_DINGTALK_API_URL:-}
+      - HERALD_DINGTALK_API_KEY=${HERALD_DINGTALK_API_KEY:-}
+      # Email channel (optional): Herald calls herald-smtp via HTTP; set when using SMTP for email verification codes
+      - HERALD_SMTP_API_URL=${HERALD_SMTP_API_URL:-}
+      - HERALD_SMTP_API_KEY=${HERALD_SMTP_API_KEY:-}
+      # Herald built-in SMTP (when not using herald-smtp plugin)
+      - SMTP_HOST=${HERALD_BUILTIN_SMTP_HOST:-}
+      - SMTP_PORT=${HERALD_BUILTIN_SMTP_PORT:-587}
+      - SMTP_USER=${HERALD_BUILTIN_SMTP_USER:-}
+      - SMTP_PASSWORD=${HERALD_BUILTIN_SMTP_PASSWORD:-}
+      - SMTP_FROM=${HERALD_BUILTIN_SMTP_FROM:-}
+      # SMS HTTP API (optional)
+      - SMS_PROVIDER=${SMS_PROVIDER:-}
+      - SMS_API_BASE_URL=${SMS_API_BASE_URL:-}
+      - SMS_API_KEY=${SMS_API_KEY:-}
+      # Herald server/client TLS (optional)
+      - TLS_CERT_FILE=${HERALD_TLS_CERT_FILE:-}
+      - TLS_KEY_FILE=${HERALD_TLS_KEY_FILE:-}
+      - TLS_CA_CERT_FILE=${HERALD_TLS_CA_CERT_FILE:-}
+      - TLS_CLIENT_CA_FILE=${HERALD_TLS_CLIENT_CA_FILE:-}
+      # Herald session storage (optional)
+      - HERALD_SESSION_STORAGE_ENABLED=${HERALD_SESSION_STORAGE_ENABLED:-false}
+      - HERALD_SESSION_DEFAULT_TTL=${HERALD_SESSION_DEFAULT_TTL:-1h}
+      - HERALD_SESSION_KEY_PREFIX=${HERALD_SESSION_KEY_PREFIX:-session:}
+      # Herald audit (optional)
+      - AUDIT_ENABLED=${HERALD_AUDIT_ENABLED:-true}
+      - AUDIT_MASK_DESTINATION=${HERALD_AUDIT_MASK_DESTINATION:-false}
+      - AUDIT_TTL=${HERALD_AUDIT_TTL:-168h}
+      - AUDIT_STORAGE_TYPE=${HERALD_AUDIT_STORAGE_TYPE:-}
+      - AUDIT_DATABASE_URL=${HERALD_AUDIT_DATABASE_URL:-}
+      - AUDIT_TABLE_NAME=${HERALD_AUDIT_TABLE_NAME:-audit_logs}
+      - AUDIT_FILE_PATH=${HERALD_AUDIT_FILE_PATH:-}
+      - AUDIT_LOKI_URL=${HERALD_AUDIT_LOKI_URL:-}
+      - AUDIT_WRITER_QUEUE_SIZE=${HERALD_AUDIT_WRITER_QUEUE_SIZE:-1000}
+      - AUDIT_WRITER_WORKERS=${HERALD_AUDIT_WRITER_WORKERS:-2}
+      # Herald observability (optional)
+      - TEMPLATE_DIR=${HERALD_TEMPLATE_DIR:-}
+      - OTLP_ENABLED=${HERALD_OTLP_ENABLED:-false}
+      - OTLP_ENDPOINT=${HERALD_OTLP_ENDPOINT:-}
+    depends_on:
+      herald-redis:
+        condition: service_healthy
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Herald 使用的 Redis（challenge、限流状态等）
+  herald-redis:
+    image: ${HERALD_REDIS_IMAGE:-redis:8.4-alpine}
+    container_name: the-gate-herald-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - herald-redis-data:/data
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # herald-totp - TOTP 2FA（可选）：Stargate 调用，用于绑定/验证 TOTP 与恢复码
+  herald-totp:
+    image: ${HERALD_TOTP_IMAGE:-ghcr.io/soulteary/herald-totp:v0.3.0}
+    container_name: the-gate-herald-totp
+    ports:
+      - "8084:8084"
+    environment:
+      - PORT=${HERALD_TOTP_PORT:-:8084}
+      - REDIS_ADDR=${HERALD_TOTP_REDIS_ADDR:-herald-redis:6379}
+      - REDIS_PASSWORD=${HERALD_TOTP_REDIS_PASSWORD:-}
+      - REDIS_DB=${HERALD_TOTP_REDIS_DB:-0}
+      - HERALD_TOTP_ENCRYPTION_KEY=${HERALD_TOTP_ENCRYPTION_KEY:-}
+      - EXPOSE_SECRET_IN_ENROLL=${HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL:-true}
+      - API_KEY=${HERALD_TOTP_API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - TOTP_ISSUER=${HERALD_TOTP_ISSUER:-Herald}
+      - TOTP_PERIOD=${HERALD_TOTP_PERIOD:-30}
+      - TOTP_DIGITS=${HERALD_TOTP_DIGITS:-6}
+      - TOTP_SKEW=${HERALD_TOTP_SKEW:-1}
+      - ENROLL_TTL=${HERALD_TOTP_ENROLL_TTL:-10m}
+      - HMAC_SECRET=${HERALD_TOTP_HMAC_SECRET:-}
+      - HERALD_TOTP_HMAC_KEYS=${HERALD_TOTP_HMAC_KEYS:-}
+      - SERVICE_NAME=${HERALD_TOTP_SERVICE_NAME:-herald-totp}
+      - RATE_LIMIT_PER_SUBJECT=${HERALD_TOTP_RATE_LIMIT_PER_SUBJECT:-20}
+      - RATE_LIMIT_PER_IP=${HERALD_TOTP_RATE_LIMIT_PER_IP:-30}
+    depends_on:
+      herald-redis:
+        condition: service_healthy
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8084/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  # herald-dingtalk - 钉钉验证码推送（可选）：Herald 通过 HTTP 调用，钉钉凭证仅在此服务
+  herald-dingtalk:
+    image: ${HERALD_DINGTALK_IMAGE:-ghcr.io/soulteary/herald-dingtalk:v0.5.0}
+    container_name: the-gate-herald-dingtalk
+    ports:
+      - "8083:8083"
+    environment:
+      - PORT=:8083
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - API_KEY=${HERALD_DINGTALK_API_KEY:-}
+      - DINGTALK_APP_KEY=${DINGTALK_APP_KEY:-}
+      - DINGTALK_APP_SECRET=${DINGTALK_APP_SECRET:-}
+      - DINGTALK_AGENT_ID=${DINGTALK_AGENT_ID:-}
+      - DINGTALK_LOOKUP_MODE=${DINGTALK_LOOKUP_MODE:-none}
+      - IDEMPOTENCY_TTL_SECONDS=${HERALD_DINGTALK_IDEMPOTENCY_TTL:-300}
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  # herald-smtp - 邮件验证码发送（可选）：Herald 通过 HTTP 调用，SMTP 凭证仅在此服务
+  herald-smtp:
+    image: ${HERALD_SMTP_IMAGE:-ghcr.io/soulteary/herald-smtp:v0.2.0}
+    container_name: the-gate-herald-smtp
+    ports:
+      - "8085:8085"
+    environment:
+      - PORT=:8085
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - API_KEY=${HERALD_SMTP_API_KEY:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - SMTP_USE_STARTTLS=${SMTP_USE_STARTTLS:-true}
+      - IDEMPOTENCY_TTL_SECONDS=${HERALD_SMTP_IDEMPOTENCY_TTL:-300}
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8085/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  # Warden（看守）- 白名单用户服务，提供 user_id、email/phone 等供 Stargate 与 Herald 使用
+  warden:
+    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.13.0}
+    container_name: the-gate-warden
+    ports:
+      - "8081:8081"
+    environment:
+      - PORT=8081
+      - REDIS=${WARDEN_REDIS_ADDR:-warden-redis:6379}
+      - REDIS_PASSWORD=${WARDEN_REDIS_PASSWORD:-}
+      - REDIS_PASSWORD_FILE=${WARDEN_REDIS_PASSWORD_FILE:-}
+      - REDIS_ENABLED=${WARDEN_REDIS_ENABLED:-true}
+      - DATA_FILE=${WARDEN_DATA_FILE:-/app/data.json}
+      - MODE=${MODE:-ONLY_LOCAL}
+      - API_KEY=${WARDEN_API_KEY:-test-warden-api-key}
+      - INTERVAL=${INTERVAL:-5}
+      - CONFIG=${WARDEN_REMOTE_CONFIG:-}
+      - KEY=${WARDEN_REMOTE_KEY:-}
+      - HTTP_TIMEOUT=${WARDEN_HTTP_TIMEOUT:-5}
+      - HTTP_MAX_IDLE_CONNS=${WARDEN_HTTP_MAX_IDLE_CONNS:-100}
+      - HTTP_INSECURE_TLS=${WARDEN_HTTP_INSECURE_TLS:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - DATA_DIR=${WARDEN_DATA_DIR:-}
+      - RESPONSE_FIELDS=${WARDEN_RESPONSE_FIELDS:-}
+      - REMOTE_DECRYPT_ENABLED=${WARDEN_REMOTE_DECRYPT_ENABLED:-false}
+      - REMOTE_RSA_PRIVATE_KEY_FILE=${WARDEN_REMOTE_RSA_PRIVATE_KEY_FILE:-}
+      - REMOTE_RSA_PRIVATE_KEY=${WARDEN_REMOTE_RSA_PRIVATE_KEY:-}
+      - OTLP_ENABLED=${WARDEN_OTLP_ENABLED:-false}
+      - OTLP_ENDPOINT=${WARDEN_OTLP_ENDPOINT:-}
+      - TRUSTED_PROXY_IPS=${WARDEN_TRUSTED_PROXY_IPS:-}
+      - HEALTH_CHECK_IP_WHITELIST=${WARDEN_HEALTH_CHECK_IP_WHITELIST:-}
+      - IP_WHITELIST=${WARDEN_IP_WHITELIST:-}
+      - WARDEN_HMAC_KEYS=${WARDEN_HMAC_KEYS:-}
+      - WARDEN_HMAC_TIMESTAMP_TOLERANCE=${WARDEN_HMAC_TIMESTAMP_TOLERANCE:-}
+      - WARDEN_TLS_CERT=${WARDEN_TLS_CERT:-}
+      - WARDEN_TLS_KEY=${WARDEN_TLS_KEY:-}
+      - WARDEN_TLS_CA=${WARDEN_TLS_CA:-}
+      - WARDEN_TLS_REQUIRE_CLIENT_CERT=${WARDEN_TLS_REQUIRE_CLIENT_CERT:-false}
+    volumes:
+      - ./data.json:/app/data.json:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    depends_on:
+      warden-redis:
+        condition: service_healthy
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  # Warden 使用的 Redis（缓存等）
+  warden-redis:
+    image: ${WARDEN_REDIS_IMAGE:-redis:8.4-alpine}
+    container_name: the-gate-warden-redis
+    expose:
+      - 6379
+    volumes:
+      - warden-redis-data:/data
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # Stargate（门）- Forward Auth 鉴权与登录编排，依赖 Warden、Herald（内网）
+  stargate:
+    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.11.0}
+    container_name: the-gate-stargate
+    ports: []
+    environment:
+      - AUTH_HOST=${AUTH_HOST:-auth.test.localhost}
+      - PORT=${PORT:-}
+      - LOGIN_PAGE_TITLE=${LOGIN_PAGE_TITLE:-Stargate - Login}
+      - LOGIN_PAGE_FOOTER_TEXT=${LOGIN_PAGE_FOOTER_TEXT:-Copyright © 2024 - Stargate}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:-}
+      - PASSWORDS=${PASSWORDS:-plaintext:test1234|test1337}
+      - LANGUAGE=${LANGUAGE:-zh}
+      - USER_HEADER_NAME=${USER_HEADER_NAME:-X-Forwarded-User}
+      - WARDEN_URL=${WARDEN_URL:-http://warden:8081}
+      - WARDEN_ENABLED=${WARDEN_ENABLED:-true}
+      - WARDEN_API_KEY=${WARDEN_API_KEY:-test-warden-api-key}
+      - WARDEN_CACHE_TTL=${WARDEN_CACHE_TTL:-300}
+      - WARDEN_OTP_ENABLED=${WARDEN_OTP_ENABLED:-false}
+      - WARDEN_OTP_SECRET_KEY=${WARDEN_OTP_SECRET_KEY:-}
+      - HERALD_URL=${HERALD_URL:-http://herald:8082}
+      - HERALD_ENABLED=${HERALD_ENABLED:-true}
+      - HERALD_API_KEY=${HERALD_API_KEY:-test-herald-api-key}
+      - HERALD_HMAC_SECRET=${HERALD_HMAC_SECRET:-test-hmac-secret}
+      - HERALD_TLS_CA_CERT_FILE=${HERALD_TLS_CA_CERT_FILE:-}
+      - HERALD_TLS_CLIENT_CERT_FILE=${HERALD_TLS_CLIENT_CERT_FILE:-}
+      - HERALD_TLS_CLIENT_KEY_FILE=${HERALD_TLS_CLIENT_KEY_FILE:-}
+      - HERALD_TLS_SERVER_NAME=${HERALD_TLS_SERVER_NAME:-}
+      - HERALD_TOTP_ENABLED=${HERALD_TOTP_ENABLED:-false}
+      - HERALD_TOTP_BASE_URL=${HERALD_TOTP_BASE_URL:-http://herald-totp:8084}
+      - HERALD_TOTP_API_KEY=${HERALD_TOTP_API_KEY:-}
+      - HERALD_TOTP_HMAC_SECRET=${HERALD_TOTP_HMAC_SECRET:-}
+      - LOGIN_SMS_ENABLED=${LOGIN_SMS_ENABLED:-true}
+      - LOGIN_EMAIL_ENABLED=${LOGIN_EMAIL_ENABLED:-true}
+      - SESSION_STORAGE_ENABLED=${SESSION_STORAGE_ENABLED:-false}
+      - SESSION_STORAGE_REDIS_ADDR=${SESSION_STORAGE_REDIS_ADDR:-localhost:6379}
+      - SESSION_STORAGE_REDIS_PASSWORD=${SESSION_STORAGE_REDIS_PASSWORD:-}
+      - SESSION_STORAGE_REDIS_DB=${SESSION_STORAGE_REDIS_DB:-0}
+      - SESSION_STORAGE_REDIS_KEY_PREFIX=${SESSION_STORAGE_REDIS_KEY_PREFIX:-}
+      - STEP_UP_ENABLED=${STEP_UP_ENABLED:-false}
+      - STEP_UP_PATHS=${STEP_UP_PATHS:-}
+      - AUDIT_LOG_ENABLED=${AUDIT_LOG_ENABLED:-true}
+      - AUDIT_LOG_FORMAT=${AUDIT_LOG_FORMAT:-json}
+      - OTLP_ENABLED=${OTLP_ENABLED:-false}
+      - OTLP_ENDPOINT=${OTLP_ENDPOINT:-}
+      - AUTH_REFRESH_ENABLED=${AUTH_REFRESH_ENABLED:-false}
+      - AUTH_REFRESH_INTERVAL=${AUTH_REFRESH_INTERVAL:-5m}
+      - DEBUG=false
+    depends_on:
+      warden:
+        condition: service_healthy
+      herald:
+        condition: service_healthy
+      herald-totp:
+        condition: service_healthy
+    networks:
+      - the-gate-network
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-http.entrypoints=http"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-http.middlewares=redir-https"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-http.rule=Host(`${STARGATE_DOMAIN:-auth.test.localhost}`) || PathPrefix(`/_session_exchange`)"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-http.priority=100"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-http.service=noop@internal"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.entrypoints=https"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.tls=true"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.middlewares=gzip"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.rule=Host(`${STARGATE_DOMAIN:-auth.test.localhost}`) || PathPrefix(`/_session_exchange`)"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.priority=100"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.service=${STARGATE_PREFIX:-stargate}-backend"
+      - "traefik.http.services.${STARGATE_PREFIX:-stargate}-backend.loadbalancer.server.scheme=http"
+      - "traefik.http.services.${STARGATE_PREFIX:-stargate}-backend.loadbalancer.server.port=80"
+      - "traefik.http.middlewares.stargate-auth.forwardauth.address=http://stargate/_auth"
+      - "traefik.http.middlewares.stargate-auth.forwardauth.authResponseHeaders=${USER_HEADER_NAME:-X-Forwarded-User}"
+      - "traefik.http.middlewares.stargate-auth.forwardauth.authResponseHeadersRegex=^(X-Forwarded-.*|X-Auth-.*)$"
+      - "traefik.http.middlewares.stargate-auth.forwardauth.trustForwardHeader=true"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  # 示例：受保护服务（whoami），经 Stargate Forward Auth
+  protected-service:
+    image: ${PROTECTED_IMAGE:-ghcr.io/traefik/whoami:v1.11}
+    container_name: the-gate-whoami
+    restart: unless-stopped
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-http.entrypoints=http"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-http.middlewares=redir-https"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-http.rule=Host(`${PROTECTED_DOMAIN:-whoami.test.localhost}`)"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-http.service=noop@internal"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-https.entrypoints=https"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-https.tls=true"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-https.middlewares=gzip,stargate-auth"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-https.rule=Host(`${PROTECTED_DOMAIN:-whoami.test.localhost}`)"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-https.service=${PROTECTED_PREFIX:-protected}-backend"
+      - "traefik.http.services.${PROTECTED_PREFIX:-protected}-backend.loadbalancer.server.scheme=http"
+      - "traefik.http.services.${PROTECTED_PREFIX:-protected}-backend.loadbalancer.server.port=80"
+
+volumes:
+  herald-redis-data:
+    driver: local
+  warden-redis-data:
+    driver: local
+
+networks:
+  the-gate-network:
+    driver: bridge
+  traefik:
+    external: true

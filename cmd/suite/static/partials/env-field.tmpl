@@ -1,0 +1,27 @@
+{{define "env-field"}}
+{{/* expects $root with .Var (envVar) and .Suffix (unique id suffix) */}}
+{{$v := .Var}}{{$suf := .Suffix}}
+<div class="config-item mb-3" data-env-name="{{$v.Env}}"{{if $v.ShowWhenEnv}} data-depends-on-env="{{$v.ShowWhenEnv}}"{{end}}{{if $v.ShowWhenOption}} data-depends-on-option="{{$v.ShowWhenOption}}"{{end}}>
+	{{if eq $v.Type "checkbox"}}
+	<div class="form-check">
+		<input type="hidden" name="{{$v.Env}}" value="false">
+		<input type="checkbox" name="{{$v.Env}}" id="env_{{$v.Env}}_{{$suf}}" data-env="{{$v.Env}}" class="form-check-input" value="true"{{if $v.Default}} checked{{end}}>
+		<label class="form-check-label" for="env_{{$v.Env}}_{{$suf}}"><span data-i18n="{{$v.LabelKey}}"></span> <code class="config-env">{{$v.Env}}</code></label>
+	</div>
+	{{else}}
+	<label for="env_{{$v.Env}}_{{$suf}}" class="form-label"><span data-i18n="{{$v.LabelKey}}"></span> <code class="config-env">{{$v.Env}}</code></label>
+	{{if eq $v.Type "text"}}
+	<input type="text" name="{{$v.Env}}" id="env_{{$v.Env}}_{{$suf}}" data-env="{{$v.Env}}" class="form-control"{{if $v.Placeholder}} placeholder="{{$v.Placeholder}}"{{end}}{{if $v.Default}} value="{{$v.Default}}"{{end}}>
+	{{else if eq $v.Type "number"}}
+	<input type="number" name="{{$v.Env}}" id="env_{{$v.Env}}_{{$suf}}" data-env="{{$v.Env}}" class="form-control"{{if $v.Placeholder}} placeholder="{{$v.Placeholder}}"{{end}}{{if $v.Default}} value="{{$v.Default}}"{{end}}{{if $v.Min}} min="{{$v.Min}}"{{end}}{{if $v.Max}} max="{{$v.Max}}"{{end}}>
+	{{else if eq $v.Type "select"}}
+	<select name="{{$v.Env}}" id="env_{{$v.Env}}_{{$suf}}" data-env="{{$v.Env}}" class="form-select">
+		{{$def := $v.Default}}{{range $v.Options}}
+		<option value="{{.Value}}"{{if eq (printf "%v" $def) .Value}} selected{{end}}>{{.Value}}</option>
+		{{end}}
+	</select>
+	{{end}}
+	{{end}}
+	<p class="form-text small mb-0 mt-1" data-i18n="{{$v.DescKey}}"></p>
+</div>
+{{end}}
