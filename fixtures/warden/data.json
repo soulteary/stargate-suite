@@ -1,0 +1,42 @@
+[
+    {
+        "phone": "13800138000",
+        "mail": "admin@example.com",
+        "user_id": "test-admin-001",
+        "status": "active",
+        "scope": ["read", "write", "admin"],
+        "role": "admin"
+    },
+    {
+        "phone": "13900139000",
+        "mail": "user@example.com",
+        "user_id": "test-user-002",
+        "status": "active",
+        "scope": ["read"],
+        "role": "user"
+    },
+    {
+        "phone": "13700137000",
+        "mail": "guest@example.com",
+        "user_id": "test-guest-003",
+        "status": "active",
+        "scope": ["read"],
+        "role": "guest"
+    },
+    {
+        "phone": "13600136000",
+        "mail": "inactive@example.com",
+        "user_id": "test-inactive-004",
+        "status": "inactive",
+        "scope": ["read"],
+        "role": "user"
+    },
+    {
+        "phone": "13500135000",
+        "mail": "ratelimit@example.com",
+        "user_id": "test-ratelimit-005",
+        "status": "active",
+        "scope": ["read"],
+        "role": "user"
+    }
+]

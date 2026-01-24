@@ -1,0 +1,144 @@
+version: '3.8'
+
+services:
+  # Herald - OTP/验证码服务
+  herald:
+    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.2.0}
+    container_name: the-gate-herald
+    ports:
+      - "8082:8082"
+    environment:
+      - PORT=:8082
+      - REDIS_ADDR=herald-redis:6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - LOG_LEVEL=info
+      - API_KEY=${HERALD_API_KEY:-test-herald-api-key}
+      - HMAC_SECRET=${HERALD_HMAC_SECRET:-test-hmac-secret}
+      - HERALD_TEST_MODE=true
+      - PROVIDER_FAILURE_POLICY=soft
+      - CHALLENGE_EXPIRY=5m
+      - CODE_LENGTH=6
+      - MAX_ATTEMPTS=5
+    depends_on:
+      herald-redis:
+        condition: service_healthy
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Herald Redis
+  herald-redis:
+    image: ${HERALD_REDIS_IMAGE:-redis:7-alpine}
+    container_name: the-gate-herald-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - herald-redis-data:/data
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # Warden - 白名单用户服务
+  warden:
+    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.5.0}
+    container_name: the-gate-warden
+    ports:
+      - "8081:8081"
+    environment:
+      - PORT=8081
+      - REDIS=warden-redis:6379
+      - REDIS_PASSWORD=
+      - MODE=ONLY_LOCAL
+      - API_KEY=${WARDEN_API_KEY:-test-warden-api-key}
+      - INTERVAL=5
+      - LOG_LEVEL=info
+    volumes:
+      - ./fixtures/warden/data.json:/app/data.json:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    depends_on:
+      warden-redis:
+        condition: service_healthy
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  # Warden Redis
+  warden-redis:
+    image: ${WARDEN_REDIS_IMAGE:-redis:6.2.4-alpine}
+    container_name: the-gate-warden-redis
+    expose:
+      - 6379
+    volumes:
+      - warden-redis-data:/data
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # Stargate - 认证/鉴权服务
+  stargate:
+    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.4.0}
+    container_name: the-gate-stargate
+    ports:
+      - "8080:80"
+    environment:
+      - AUTH_HOST=${AUTH_HOST:-auth.test.localhost}
+      - PASSWORDS=${PASSWORDS:-plaintext:test1234|test1337}
+      - LANGUAGE=${LANGUAGE:-zh}
+      - WARDEN_URL=http://warden:8081
+      - WARDEN_ENABLED=${WARDEN_ENABLED:-true}
+      - WARDEN_API_KEY=${WARDEN_API_KEY:-test-warden-api-key}
+      - WARDEN_CACHE_TTL=300
+      - HERALD_URL=http://herald:8082
+      - HERALD_ENABLED=${HERALD_ENABLED:-true}
+      - HERALD_API_KEY=${HERALD_API_KEY:-test-herald-api-key}
+      - HERALD_HMAC_SECRET=${HERALD_HMAC_SECRET:-test-hmac-secret}
+      - SESSION_STORAGE_ENABLED=${SESSION_STORAGE_ENABLED:-false}
+      - DEBUG=false
+    depends_on:
+      warden:
+        condition: service_healthy
+      herald:
+        condition: service_healthy
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  herald-redis-data:
+    driver: local
+  warden-redis-data:
+    driver: local
+
+networks:
+  the-gate-network:
+    driver: bridge
