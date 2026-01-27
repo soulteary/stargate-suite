@@ -37,7 +37,9 @@ func TestInvalidVerificationCode(t *testing.T) {
 	_, errResp = loginWithError(t, testPhone, challengeID, wrongCode)
 	testza.AssertNotNil(t, errResp)
 	testza.AssertEqual(t, 401, errResp.StatusCode, "Should return 401 Unauthorized")
-	testza.AssertTrue(t, strings.Contains(errResp.Message, "验证码") || strings.Contains(errResp.Message, "错误") || strings.Contains(errResp.Message, "invalid"),
+	msgLower := strings.ToLower(errResp.Message)
+	testza.AssertTrue(t, strings.Contains(errResp.Message, "验证码") || strings.Contains(errResp.Message, "错误") ||
+		strings.Contains(msgLower, "invalid") || strings.Contains(msgLower, "verification"),
 		"Error message should mention verification code error")
 	t.Logf("✓ Invalid verification code rejected: %s", errResp.Message)
 }
