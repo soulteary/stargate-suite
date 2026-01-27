@@ -13,20 +13,20 @@ import (
 	"github.com/MarvinJWendt/testza"
 )
 
-// parsePrometheusMetrics 解析 Prometheus 格式的指标文本
-// 返回指标名称到值的映射
+// parsePrometheusMetrics parses Prometheus format metrics text
+// Returns a map of metric name to value
 func parsePrometheusMetrics(metricsText string) map[string]string {
 	result := make(map[string]string)
 	lines := strings.Split(metricsText, "\n")
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		// 跳过注释和空行
+		// Skip comments and empty lines
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
 
-		// 解析指标行，格式: metric_name{labels} value
+		// Parse metric line, format: metric_name{labels} value
 		parts := strings.Fields(line)
 		if len(parts) >= 2 {
 			metricName := strings.Split(parts[0], "{")[0]
@@ -38,7 +38,7 @@ func parsePrometheusMetrics(metricsText string) map[string]string {
 	return result
 }
 
-// getMetricValue 从指标文本中获取特定指标的值
+// getMetricValue gets specific metric value from metrics text
 func getMetricValue(metricsText, metricName string) string {
 	lines := strings.Split(metricsText, "\n")
 
@@ -55,11 +55,11 @@ func getMetricValue(metricsText, metricName string) string {
 	return ""
 }
 
-// TestHeraldMetrics 验证 Herald Prometheus 指标更新
+// TestHeraldMetrics verifies Herald Prometheus metrics updates
 func TestHeraldMetrics(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 获取初始指标值
+	// Get initial metric values
 	initialMetricsURL := fmt.Sprintf("%s/metrics", heraldURL)
 	initialResp, err := http.Get(initialMetricsURL)
 	testza.AssertNoError(t, err)
@@ -77,8 +77,8 @@ func TestHeraldMetrics(t *testing.T) {
 	t.Logf("Initial metrics - Challenges: %s, Verifications: %s, Sends: %s",
 		initialChallenges, initialVerifications, initialSends)
 
-	// 执行一些操作来触发指标更新
-	// 1. 创建一个 challenge
+	// Perform operations to trigger metric updates
+	// 1. Create a challenge
 	reqBody := HeraldChallengeRequest{
 		UserID:      "test-user-metrics",
 		Channel:     "sms",
@@ -109,10 +109,10 @@ func TestHeraldMetrics(t *testing.T) {
 	testza.AssertNoError(t, err)
 	challengeID := challengeResp.ChallengeID
 
-	// 等待指标更新
+	// Wait for metrics update
 	time.Sleep(1 * time.Second)
 
-	// 2. 验证 challenge
+	// 2. Verify challenge
 	verifyCode, err := getTestCode(t, challengeID)
 	testza.AssertNoError(t, err)
 
@@ -138,10 +138,10 @@ func TestHeraldMetrics(t *testing.T) {
 
 	testza.AssertEqual(t, http.StatusOK, verifyResp.StatusCode, "Verification should succeed")
 
-	// 等待指标更新
+	// Wait for metrics update
 	time.Sleep(1 * time.Second)
 
-	// 获取更新后的指标
+	// Get updated metrics
 	finalResp, err := http.Get(initialMetricsURL)
 	testza.AssertNoError(t, err)
 	defer finalResp.Body.Close()
@@ -158,7 +158,7 @@ func TestHeraldMetrics(t *testing.T) {
 	t.Logf("Final metrics - Challenges: %s, Verifications: %s, Sends: %s",
 		finalChallenges, finalVerifications, finalSends)
 
-	// 验证指标存在（值可能为 0 或更大，取决于初始状态）
+	// Verify metrics exist (values may be 0 or greater depending on initial state)
 	testza.AssertTrue(t, strings.Contains(finalMetricsText, "herald_otp_challenges_total"),
 		"herald_otp_challenges_total metric should exist")
 	testza.AssertTrue(t, strings.Contains(finalMetricsText, "herald_otp_verifications_total"),
@@ -169,8 +169,8 @@ func TestHeraldMetrics(t *testing.T) {
 		"herald_otp_send_duration_seconds metric should exist")
 	testza.AssertTrue(t, strings.Contains(finalMetricsText, "herald_rate_limit_hits_total"),
 		"herald_rate_limit_hits_total metric should exist")
-	// herald_redis_latency_seconds 是 histogram，可能以 _bucket, _sum, _count 形式出现
-	// 如果指标还没有被记录（没有 Redis 操作），可能不会出现，这是可以接受的
+	// herald_redis_latency_seconds is a histogram, may appear as _bucket, _sum, _count
+	// If metric hasn't been recorded (no Redis ops), it might not appear, which is acceptable
 	hasRedisLatency := strings.Contains(finalMetricsText, "herald_redis_latency_seconds") ||
 		strings.Contains(finalMetricsText, "herald_redis_latency_seconds_bucket") ||
 		strings.Contains(finalMetricsText, "herald_redis_latency_seconds_sum") ||
@@ -182,11 +182,11 @@ func TestHeraldMetrics(t *testing.T) {
 	t.Log("✓ Herald metrics endpoint is accessible and contains expected metrics")
 }
 
-// TestWardenMetrics 验证 Warden Prometheus 指标更新
+// TestWardenMetrics verifies Warden Prometheus metrics updates
 func TestWardenMetrics(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 获取初始指标值（可能需要 API Key）
+	// Get initial metric values (may require API Key)
 	initialMetricsURL := fmt.Sprintf("%s/metrics", wardenURL)
 	initialReq, err := http.NewRequest("GET", initialMetricsURL, nil)
 	testza.AssertNoError(t, err)
@@ -208,8 +208,8 @@ func TestWardenMetrics(t *testing.T) {
 	t.Logf("Initial metrics - HTTP Requests: %s, Cache Size: %s",
 		initialRequests, initialCacheSize)
 
-	// 执行一些操作来触发指标更新
-	// 1. 查询用户
+	// Perform operations to trigger metric updates
+	// 1. Query user
 	testPhone := "13800138000"
 	url := fmt.Sprintf("%s/user?phone=%s", wardenURL, testPhone)
 	req, err := http.NewRequest("GET", url, nil)
@@ -224,10 +224,10 @@ func TestWardenMetrics(t *testing.T) {
 
 	testza.AssertEqual(t, http.StatusOK, resp.StatusCode, "User query should succeed")
 
-	// 等待指标更新
+	// Wait for metrics update
 	time.Sleep(1 * time.Second)
 
-	// 获取更新后的指标（可能需要 API Key）
+	// Get updated metrics (may require API Key)
 	finalReq, err := http.NewRequest("GET", initialMetricsURL, nil)
 	testza.AssertNoError(t, err)
 	finalReq.Header.Set("X-API-Key", wardenAPIKey)
@@ -247,20 +247,20 @@ func TestWardenMetrics(t *testing.T) {
 	t.Logf("Final metrics - HTTP Requests: %s, Cache Size: %s",
 		finalRequests, finalCacheSize)
 
-	// 验证指标存在（指标可能还没有被记录，取决于服务状态）
-	// http_requests_total 和 http_request_duration_seconds 应该存在（因为我们刚刚发送了请求）
+	// Verify metrics exist (metrics might not be recorded yet depending on service state)
+	// http_requests_total and http_request_duration_seconds should exist (since we just sent a request)
 	testza.AssertTrue(t, strings.Contains(finalMetricsText, "http_requests_total") ||
 		strings.Contains(finalMetricsText, "http_request_duration_seconds"),
 		"HTTP metrics should exist (http_requests_total or http_request_duration_seconds)")
 
-	// cache_size 可能不存在，取决于缓存是否已初始化
+	// cache_size may not exist depending on cache initialization
 	if strings.Contains(finalMetricsText, "cache_size") {
 		t.Logf("✓ cache_size metric found")
 	} else {
 		t.Logf("Note: cache_size metric not found (may not be initialized yet)")
 	}
 
-	// 背景任务指标可能不存在，取决于是否有后台任务运行
+	// Background task metrics may not exist depending on if background tasks are running
 	hasBackgroundMetrics := strings.Contains(finalMetricsText, "background_task_total") ||
 		strings.Contains(finalMetricsText, "background_task_duration_seconds")
 	if hasBackgroundMetrics {
@@ -272,7 +272,7 @@ func TestWardenMetrics(t *testing.T) {
 	t.Log("✓ Warden metrics endpoint is accessible and contains expected metrics")
 }
 
-// TestHeraldMetricsFormat 验证 Herald 指标格式是否正确
+// TestHeraldMetricsFormat verifies Herald metrics format is correct
 func TestHeraldMetricsFormat(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -287,13 +287,13 @@ func TestHeraldMetricsFormat(t *testing.T) {
 	testza.AssertNoError(t, err)
 	metricsText := string(body)
 
-	// 验证 Prometheus 格式
+	// Verify Prometheus format
 	testza.AssertTrue(t, strings.Contains(metricsText, "# HELP"),
 		"Metrics should contain HELP comments")
 	testza.AssertTrue(t, strings.Contains(metricsText, "# TYPE"),
 		"Metrics should contain TYPE comments")
 
-	// 验证关键指标存在
+	// Verify key metrics exist
 	requiredMetrics := []string{
 		"herald_otp_challenges_total",
 		"herald_otp_verifications_total",
@@ -308,7 +308,7 @@ func TestHeraldMetricsFormat(t *testing.T) {
 	t.Log("✓ Herald metrics format is correct")
 }
 
-// TestWardenMetricsFormat 验证 Warden 指标格式是否正确
+// TestWardenMetricsFormat verifies Warden metrics format is correct
 func TestWardenMetricsFormat(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -316,7 +316,7 @@ func TestWardenMetricsFormat(t *testing.T) {
 	req, err := http.NewRequest("GET", metricsURL, nil)
 	testza.AssertNoError(t, err)
 
-	// Warden metrics 可能需要 API Key
+	// Warden metrics may require API Key
 	req.Header.Set("X-API-Key", wardenAPIKey)
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -330,13 +330,13 @@ func TestWardenMetricsFormat(t *testing.T) {
 	testza.AssertNoError(t, err)
 	metricsText := string(body)
 
-	// 验证 Prometheus 格式
+	// Verify Prometheus format
 	testza.AssertTrue(t, strings.Contains(metricsText, "# HELP"),
 		"Metrics should contain HELP comments")
 	testza.AssertTrue(t, strings.Contains(metricsText, "# TYPE"),
 		"Metrics should contain TYPE comments")
 
-	// 验证关键指标存在
+	// Verify key metrics exist
 	requiredMetrics := []string{
 		"http_requests_total",
 		"http_request_duration_seconds",

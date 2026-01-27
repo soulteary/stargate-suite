@@ -212,8 +212,3 @@ type ErrorResponse struct {
     Body       string // 响应体
 }
 ```
-
-## 参考
-
-- [Claude.md](../../Claude.md) - 三服务认证拆分规格
-- [TODO.md](../../TODO.md) - 待完成任务清单

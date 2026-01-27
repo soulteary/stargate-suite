@@ -10,9 +10,9 @@ import (
 	"github.com/MarvinJWendt/testza"
 )
 
-// TestInvalidVerificationCode 测试验证码错误场景
+// TestInvalidVerificationCode tests invalid verification code scenarios
 func TestInvalidVerificationCode(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
 	testPhone := "13900139000" // 使用普通用户
@@ -28,11 +28,11 @@ func TestInvalidVerificationCode(t *testing.T) {
 	verifyCode, err := getTestCode(t, challengeID)
 	testza.AssertNoError(t, err)
 
-	// Step 3: 使用错误的验证码登录
+	// Step 3: Login with invalid verification code
 	t.Log("Step 3: Attempting login with invalid verification code...")
 	wrongCode := "000000"
 	if verifyCode == wrongCode {
-		wrongCode = "111111" // 确保是错误码
+		wrongCode = "111111" // Ensure it is an incorrect code
 	}
 	_, errResp = loginWithError(t, testPhone, challengeID, wrongCode)
 	testza.AssertNotNil(t, errResp)
@@ -42,15 +42,15 @@ func TestInvalidVerificationCode(t *testing.T) {
 	t.Logf("✓ Invalid verification code rejected: %s", errResp.Message)
 }
 
-// TestExpiredVerificationCode 测试验证码过期场景
-// 注意：这个测试需要等待验证码过期，可能需要较长时间
-// 或者可以通过修改 Herald 的 CHALLENGE_EXPIRY 配置来加速测试
+// TestExpiredVerificationCode tests expired verification code scenarios
+// Note: This test needs to wait for code expiration, which may take a long time
+// Or can be accelerated by modifying Herald's CHALLENGE_EXPIRY config
 func TestExpiredVerificationCode(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
 	// 使用不同的用户避免限流影响
-	testPhone := "13800138000" // 使用管理员用户
+	testPhone := "13800138000" // Use admin user
 
 	// Step 1: 发送验证码成功（如果触发限流，跳过此测试）
 	t.Log("Step 1: Sending verification code...")
@@ -61,27 +61,27 @@ func TestExpiredVerificationCode(t *testing.T) {
 	testza.AssertNil(t, errResp, "Should not have error when sending verification code")
 	testza.AssertNotNil(t, challengeID)
 
-	// Step 2: 获取验证码
+	// Step 2: Get verification code
 	verifyCode, err := getTestCode(t, challengeID)
 	testza.AssertNoError(t, err)
 
-	// Step 3: 等待验证码过期（默认 5 分钟，这里等待 6 分钟）
-	// 注意：实际测试中可能需要调整等待时间或修改配置
+	// Step 3: Wait for code to expire (default 5 mins, waiting 6 mins here)
+	// Note: In actual tests, may need to adjust wait time or config
 	t.Log("Step 3: Waiting for verification code to expire (this may take a while)...")
 	t.Log("Note: In production, you may want to reduce CHALLENGE_EXPIRY for faster testing")
 
-	// 为了测试目的，我们尝试使用一个明显过期的 challenge_id
-	// 或者等待实际过期（这里跳过长时间等待，仅测试逻辑）
-	// 实际场景中，可以设置较短的过期时间进行测试
+	// For testing purposes, we attempt to use an obviously expired challenge_id
+	// Or wait for actual expiration (skipping long wait here, testing logic only)
+	// In real scenarios, a shorter expiration time can be set for testing
 
-	// 使用一个不存在的 challenge_id 来模拟过期
+	// Use a non-existent challenge_id to simulate expiration
 	expiredChallengeID := "expired_challenge_12345"
 	t.Log("Step 4: Attempting login with expired challenge...")
 	_, errResp = loginWithError(t, testPhone, expiredChallengeID, verifyCode)
 	testza.AssertNotNil(t, errResp)
 	testza.AssertTrue(t, errResp.StatusCode == 400 || errResp.StatusCode == 401,
 		"Should return 400 Bad Request or 401 Unauthorized")
-	// 错误信息可能是"验证服务错误"或包含过期/无效提示
+	// Error message may be "verification service error" or contain expired/invalid hints
 	testza.AssertTrue(t, strings.Contains(errResp.Message, "过期") || strings.Contains(errResp.Message, "expired") ||
 		strings.Contains(errResp.Message, "无效") || strings.Contains(errResp.Message, "错误") ||
 		strings.Contains(errResp.Message, "空"),
@@ -89,9 +89,9 @@ func TestExpiredVerificationCode(t *testing.T) {
 	t.Logf("✓ Expired verification code rejected: %s", errResp.Message)
 }
 
-// TestVerificationCodeLocked 测试验证码多次错误导致锁定
+// TestVerificationCodeLocked tests lockout after multiple incorrect codes
 func TestVerificationCodeLocked(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
 	testPhone := "13700137000" // 使用访客用户
@@ -106,7 +106,7 @@ func TestVerificationCodeLocked(t *testing.T) {
 	verifyCode, err := getTestCode(t, challengeID)
 	testza.AssertNoError(t, err)
 
-	// Step 3: 连续使用错误验证码（达到最大尝试次数，默认 5 次）
+	// Step 3: Continuously use incorrect code (reach max attempts, default 5)
 	t.Log("Step 3: Attempting multiple invalid logins to trigger lockout...")
 	wrongCode := "000000"
 	if verifyCode == wrongCode {
@@ -114,42 +114,42 @@ func TestVerificationCodeLocked(t *testing.T) {
 	}
 
 	var lastErrResp *ErrorResponse
-	for i := 0; i < 6; i++ { // 尝试 6 次，第 5 次后应该锁定
+	for i := 0; i < 6; i++ { // Try 6 times, should be locked after 5th
 		_, errResp = loginWithError(t, testPhone, challengeID, wrongCode)
 		if errResp != nil {
 			lastErrResp = errResp
 			t.Logf("Attempt %d: Status %d, Message: %s", i+1, errResp.StatusCode, errResp.Message)
 
-			// 检查是否已锁定
+			// Check if locked
 			if strings.Contains(errResp.Message, "锁定") || strings.Contains(errResp.Message, "locked") {
 				t.Logf("✓ Challenge locked after %d attempts", i+1)
 				break
 			}
 		}
-		time.Sleep(500 * time.Millisecond) // 短暂延迟
+		time.Sleep(500 * time.Millisecond) // Short delay
 	}
 
 	testza.AssertNotNil(t, lastErrResp)
 	testza.AssertEqual(t, 401, lastErrResp.StatusCode, "Should return 401 Unauthorized")
-	// 锁定后可能返回"验证服务错误"或包含锁定/尝试提示
+	// After lockout, may return "verification service error" or contain locked/attempts hints
 	testza.AssertTrue(t, strings.Contains(lastErrResp.Message, "锁定") || strings.Contains(lastErrResp.Message, "locked") ||
 		strings.Contains(lastErrResp.Message, "尝试") || strings.Contains(lastErrResp.Message, "错误"),
 		"Error message should mention lockout or error")
 	t.Logf("✓ Verification code locked: %s", lastErrResp.Message)
 }
 
-// TestUserNotInWhitelist 测试非白名单用户
+// TestUserNotInWhitelist tests non-whitelisted user
 func TestUserNotInWhitelist(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
-	// 使用不在白名单中的手机号
+	// Use phone number not in whitelist
 	nonWhitelistPhone := "13000000000"
 
 	t.Log("Step 1: Attempting to send verification code for non-whitelist user...")
 	_, errResp := sendVerificationCodeWithError(t, nonWhitelistPhone)
 	testza.AssertNotNil(t, errResp)
-	// 非白名单用户可能返回 400, 401, 或 404
+	// Non-whitelisted user may return 400, 401, or 404
 	testza.AssertTrue(t, errResp.StatusCode == 400 || errResp.StatusCode == 401 || errResp.StatusCode == 404,
 		"Should return 400, 401, or 404")
 	testza.AssertTrue(t, strings.Contains(errResp.Message, "不在") || strings.Contains(errResp.Message, "白名单") ||
@@ -159,19 +159,19 @@ func TestUserNotInWhitelist(t *testing.T) {
 	t.Logf("✓ Non-whitelist user rejected: Status %d, Message: %s", errResp.StatusCode, errResp.Message)
 }
 
-// TestInactiveUser 测试非活跃用户
+// TestInactiveUser tests inactive user
 func TestInactiveUser(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
-	// 使用非活跃用户（已在测试数据中添加）
+	// Use inactive user (added in test data)
 	inactivePhone := "13600136000"
 	inactiveEmail := "inactive@example.com"
 
 	t.Log("Step 1: Attempting to send verification code for inactive user (phone)...")
 	_, errResp := sendVerificationCodeWithError(t, inactivePhone)
 	testza.AssertNotNil(t, errResp)
-	// 非活跃用户可能返回 400, 401, 或 404
+	// Inactive user may return 400, 401, or 404
 	testza.AssertTrue(t, errResp.StatusCode == 400 || errResp.StatusCode == 401 || errResp.StatusCode == 404,
 		"Should return 400, 401, or 404")
 	t.Logf("✓ Inactive user (phone) rejected: Status %d, Message: %s", errResp.StatusCode, errResp.Message)
@@ -179,24 +179,24 @@ func TestInactiveUser(t *testing.T) {
 	t.Log("Step 2: Attempting to send verification code for inactive user (email)...")
 	_, errResp = sendVerificationCodeWithEmail(t, inactiveEmail)
 	testza.AssertNotNil(t, errResp)
-	// 非活跃用户可能返回 400, 401, 或 404
+	// Inactive user may return 400, 401, or 404
 	testza.AssertTrue(t, errResp.StatusCode == 400 || errResp.StatusCode == 401 || errResp.StatusCode == 404,
 		"Should return 400, 401, or 404")
 	t.Logf("✓ Inactive user (email) rejected: Status %d, Message: %s", errResp.StatusCode, errResp.Message)
 }
 
-// TestIPRateLimit 测试 IP 限流
+// TestIPRateLimit tests IP rate limiting
 func TestIPRateLimit(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
-	testPhone := "13500135000" // 使用限流测试用户
+	testPhone := "13500135000" // Use rate limit test user
 
 	t.Log("Step 1: Triggering IP rate limit by sending multiple requests quickly...")
-	// 快速发送多次请求（超过默认的每分钟 5 次）
+	// Send multiple requests quickly (exceeding default 5 per minute)
 	errors := triggerRateLimit(t, testPhone, 7)
 
-	// 检查是否有 429 响应
+	// Check for 429 response
 	var rateLimitError *ErrorResponse
 	for _, errResp := range errors {
 		if errResp != nil && errResp.StatusCode == 429 {
@@ -213,19 +213,19 @@ func TestIPRateLimit(t *testing.T) {
 	t.Logf("✓ IP rate limit triggered: %s", rateLimitError.Message)
 }
 
-// TestUserRateLimit 测试用户限流
+// TestUserRateLimit tests user rate limiting
 func TestUserRateLimit(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
-	testPhone := "13500135000" // 使用限流测试用户
+	testPhone := "13500135000" // Use rate limit test user
 
 	t.Log("Step 1: Triggering user rate limit by sending multiple requests for same user...")
-	// 快速发送多次请求（超过默认的每小时 10 次）
-	// 注意：由于是每小时限流，可能需要等待或调整配置
+	// Send multiple requests quickly (exceeding default 10 per hour)
+	// Note: Since it's hourly limit, may need to wait or adjust config
 	errors := triggerRateLimit(t, testPhone, 12)
 
-	// 检查是否有 429 响应
+	// Check for 429 response
 	var rateLimitError *ErrorResponse
 	for _, errResp := range errors {
 		if errResp != nil && errResp.StatusCode == 429 {
@@ -234,7 +234,7 @@ func TestUserRateLimit(t *testing.T) {
 		}
 	}
 
-	// 用户限流可能需要更多请求或更长时间，这里仅验证逻辑
+	// User rate limit may require more requests or longer time, just verifying logic here
 	if rateLimitError != nil {
 		testza.AssertEqual(t, 429, rateLimitError.StatusCode, "Should return 429 Too Many Requests")
 		testza.AssertTrue(t, strings.Contains(rateLimitError.Message, "频繁") || strings.Contains(rateLimitError.Message, "rate"),
@@ -245,9 +245,9 @@ func TestUserRateLimit(t *testing.T) {
 	}
 }
 
-// TestResendCooldown 测试重发冷却
+// TestResendCooldown tests resend cooldown
 func TestResendCooldown(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
 	// 使用不同的用户避免限流影响
@@ -262,12 +262,12 @@ func TestResendCooldown(t *testing.T) {
 	testza.AssertNil(t, errResp, "Should not have error when sending verification code")
 	testza.AssertNotNil(t, challengeID1)
 
-	// Step 2: 立即再次发送验证码（在冷却时间内，默认 60 秒）
+	// Step 2: Immediately send second code (within cooldown, default 60s)
 	t.Log("Step 2: Immediately sending second verification code (within cooldown period)...")
-	time.Sleep(1 * time.Second) // 短暂延迟
+	time.Sleep(1 * time.Second) // Short delay
 	_, errResp = sendVerificationCodeWithError(t, testPhone)
 
-	// 应该返回 429 或包含冷却提示
+	// Should return 429 or contain cooldown hint
 	if errResp != nil {
 		if errResp.StatusCode == 429 {
 			testza.AssertTrue(t, strings.Contains(errResp.Message, "频繁") || strings.Contains(errResp.Message, "冷却") ||
@@ -280,12 +280,12 @@ func TestResendCooldown(t *testing.T) {
 	}
 }
 
-// TestHeraldUnavailable 测试 Herald 不可用场景
+// TestHeraldUnavailable tests Herald unavailable scenario
 func TestHeraldUnavailable(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
-	// 获取项目目录
+	// Get project directory
 	projectDir, err := filepath.Abs("../")
 	if err != nil {
 		t.Fatalf("Failed to get project directory: %v", err)
@@ -293,7 +293,7 @@ func TestHeraldUnavailable(t *testing.T) {
 
 	testPhone := "13900139000"
 
-	// Step 1: 停止 Herald 服务
+	// Step 1: Stop Herald service
 	t.Log("Step 1: Stopping Herald service...")
 	err = stopDockerServiceInDir(projectDir, "herald")
 	if err != nil {
@@ -302,17 +302,17 @@ func TestHeraldUnavailable(t *testing.T) {
 		return
 	}
 
-	// 等待服务停止
+	// Wait for service to stop
 	time.Sleep(3 * time.Second)
 
-	// 确保测试后恢复服务
+	// Ensure service is restored after test
 	defer func() {
 		t.Log("Restoring Herald service...")
 		_ = startDockerServiceInDir(projectDir, "herald")
-		time.Sleep(5 * time.Second) // 等待服务恢复
+		time.Sleep(5 * time.Second) // Wait for service to recover
 	}()
 
-	// Step 2: 尝试发送验证码
+	// Step 2: Attempt to send verification code
 	t.Log("Step 2: Attempting to send verification code with Herald unavailable...")
 	_, errResp := sendVerificationCodeWithError(t, testPhone)
 	testza.AssertNotNil(t, errResp)
@@ -324,12 +324,12 @@ func TestHeraldUnavailable(t *testing.T) {
 	t.Logf("✓ Herald unavailable handled correctly: %s", errResp.Message)
 }
 
-// TestWardenUnavailable 测试 Warden 不可用场景
+// TestWardenUnavailable tests Warden unavailable scenario
 func TestWardenUnavailable(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
-	// 获取项目目录
+	// Get project directory
 	projectDir, err := filepath.Abs("../")
 	if err != nil {
 		t.Fatalf("Failed to get project directory: %v", err)
@@ -337,7 +337,7 @@ func TestWardenUnavailable(t *testing.T) {
 
 	testPhone := "13900139000"
 
-	// Step 1: 停止 Warden 服务
+	// Step 1: Stop Warden service
 	t.Log("Step 1: Stopping Warden service...")
 	err = stopDockerServiceInDir(projectDir, "warden")
 	if err != nil {
@@ -346,30 +346,30 @@ func TestWardenUnavailable(t *testing.T) {
 		return
 	}
 
-	// 等待服务停止
+	// Wait for service to stop
 	time.Sleep(3 * time.Second)
 
-	// 确保测试后恢复服务
+	// Ensure service is restored after test
 	defer func() {
 		t.Log("Restoring Warden service...")
 		_ = startDockerServiceInDir(projectDir, "warden")
-		time.Sleep(5 * time.Second) // 等待服务恢复
+		time.Sleep(5 * time.Second) // Wait for service to recover
 	}()
 
-	// Step 2: 尝试发送验证码（需要先查询用户）
+	// Step 2: Attempt to send verification code (needs user query first)
 	t.Log("Step 2: Attempting to send verification code with Warden unavailable...")
 	_, errResp := sendVerificationCodeWithError(t, testPhone)
 	testza.AssertNotNil(t, errResp)
-	// Warden 不可用时可能返回 400, 401, 404, 500, 或 503
+	// When Warden is unavailable, may return 400, 401, 404, 500, or 503
 	testza.AssertTrue(t, errResp.StatusCode == 400 || errResp.StatusCode == 401 || errResp.StatusCode == 404 ||
 		errResp.StatusCode == 500 || errResp.StatusCode == 503,
 		"Should return 400, 401, 404, 500, or 503")
 	t.Logf("✓ Warden unavailable handled correctly: Status %d, Message: %s", errResp.StatusCode, errResp.Message)
 }
 
-// TestUnauthenticatedAccess 测试未登录访问 forwardAuth
+// TestUnauthenticatedAccess tests unauthenticated access to forwardAuth
 func TestUnauthenticatedAccess(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
 	t.Log("Step 1: Attempting to access forwardAuth without session cookie...")
@@ -380,9 +380,9 @@ func TestUnauthenticatedAccess(t *testing.T) {
 	t.Logf("✓ Unauthenticated access rejected: Status %d, Message: %s", errResp.StatusCode, errResp.Message)
 }
 
-// TestInvalidSessionCookie 测试无效 session cookie
+// TestInvalidSessionCookie tests invalid session cookie
 func TestInvalidSessionCookie(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
 	t.Log("Step 1: Attempting to access forwardAuth with invalid session cookie...")
@@ -394,9 +394,9 @@ func TestInvalidSessionCookie(t *testing.T) {
 	t.Logf("✓ Invalid session cookie rejected: Status %d, Message: %s", errResp.StatusCode, errResp.Message)
 }
 
-// TestEmptyRequestParameters 测试空请求参数
+// TestEmptyRequestParameters tests empty request parameters
 func TestEmptyRequestParameters(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
 	t.Log("Step 1: Attempting to send verification code with empty phone...")
@@ -412,9 +412,9 @@ func TestEmptyRequestParameters(t *testing.T) {
 	t.Logf("✓ Empty email parameter rejected: %s", errResp.Message)
 }
 
-// TestInvalidChallengeID 测试无效的 challenge_id
+// TestInvalidChallengeID tests invalid challenge_id
 func TestInvalidChallengeID(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
 	testPhone := "13900139000"
@@ -426,7 +426,7 @@ func TestInvalidChallengeID(t *testing.T) {
 	testza.AssertNotNil(t, errResp)
 	testza.AssertTrue(t, errResp.StatusCode == 400 || errResp.StatusCode == 401,
 		"Should return 400 Bad Request or 401 Unauthorized")
-	// 错误信息可能是"验证服务错误"或包含过期/无效提示
+	// Error message may be "verification service error" or contain expired/invalid hints
 	testza.AssertTrue(t, strings.Contains(errResp.Message, "过期") || strings.Contains(errResp.Message, "无效") ||
 		strings.Contains(errResp.Message, "expired") || strings.Contains(errResp.Message, "invalid") ||
 		strings.Contains(errResp.Message, "错误") || strings.Contains(errResp.Message, "空"),
@@ -434,16 +434,16 @@ func TestInvalidChallengeID(t *testing.T) {
 	t.Logf("✓ Invalid challenge_id rejected: %s", errResp.Message)
 }
 
-// TestInvalidAuthMethod 测试错误的认证方法
+// TestInvalidAuthMethod tests invalid auth method
 func TestInvalidAuthMethod(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	ensureServicesReady(t)
 
 	testPhone := "13900139000"
 	challengeID := "test_challenge_123"
 	verifyCode := "123456"
 
-	// 使用不支持的 auth_method
+	// Use unsupported auth_method
 	url := stargateURL + "/_login"
 	body := "auth_method=invalid_method&phone=" + testPhone + "&challenge_id=" + challengeID + "&verify_code=" + verifyCode
 
@@ -472,7 +472,7 @@ func TestInvalidAuthMethod(t *testing.T) {
 	t.Logf("✓ Invalid auth_method rejected: Status %d", resp.StatusCode)
 }
 
-// ensureServicesReady 确保所有服务就绪
+// ensureServicesReady ensures all services are ready
 func ensureServicesReady(t *testing.T) {
 	if !waitForService(t, stargateURL+"/_auth", 30*time.Second) {
 		t.Fatalf("Stargate service is not ready")
@@ -484,7 +484,7 @@ func ensureServicesReady(t *testing.T) {
 		t.Fatalf("Warden service is not ready")
 	}
 
-	// 清理限流状态，避免之前的测试影响当前测试
+	// Clear rate limit keys to avoid previous tests affecting current test
 	if err := clearRateLimitKeys(t); err != nil {
 		t.Logf("Warning: Failed to clear rate limit keys: %v (continuing test anyway)", err)
 	}

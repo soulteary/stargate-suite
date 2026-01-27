@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Herald - OTP/验证码服务
+  # Herald - OTP/Verification Code Service
   herald:
     image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.2.0}
     container_name: the-gate-herald
@@ -50,7 +50,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Warden - 白名单用户服务
+  # Warden - Whitelist User Service
   warden:
     image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.5.0}
     container_name: the-gate-warden
@@ -98,7 +98,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Stargate - 认证/鉴权服务
+  # Stargate - Authentication/Authorization Service
   stargate:
     image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.4.0}
     container_name: the-gate-stargate

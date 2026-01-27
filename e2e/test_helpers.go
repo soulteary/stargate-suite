@@ -17,14 +17,14 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// ErrorResponse 表示错误响应
+// ErrorResponse represents an error response
 type ErrorResponse struct {
 	StatusCode int
 	Message    string
 	Body       string
 }
 
-// sendVerificationCodeWithError 发送验证码并返回错误响应（如果失败）
+// sendVerificationCodeWithError sends a verification code and returns an error response (if failed)
 func sendVerificationCodeWithError(t *testing.T, phone string) (string, *ErrorResponse) {
 	url := fmt.Sprintf("%s/_send_verify_code", stargateURL)
 	body := fmt.Sprintf("phone=%s", phone)
@@ -93,7 +93,7 @@ func sendVerificationCodeWithError(t *testing.T, phone string) (string, *ErrorRe
 	return result.ChallengeID, nil
 }
 
-// loginWithError 登录并返回错误响应（如果失败）
+// loginWithError logs in and returns an error response (if failed)
 func loginWithError(t *testing.T, phone, challengeID, verifyCode string) (string, *ErrorResponse) {
 	url := fmt.Sprintf("%s/_login", stargateURL)
 	body := fmt.Sprintf("auth_method=warden&phone=%s&challenge_id=%s&verify_code=%s",
@@ -146,13 +146,13 @@ func loginWithError(t *testing.T, phone, challengeID, verifyCode string) (string
 		}
 	}
 
-	// 提取 Set-Cookie header
+	// Extract Set-Cookie header
 	setCookieHeaders := resp.Header.Values("Set-Cookie")
 	if len(setCookieHeaders) == 0 {
 		return "", &ErrorResponse{StatusCode: resp.StatusCode, Message: "no Set-Cookie header found"}
 	}
 
-	// 查找 session cookie (stargate_session_id)
+	// Find session cookie (stargate_session_id)
 	var sessionCookie string
 	for _, cookieHeader := range setCookieHeaders {
 		if strings.Contains(cookieHeader, "stargate_session_id") {
@@ -171,7 +171,7 @@ func loginWithError(t *testing.T, phone, challengeID, verifyCode string) (string
 	return sessionCookie, nil
 }
 
-// checkAuthWithError 验证授权并返回错误响应（如果失败）
+// checkAuthWithError verifies authorization and returns an error response (if failed)
 func checkAuthWithError(t *testing.T, sessionCookie string) (*AuthHeaders, *ErrorResponse) {
 	url := fmt.Sprintf("%s/_auth", stargateURL)
 
@@ -233,7 +233,7 @@ func checkAuthWithError(t *testing.T, sessionCookie string) (*AuthHeaders, *Erro
 	return headers, nil
 }
 
-// triggerRateLimit 触发限流（快速发送多次请求）
+// triggerRateLimit triggers rate limiting (sends multiple requests quickly)
 func triggerRateLimit(t *testing.T, phone string, count int) []*ErrorResponse {
 	errors := make([]*ErrorResponse, 0, count)
 	for i := 0; i < count; i++ {
@@ -241,27 +241,27 @@ func triggerRateLimit(t *testing.T, phone string, count int) []*ErrorResponse {
 		if errResp != nil {
 			errors = append(errors, errResp)
 		}
-		// 短暂延迟避免过快
+		// Short delay to avoid being too fast
 		time.Sleep(100 * time.Millisecond)
 	}
 	return errors
 }
 
-// stopDockerServiceInDir 在指定目录停止 Docker 服务
+// stopDockerServiceInDir stops a Docker service in the specified directory
 func stopDockerServiceInDir(dir, serviceName string) error {
 	cmd := exec.Command("docker", "compose", "stop", serviceName)
 	cmd.Dir = dir
 	return cmd.Run()
 }
 
-// startDockerServiceInDir 在指定目录启动 Docker 服务
+// startDockerServiceInDir starts a Docker service in the specified directory
 func startDockerServiceInDir(dir, serviceName string) error {
 	cmd := exec.Command("docker", "compose", "start", serviceName)
 	cmd.Dir = dir
 	return cmd.Run()
 }
 
-// sendVerificationCodeWithEmail 使用邮箱发送验证码
+// sendVerificationCodeWithEmail sends a verification code using email
 func sendVerificationCodeWithEmail(t *testing.T, email string) (string, *ErrorResponse) {
 	url := fmt.Sprintf("%s/_send_verify_code", stargateURL)
 	body := fmt.Sprintf("mail=%s", email)
@@ -330,8 +330,8 @@ func sendVerificationCodeWithEmail(t *testing.T, email string) (string, *ErrorRe
 	return result.ChallengeID, nil
 }
 
-// calculateHMAC 计算 HMAC-SHA256 签名
-// 签名格式: HMAC-SHA256(timestamp:service:body, secret)
+// calculateHMAC calculates HMAC-SHA256 signature
+// Signature format: HMAC-SHA256(timestamp:service:body, secret)
 func calculateHMAC(timestamp int64, service, body, secret string) string {
 	message := fmt.Sprintf("%d:%s:%s", timestamp, service, body)
 	mac := hmac.New(sha256.New, []byte(secret))
@@ -339,14 +339,14 @@ func calculateHMAC(timestamp int64, service, body, secret string) string {
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-// clearRateLimitKeys 清理Redis中的测试状态，避免之前的测试影响当前测试
-// 清理包括：限流键、冷却键、用户锁定键、challenge键
+// clearRateLimitKeys clears test state in Redis to avoid previous tests affecting current test
+// Clears: rate limit keys, cooldown keys, user lock keys, challenge keys
 func clearRateLimitKeys(t *testing.T) error {
-	// 连接Herald的Redis（根据docker-compose.yml，端口映射到localhost:6379）
+	// Connect to Herald's Redis (mapped to localhost:6379 per docker-compose.yml)
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
-		Password: "", // 根据docker-compose.yml，没有密码
-		DB:       0,  // Herald使用DB 0
+		Password: "", // No password per docker-compose.yml
+		DB:       0,  // Herald uses DB 0
 	})
 	defer func() {
 		if err := redisClient.Close(); err != nil {
@@ -357,16 +357,16 @@ func clearRateLimitKeys(t *testing.T) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// 测试连接
+	// Test connection
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		return fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
-	// 清理所有测试相关的键：
-	// - ratelimit:* - 限流键
-	// - ratelimit:cooldown:* - 冷却键
-	// - otp:lock:* - 用户锁定键
-	// - otp:ch:* - challenge键（为了测试隔离）
+	// Clear all test-related keys:
+	// - ratelimit:* - Rate limit keys
+	// - ratelimit:cooldown:* - Cooldown keys
+	// - otp:lock:* - User lock keys
+	// - otp:ch:* - Challenge keys (for test isolation)
 	patterns := []string{
 		"ratelimit:*",
 		"ratelimit:cooldown:*",
@@ -379,7 +379,7 @@ func clearRateLimitKeys(t *testing.T) error {
 		var keys []string
 		var cursor uint64
 
-		// 使用 SCAN 迭代所有匹配的键
+		// Iterate all matching keys using SCAN
 		for {
 			var scanKeys []string
 			var err error

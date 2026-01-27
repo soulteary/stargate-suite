@@ -12,14 +12,14 @@ import (
 	"github.com/MarvinJWendt/testza"
 )
 
-// TestHeraldProviderFailure 测试 Provider 发送失败处理
-// 注意：在测试环境中，Provider 通常正常工作，这里主要验证失败处理逻辑
-// 根据 docker-compose.yml，PROVIDER_FAILURE_POLICY=soft，意味着即使发送失败，challenge 也会被创建
+// TestHeraldProviderFailure tests Provider failure handling
+// Note: In test environment, Provider usually works normally, this mainly verifies failure handling logic
+// According to docker-compose.yml, PROVIDER_FAILURE_POLICY=soft, meaning challenge will be created even if send fails
 func TestHeraldProviderFailure(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 在 soft 模式下，即使 Provider 失败，challenge 也应该被创建
-	// 这里我们创建一个正常的 challenge，验证逻辑
+	// In soft mode, challenge should be created even if Provider fails
+	// Here we create a normal challenge to verify logic
 	t.Log("Testing provider failure handling in soft mode...")
 
 	reqBody := HeraldChallengeRequest{
@@ -49,8 +49,8 @@ func TestHeraldProviderFailure(t *testing.T) {
 		}
 	}()
 
-	// 在 soft 模式下，即使 Provider 失败，也应该返回 200 OK（challenge 已创建）
-	// 如果 Provider 成功，也返回 200 OK
+	// In soft mode, even if Provider fails, it should return 200 OK (challenge created)
+	// If Provider succeeds, it also returns 200 OK
 	testza.AssertEqual(t, http.StatusOK, resp.StatusCode, "Should return 200 OK in soft mode even if provider fails")
 
 	var challengeResp HeraldChallengeResponse
@@ -63,7 +63,7 @@ func TestHeraldProviderFailure(t *testing.T) {
 	t.Logf("✓ Challenge created successfully: %s", challengeResp.ChallengeID)
 	t.Log("Note: In soft mode, challenge is created even if provider fails. Check audit logs for send_failed events.")
 
-	// 验证 challenge 仍然可以验证（如果 Provider 失败，可以通过测试端点获取验证码）
+	// Verify challenge can still be verified (if Provider failed, get code via test endpoint)
 	verifyCode, err := getTestCode(t, challengeResp.ChallengeID)
 	if err == nil {
 		verifyReqBody := HeraldVerifyRequest{
@@ -100,12 +100,12 @@ func TestHeraldProviderFailure(t *testing.T) {
 	}
 }
 
-// TestHeraldProviderRetry 测试 Provider 重试策略
-// 注意：Herald 可能没有显式的重试逻辑，这里主要验证幂等性在重试场景中的作用
+// TestHeraldProviderRetry tests Provider retry strategy
+// Note: Herald may not have explicit retry logic, this mainly verifies idempotency in retry scenarios
 func TestHeraldProviderRetry(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 使用相同的 Idempotency-Key 进行"重试"，验证幂等性
+	// Use same Idempotency-Key for "retry" to verify idempotency
 	t.Log("Testing provider retry with idempotency...")
 
 	reqBody := HeraldChallengeRequest{
@@ -120,7 +120,7 @@ func TestHeraldProviderRetry(t *testing.T) {
 
 	idempotencyKey := fmt.Sprintf("retry-test-%d", time.Now().UnixNano())
 
-	// 第一次请求（模拟初始发送）
+	// First request (simulate initial send)
 	url := fmt.Sprintf("%s/v1/otp/challenges", heraldURL)
 	req1, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
 	testza.AssertNoError(t, err)
@@ -144,7 +144,7 @@ func TestHeraldProviderRetry(t *testing.T) {
 
 	t.Logf("First request - ChallengeID: %s", firstChallengeID)
 
-	// 第二次请求（模拟重试，使用相同的 Idempotency-Key）
+	// Second request (simulate retry, using same Idempotency-Key)
 	bodyBytes2, err := json.Marshal(reqBody)
 	testza.AssertNoError(t, err)
 
@@ -174,17 +174,17 @@ func TestHeraldProviderRetry(t *testing.T) {
 	t.Logf("✓ Idempotency prevents duplicate sends on retry")
 }
 
-// TestHeraldProviderErrorCodes 测试 Provider 错误码归一化
-// 注意：这里主要验证错误响应格式，实际的 Provider 错误码归一化在代码内部处理
+// TestHeraldProviderErrorCodes tests Provider error code normalization
+// Note: This mainly verifies error response format, actual Provider error code normalization is handled internally
 func TestHeraldProviderErrorCodes(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 测试无效的 channel 应该返回适当的错误码
+	// Test invalid channel should return appropriate error code
 	t.Log("Testing provider error code normalization...")
 
 	reqBody := HeraldChallengeRequest{
 		UserID:      "test-user-error-codes",
-		Channel:     "invalid_channel", // 无效的 channel
+		Channel:     "invalid_channel", // Invalid channel
 		Destination: "+8613800138000",
 		Purpose:     "login",
 	}
@@ -226,7 +226,7 @@ func TestHeraldProviderErrorCodes(t *testing.T) {
 	t.Logf("✓ Error code normalized correctly: reason=%s", errorResp.Reason)
 }
 
-// TestHeraldProviderEmail 测试 Email Provider
+// TestHeraldProviderEmail tests Email Provider
 func TestHeraldProviderEmail(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -270,7 +270,7 @@ func TestHeraldProviderEmail(t *testing.T) {
 	t.Log("Note: Check audit logs for email provider send events")
 }
 
-// TestHeraldProviderSMS 测试 SMS Provider
+// TestHeraldProviderSMS tests SMS Provider
 func TestHeraldProviderSMS(t *testing.T) {
 	ensureServicesReady(t)
 

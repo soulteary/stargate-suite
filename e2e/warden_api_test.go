@@ -16,7 +16,7 @@ const (
 	wardenAPIKey = "test-warden-api-key"
 )
 
-// WardenUser 表示 Warden 返回的用户信息
+// WardenUser represents user information returned by Warden
 type WardenUser struct {
 	Phone  string   `json:"phone"`
 	Mail   string   `json:"mail"`
@@ -26,7 +26,7 @@ type WardenUser struct {
 	Role   string   `json:"role"`
 }
 
-// TestWardenGetUserByPhone 测试通过手机号查询用户
+// TestWardenGetUserByPhone tests getting user by phone
 func TestWardenGetUserByPhone(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -69,7 +69,7 @@ func TestWardenGetUserByPhone(t *testing.T) {
 	t.Logf("✓ User found: %+v", user)
 }
 
-// TestWardenGetUserByEmail 测试通过邮箱查询用户
+// TestWardenGetUserByEmail tests getting user by email
 func TestWardenGetUserByEmail(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -112,7 +112,7 @@ func TestWardenGetUserByEmail(t *testing.T) {
 	t.Logf("✓ User found: %+v", user)
 }
 
-// TestWardenGetUserByUserID 测试通过用户ID查询用户
+// TestWardenGetUserByUserID tests getting user by user ID
 func TestWardenGetUserByUserID(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -155,7 +155,7 @@ func TestWardenGetUserByUserID(t *testing.T) {
 	t.Logf("✓ User found: %+v", user)
 }
 
-// TestWardenUserNotFound 测试用户不存在
+// TestWardenUserNotFound tests user not found
 func TestWardenUserNotFound(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -187,11 +187,11 @@ func TestWardenUserNotFound(t *testing.T) {
 	t.Logf("✓ User not found correctly: %s", bodyStr)
 }
 
-// TestWardenInvalidParameters 测试参数错误
+// TestWardenInvalidParameters tests invalid parameters
 func TestWardenInvalidParameters(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 测试缺少参数
+	// Test missing parameters
 	url := fmt.Sprintf("%s/user", wardenURL)
 	req, err := http.NewRequest("GET", url, nil)
 	testza.AssertNoError(t, err)
@@ -217,7 +217,7 @@ func TestWardenInvalidParameters(t *testing.T) {
 
 	t.Logf("✓ Missing parameter rejected: %s", bodyStr)
 
-	// 测试多个参数
+	// Test multiple parameters
 	url2 := fmt.Sprintf("%s/user?phone=13800138000&mail=admin@example.com", wardenURL)
 	req2, err := http.NewRequest("GET", url2, nil)
 	testza.AssertNoError(t, err)
@@ -243,13 +243,13 @@ func TestWardenInvalidParameters(t *testing.T) {
 	t.Logf("✓ Multiple parameters rejected: %s", bodyStr2)
 }
 
-// TestWardenAPIKeyAuth 测试 API Key 认证
+// TestWardenAPIKeyAuth tests API Key authentication
 func TestWardenAPIKeyAuth(t *testing.T) {
 	ensureServicesReady(t)
 
 	testPhone := "13800138000"
 
-	// 测试缺少 API Key
+	// Test missing API Key
 	url := fmt.Sprintf("%s/user?phone=%s", wardenURL, testPhone)
 	req, err := http.NewRequest("GET", url, nil)
 	testza.AssertNoError(t, err)
@@ -270,7 +270,7 @@ func TestWardenAPIKeyAuth(t *testing.T) {
 
 	t.Logf("✓ Missing API Key rejected: Status %d", resp.StatusCode)
 
-	// 测试无效 API Key
+	// Test invalid API Key
 	url2 := fmt.Sprintf("%s/user?phone=%s", wardenURL, testPhone)
 	req2, err := http.NewRequest("GET", url2, nil)
 	testza.AssertNoError(t, err)

@@ -11,7 +11,7 @@ import (
 	"github.com/MarvinJWendt/testza"
 )
 
-// TestHeraldIdempotencyKey 测试相同 Idempotency-Key 返回相同结果
+// TestHeraldIdempotencyKey tests that same Idempotency-Key returns same result
 func TestHeraldIdempotencyKey(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -55,7 +55,7 @@ func TestHeraldIdempotencyKey(t *testing.T) {
 	t.Logf("First request - ChallengeID: %s, ExpiresIn: %d, NextResendIn: %d",
 		firstChallengeID, firstExpiresIn, firstNextResendIn)
 
-	// 第二次请求（使用相同的 Idempotency-Key）
+	// Second request (using same Idempotency-Key)
 	bodyBytes2, err := json.Marshal(reqBody)
 	testza.AssertNoError(t, err)
 
@@ -67,7 +67,7 @@ func TestHeraldIdempotencyKey(t *testing.T) {
 	req2.Header.Set("X-API-Key", heraldAPIKey)
 	req2.Header.Set("Idempotency-Key", idempotencyKey)
 
-	// 短暂延迟确保在 TTL 内
+	// Short delay to ensure within TTL
 	time.Sleep(1 * time.Second)
 
 	resp2, err := client.Do(req2)
@@ -80,7 +80,7 @@ func TestHeraldIdempotencyKey(t *testing.T) {
 
 	testza.AssertEqual(t, http.StatusOK, resp2.StatusCode, "Second request should return 200 OK")
 
-	// 验证返回相同的结果
+	// Verify same result returned
 	testza.AssertEqual(t, firstChallengeID, challengeResp2.ChallengeID,
 		"ChallengeID should be the same with same Idempotency-Key")
 	testza.AssertEqual(t, firstExpiresIn, challengeResp2.ExpiresIn,
@@ -93,15 +93,15 @@ func TestHeraldIdempotencyKey(t *testing.T) {
 	t.Logf("✓ Idempotency-Key works correctly: same Idempotency-Key returns same result")
 }
 
-// TestHeraldIdempotencyKeyDifferent 测试不同的 Idempotency-Key 返回不同结果
+// TestHeraldIdempotencyKeyDifferent tests that different Idempotency-Key returns different result
 func TestHeraldIdempotencyKeyDifferent(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 使用不同的 destination 避免触发重发冷却限制
+	// Use different destination to avoid triggering resend cooldown
 	reqBody := HeraldChallengeRequest{
 		UserID:      "test-user-idempotency-diff",
 		Channel:     "sms",
-		Destination: "+8613800138001", // 使用不同的 destination
+		Destination: "+8613800138001", // Use different destination
 		Purpose:     "login",
 	}
 
@@ -133,11 +133,11 @@ func TestHeraldIdempotencyKeyDifferent(t *testing.T) {
 	testza.AssertEqual(t, http.StatusOK, resp1.StatusCode, "First request should return 200 OK")
 	firstChallengeID := challengeResp1.ChallengeID
 
-	// 第二次请求（使用不同的 Idempotency-Key 和不同的 destination 以避免重发冷却）
+	// Second request (using different Idempotency-Key and different destination to avoid cooldown)
 	reqBody2 := HeraldChallengeRequest{
 		UserID:      "test-user-idempotency-diff",
 		Channel:     "sms",
-		Destination: "+8613800138002", // 使用不同的 destination 避免重发冷却
+		Destination: "+8613800138002", // Use different destination to avoid cooldown
 		Purpose:     "login",
 	}
 	bodyBytes2, err := json.Marshal(reqBody2)
@@ -163,7 +163,7 @@ func TestHeraldIdempotencyKeyDifferent(t *testing.T) {
 
 	testza.AssertEqual(t, http.StatusOK, resp2.StatusCode, "Second request should return 200 OK")
 
-	// 验证返回不同的结果（不同的 ChallengeID）
+	// Verify different result returned (different ChallengeID)
 	testza.AssertNotEqual(t, firstChallengeID, challengeResp2.ChallengeID,
 		"ChallengeID should be different with different Idempotency-Key")
 
@@ -172,7 +172,7 @@ func TestHeraldIdempotencyKeyDifferent(t *testing.T) {
 	t.Logf("✓ Different Idempotency-Key returns different result")
 }
 
-// TestHeraldIdempotencyKeyWithoutHeader 测试不使用 Idempotency-Key 时每次都创建新的 challenge
+// TestHeraldIdempotencyKeyWithoutHeader tests that new challenge is created every time without Idempotency-Key
 func TestHeraldIdempotencyKeyWithoutHeader(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -188,14 +188,14 @@ func TestHeraldIdempotencyKeyWithoutHeader(t *testing.T) {
 
 	url := fmt.Sprintf("%s/v1/otp/challenges", heraldURL)
 
-	// 第一次请求（不使用 Idempotency-Key）
+	// First request (without Idempotency-Key)
 	req1, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
 	testza.AssertNoError(t, err)
 
 	req1.Header.Set("Content-Type", "application/json")
 	req1.Header.Set("Accept", "application/json")
 	req1.Header.Set("X-API-Key", heraldAPIKey)
-	// 不设置 Idempotency-Key
+	// Do not set Idempotency-Key
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp1, err := client.Do(req1)
@@ -209,7 +209,7 @@ func TestHeraldIdempotencyKeyWithoutHeader(t *testing.T) {
 	testza.AssertEqual(t, http.StatusOK, resp1.StatusCode, "First request should return 200 OK")
 	firstChallengeID := challengeResp1.ChallengeID
 
-	// 第二次请求（同样不使用 Idempotency-Key）
+	// Second request (also without Idempotency-Key)
 	bodyBytes2, err := json.Marshal(reqBody)
 	testza.AssertNoError(t, err)
 
@@ -219,7 +219,7 @@ func TestHeraldIdempotencyKeyWithoutHeader(t *testing.T) {
 	req2.Header.Set("Content-Type", "application/json")
 	req2.Header.Set("Accept", "application/json")
 	req2.Header.Set("X-API-Key", heraldAPIKey)
-	// 不设置 Idempotency-Key
+	// Do not set Idempotency-Key
 
 	time.Sleep(1 * time.Second)
 
@@ -231,16 +231,16 @@ func TestHeraldIdempotencyKeyWithoutHeader(t *testing.T) {
 	testza.AssertNoError(t, err)
 	resp2.Body.Close()
 
-	// 由于重发冷却时间（默认 60 秒），第二次请求可能会被限流，这是正常行为
+	// Due to resend cooldown (default 60s), second request might be rate-limited, which is expected behavior
 	if resp2.StatusCode == http.StatusTooManyRequests {
 		t.Logf("Note: Second request was rate-limited due to cooldown, which is expected behavior")
-		// 测试通过：验证了不使用 Idempotency-Key 时，系统会应用重发冷却限制
+		// Test passed: verified that cooldown applies without Idempotency-Key
 		return
 	}
 
 	testza.AssertEqual(t, http.StatusOK, resp2.StatusCode, "Second request should return 200 OK")
 
-	// 不使用 Idempotency-Key 时，应该创建新的 challenge（不同的 ChallengeID）
+	// Without Idempotency-Key, new challenge should be created (different ChallengeID)
 	if challengeResp2.ChallengeID != "" && challengeResp2.ChallengeID != firstChallengeID {
 		t.Logf("✓ Without Idempotency-Key, new challenge created: %s", challengeResp2.ChallengeID)
 	}

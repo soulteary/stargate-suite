@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Herald - OTP/验证码服务
+  # Herald - OTP/Verification Code Service
   herald:
     build:
       context: ../herald
@@ -52,7 +52,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Warden - 白名单用户服务
+  # Warden - Whitelist User Service
   warden:
     build:
       context: ../warden
@@ -102,7 +102,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Stargate - 认证/鉴权服务
+  # Stargate - Authentication/Authorization Service
   stargate:
     build:
       context: ../stargate

@@ -17,7 +17,7 @@ const (
 	heraldHMACSecret = "test-hmac-secret"
 )
 
-// HeraldChallengeRequest 表示创建 challenge 的请求
+// HeraldChallengeRequest represents the request to create a challenge
 type HeraldChallengeRequest struct {
 	UserID      string `json:"user_id"`
 	Channel     string `json:"channel"`
@@ -28,21 +28,21 @@ type HeraldChallengeRequest struct {
 	UA          string `json:"ua,omitempty"`
 }
 
-// HeraldChallengeResponse 表示创建 challenge 的响应
+// HeraldChallengeResponse represents the response for creating a challenge
 type HeraldChallengeResponse struct {
 	ChallengeID  string `json:"challenge_id"`
 	ExpiresIn    int    `json:"expires_in"`
 	NextResendIn int    `json:"next_resend_in"`
 }
 
-// HeraldVerifyRequest 表示验证 challenge 的请求
+// HeraldVerifyRequest represents the request to verify a challenge
 type HeraldVerifyRequest struct {
 	ChallengeID string `json:"challenge_id"`
 	Code        string `json:"code"`
 	ClientIP    string `json:"client_ip,omitempty"`
 }
 
-// HeraldVerifyResponse 表示验证 challenge 的响应
+// HeraldVerifyResponse represents the response for verifying a challenge
 type HeraldVerifyResponse struct {
 	OK       bool     `json:"ok"`
 	UserID   string   `json:"user_id,omitempty"`
@@ -51,7 +51,7 @@ type HeraldVerifyResponse struct {
 	Reason   string   `json:"reason,omitempty"`
 }
 
-// TestHeraldCreateChallenge 测试创建 challenge
+// TestHeraldCreateChallenge tests creating a challenge
 func TestHeraldCreateChallenge(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -98,7 +98,7 @@ func TestHeraldCreateChallenge(t *testing.T) {
 	t.Logf("✓ Challenge created: %+v", challengeResp)
 }
 
-// TestHeraldCreateChallengeEmail 测试通过邮箱创建 challenge
+// TestHeraldCreateChallengeEmail tests creating a challenge via email
 func TestHeraldCreateChallengeEmail(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -143,11 +143,11 @@ func TestHeraldCreateChallengeEmail(t *testing.T) {
 	t.Logf("✓ Email challenge created: %+v", challengeResp)
 }
 
-// TestHeraldVerifyChallenge 测试验证 challenge
+// TestHeraldVerifyChallenge tests verifying a challenge
 func TestHeraldVerifyChallenge(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 先创建一个 challenge
+	// First create a challenge
 	reqBody := HeraldChallengeRequest{
 		UserID:      "test-user-001",
 		Channel:     "sms",
@@ -178,11 +178,11 @@ func TestHeraldVerifyChallenge(t *testing.T) {
 	challengeID := challengeResp.ChallengeID
 	testza.AssertNotNil(t, challengeID)
 
-	// 从测试端点获取验证码
+	// Get verification code from test endpoint
 	verifyCode, err := getTestCode(t, challengeID)
 	testza.AssertNoError(t, err)
 
-	// 验证 challenge
+	// Verify challenge
 	verifyReqBody := HeraldVerifyRequest{
 		ChallengeID: challengeID,
 		Code:        verifyCode,
@@ -222,11 +222,11 @@ func TestHeraldVerifyChallenge(t *testing.T) {
 	t.Logf("✓ Challenge verified: %+v", verifyRespBody)
 }
 
-// TestHeraldChallengeExpired 测试过期 challenge
+// TestHeraldChallengeExpired tests expired challenge
 func TestHeraldChallengeExpired(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 使用一个不存在的 challenge_id 来模拟过期
+	// Use a non-existent challenge_id to simulate expiration
 	expiredChallengeID := "expired_challenge_12345"
 	verifyReqBody := HeraldVerifyRequest{
 		ChallengeID: expiredChallengeID,
@@ -268,11 +268,11 @@ func TestHeraldChallengeExpired(t *testing.T) {
 	t.Logf("✓ Expired challenge rejected: Status %d", verifyResp.StatusCode)
 }
 
-// TestHeraldInvalidCode 测试错误验证码
+// TestHeraldInvalidCode tests invalid verification code
 func TestHeraldInvalidCode(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 先创建一个 challenge
+	// First create a challenge
 	reqBody := HeraldChallengeRequest{
 		UserID:      "test-user-001",
 		Channel:     "sms",
@@ -302,7 +302,7 @@ func TestHeraldInvalidCode(t *testing.T) {
 
 	challengeID := challengeResp.ChallengeID
 
-	// 使用错误的验证码
+	// Use incorrect verification code
 	verifyReqBody := HeraldVerifyRequest{
 		ChallengeID: challengeID,
 		Code:        "000000",
@@ -341,11 +341,11 @@ func TestHeraldInvalidCode(t *testing.T) {
 	t.Logf("✓ Invalid code rejected: Status %d", verifyResp.StatusCode)
 }
 
-// TestHeraldRateLimit 测试限流响应
+// TestHeraldRateLimit tests rate limit response
 func TestHeraldRateLimit(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 快速发送多次请求触发限流
+	// Send multiple requests quickly to trigger rate limit
 	var lastResp *http.Response
 	for i := 0; i < 10; i++ {
 		reqBody := HeraldChallengeRequest{
@@ -389,11 +389,11 @@ func TestHeraldRateLimit(t *testing.T) {
 	t.Log("Note: Rate limit may require more requests or longer time window")
 }
 
-// TestHeraldRevokeChallenge 测试作废 challenge
+// TestHeraldRevokeChallenge tests revoking a challenge
 func TestHeraldRevokeChallenge(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 先创建一个 challenge
+	// First create a challenge
 	reqBody := HeraldChallengeRequest{
 		UserID:      "test-user-001",
 		Channel:     "sms",
@@ -423,7 +423,7 @@ func TestHeraldRevokeChallenge(t *testing.T) {
 
 	challengeID := challengeResp.ChallengeID
 
-	// 作废 challenge
+	// Revoke challenge
 	revokeURL := fmt.Sprintf("%s/v1/otp/challenges/%s/revoke", heraldURL, challengeID)
 	revokeReq, err := http.NewRequest("POST", revokeURL, nil)
 	testza.AssertNoError(t, err)
@@ -439,7 +439,7 @@ func TestHeraldRevokeChallenge(t *testing.T) {
 		}
 	}()
 
-	// 作废接口可能返回 200 或 204
+	// Revoke interface may return 200 or 204
 	testza.AssertTrue(t, revokeResp.StatusCode == http.StatusOK || revokeResp.StatusCode == http.StatusNoContent,
 		"Should return 200 OK or 204 No Content")
 
@@ -456,7 +456,7 @@ func TestHeraldRevokeChallenge(t *testing.T) {
 	t.Logf("✓ Challenge revoked: Status %d", revokeResp.StatusCode)
 }
 
-// TestHeraldHMACAuth 测试 HMAC 认证
+// TestHeraldHMACAuth tests HMAC authentication
 func TestHeraldHMACAuth(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -494,7 +494,7 @@ func TestHeraldHMACAuth(t *testing.T) {
 		}
 	}()
 
-	// HMAC 认证应该成功（优先级高于 API Key）
+	// HMAC authentication should succeed (higher priority than API Key)
 	testza.AssertEqual(t, http.StatusOK, resp.StatusCode, "Should return 200 OK with HMAC auth")
 
 	var challengeResp HeraldChallengeResponse

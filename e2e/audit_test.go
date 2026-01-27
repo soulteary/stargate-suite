@@ -11,16 +11,16 @@ import (
 	"github.com/MarvinJWendt/testza"
 )
 
-// TestHeraldAuditLog 验证关键操作记录审计日志
-// 注意：由于审计日志存储在 Redis 中，这里主要验证操作是否成功
-// 如果操作成功，审计日志应该被记录（根据代码实现）
+// TestHeraldAuditLog verifies that critical operations are recorded in the audit log
+// Note: Since audit logs are stored in Redis, this mainly verifies if the operation succeeds
+// If the operation succeeds, the audit log should be recorded (based on implementation)
 func TestHeraldAuditLog(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 添加延迟以避免限流
+	// Add delay to avoid rate limiting
 	time.Sleep(2 * time.Second)
 
-	// 测试 challenge 创建应该记录审计日志
+	// Test that challenge creation should record an audit log
 	t.Log("Testing audit log for challenge creation...")
 	reqBody := HeraldChallengeRequest{
 		UserID:      "test-user-audit",
@@ -49,7 +49,7 @@ func TestHeraldAuditLog(t *testing.T) {
 		}
 	}()
 
-	// 处理限流情况（429）
+	// Handle rate limiting (429)
 	if resp.StatusCode == http.StatusTooManyRequests {
 		t.Logf("⚠ Rate limited, skipping this test. Status: %d", resp.StatusCode)
 		return
@@ -70,7 +70,7 @@ func TestHeraldAuditLog(t *testing.T) {
 
 	t.Logf("✓ Challenge created successfully: %s (audit log should be recorded)", challengeID)
 
-	// 测试验证成功应该记录审计日志
+	// Test that successful verification should record an audit log
 	t.Log("Testing audit log for successful verification...")
 	verifyCode, err := getTestCode(t, challengeID)
 	if err != nil {
@@ -113,9 +113,9 @@ func TestHeraldAuditLog(t *testing.T) {
 	testza.AssertTrue(t, verifyRespBody.OK, "Verification should succeed")
 	t.Logf("✓ Verification successful (audit log should be recorded)")
 
-	// 测试验证失败应该记录审计日志
+	// Test that failed verification should record an audit log
 	t.Log("Testing audit log for failed verification...")
-	// 添加延迟以避免限流
+	// Add delay to avoid rate limiting
 	time.Sleep(2 * time.Second)
 
 	reqBody2 := HeraldChallengeRequest{
@@ -145,7 +145,7 @@ func TestHeraldAuditLog(t *testing.T) {
 		t.Logf("Warning: failed to close response body: %v", closeErr)
 	}
 
-	// 处理限流情况
+	// Handle rate limiting
 	if resp2.StatusCode == http.StatusTooManyRequests {
 		t.Logf("⚠ Rate limited for second challenge, skipping failed verification test")
 		return
@@ -157,7 +157,7 @@ func TestHeraldAuditLog(t *testing.T) {
 		return
 	}
 
-	// 使用错误的验证码
+	// Use incorrect code
 	verifyReqBody2 := HeraldVerifyRequest{
 		ChallengeID: challengeID2,
 		Code:        "000000",
@@ -192,9 +192,9 @@ func TestHeraldAuditLog(t *testing.T) {
 		t.Logf("✓ Verification failed (audit log should be recorded with reason: %s)", verifyRespBody2.Reason)
 	}
 
-	// 测试 challenge 作废应该记录审计日志
+	// Test that challenge revocation should record an audit log
 	t.Log("Testing audit log for challenge revocation...")
-	// 添加延迟以避免限流
+	// Add delay to avoid rate limiting
 	time.Sleep(2 * time.Second)
 
 	reqBody3 := HeraldChallengeRequest{
@@ -222,7 +222,7 @@ func TestHeraldAuditLog(t *testing.T) {
 	testza.AssertNoError(t, err)
 	resp3.Body.Close()
 
-	// 处理限流情况
+	// Handle rate limiting
 	if resp3.StatusCode == http.StatusTooManyRequests {
 		t.Logf("⚠ Rate limited for third challenge, skipping revocation test")
 		return
@@ -234,7 +234,7 @@ func TestHeraldAuditLog(t *testing.T) {
 		return
 	}
 
-	// 作废 challenge
+	// Revoke challenge
 	revokeURL := fmt.Sprintf("%s/v1/otp/challenges/%s/revoke", heraldURL, challengeID3)
 	revokeReq, err := http.NewRequest("POST", revokeURL, nil)
 	testza.AssertNoError(t, err)
@@ -258,12 +258,12 @@ func TestHeraldAuditLog(t *testing.T) {
 	t.Log("Note: To verify audit logs directly, check Redis keys with prefix 'otp:audit:' or check service logs")
 }
 
-// TestWardenAuditLog 验证用户查询记录审计日志
-// 注意：Warden 可能没有显式的审计日志功能，这里主要验证操作是否成功
+// TestWardenAuditLog verifies that user queries are recorded in the audit log
+// Note: Warden may not have explicit audit logging features; this mainly verifies if the operation succeeds
 func TestWardenAuditLog(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 测试用户查询应该被记录（如果 Warden 有审计功能）
+	// Test that user query should be recorded (if Warden has audit features)
 	t.Log("Testing user query (audit log may be recorded if enabled)...")
 
 	testPhone := "13800138000"

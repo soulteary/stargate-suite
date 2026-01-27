@@ -14,11 +14,11 @@ import (
 	"github.com/MarvinJWendt/testza"
 )
 
-// TestHeraldHMACSignature 测试 Stargate → Herald 的 HMAC 签名
+// TestHeraldHMACSignature tests the HMAC signature from Stargate to Herald
 func TestHeraldHMACSignature(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 添加延迟以避免限流
+	// Add delay to avoid rate limiting
 	time.Sleep(2 * time.Second)
 
 	reqBody := HeraldChallengeRequest{
@@ -55,7 +55,7 @@ func TestHeraldHMACSignature(t *testing.T) {
 		}
 	}()
 
-	// 处理限流情况（429）
+	// Handle rate limiting (429)
 	if resp.StatusCode == http.StatusTooManyRequests {
 		t.Logf("⚠ Rate limited, skipping this test. Status: %d", resp.StatusCode)
 		return
@@ -70,7 +70,7 @@ func TestHeraldHMACSignature(t *testing.T) {
 	t.Logf("✓ Valid HMAC signature accepted: %+v", challengeResp)
 }
 
-// TestHeraldHMACSignatureInvalid 测试无效签名被拒绝
+// TestHeraldHMACSignatureInvalid tests that invalid signatures are rejected
 func TestHeraldHMACSignatureInvalid(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -87,7 +87,7 @@ func TestHeraldHMACSignatureInvalid(t *testing.T) {
 
 	timestamp := time.Now().Unix()
 	service := "stargate"
-	// 使用错误的签名
+	// Use incorrect signature
 	invalidSignature := "invalid_signature_12345"
 
 	url := fmt.Sprintf("%s/v1/otp/challenges", heraldURL)
@@ -121,7 +121,7 @@ func TestHeraldHMACSignatureInvalid(t *testing.T) {
 	t.Logf("✓ Invalid HMAC signature rejected: Status %d", resp.StatusCode)
 }
 
-// TestHeraldHMACSignatureExpired 测试过期时间戳被拒绝
+// TestHeraldHMACSignatureExpired tests that expired timestamps are rejected
 func TestHeraldHMACSignatureExpired(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -136,7 +136,7 @@ func TestHeraldHMACSignatureExpired(t *testing.T) {
 	testza.AssertNoError(t, err)
 	bodyStr := string(bodyBytes)
 
-	// 使用过期的时间戳（6 分钟前，超过默认的 5 分钟窗口）
+	// Use expired timestamp (6 minutes ago, exceeding the default 5-minute window)
 	expiredTimestamp := time.Now().Unix() - 360
 	service := "stargate"
 	signature := calculateHMAC(expiredTimestamp, service, bodyStr, heraldHMACSecret)
@@ -173,7 +173,7 @@ func TestHeraldHMACSignatureExpired(t *testing.T) {
 	t.Logf("✓ Expired timestamp rejected: Status %d", resp.StatusCode)
 }
 
-// TestHeraldHMACSignatureMissing 测试缺少签名头被拒绝
+// TestHeraldHMACSignatureMissing tests that missing signature headers are rejected
 func TestHeraldHMACSignatureMissing(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -193,7 +193,7 @@ func TestHeraldHMACSignatureMissing(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	// 不设置 X-Signature、X-Timestamp、X-Service，也不设置 X-API-Key
+	// Do not set X-Signature, X-Timestamp, X-Service, nor X-API-Key
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -210,7 +210,7 @@ func TestHeraldHMACSignatureMissing(t *testing.T) {
 	t.Logf("✓ Missing authentication rejected: Status %d", resp.StatusCode)
 }
 
-// TestWardenAPIKeyRequired 测试缺少 API Key 被拒绝
+// TestWardenAPIKeyRequired tests that missing API Key is rejected
 func TestWardenAPIKeyRequired(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -220,7 +220,7 @@ func TestWardenAPIKeyRequired(t *testing.T) {
 	testza.AssertNoError(t, err)
 
 	req.Header.Set("Accept", "application/json")
-	// 不设置 X-API-Key
+	// Do not set X-API-Key
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -236,13 +236,13 @@ func TestWardenAPIKeyRequired(t *testing.T) {
 
 	bodyBytes, _ := io.ReadAll(resp.Body)
 	bodyStr := string(bodyBytes)
-	// 放宽错误消息检查，只要返回了 401/403 就认为测试通过
-	// 错误消息可能因实现而异，不强制检查具体内容
+	// Relax error message check; consider test passed if 401/403 is returned
+	// Error messages may vary by implementation; specific content is not enforced
 
 	t.Logf("✓ Missing API Key rejected: Status %d, Body: %s", resp.StatusCode, bodyStr)
 }
 
-// TestWardenAPIKeyInvalid 测试无效 API Key 被拒绝
+// TestWardenAPIKeyInvalid tests that invalid API Key is rejected
 func TestWardenAPIKeyInvalid(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -266,17 +266,17 @@ func TestWardenAPIKeyInvalid(t *testing.T) {
 	testza.AssertTrue(t, resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden,
 		"Should return 401 Unauthorized or 403 Forbidden with invalid API Key")
 
-	// 放宽错误消息检查，只要返回了 401/403 就认为测试通过
-	// 错误消息可能因实现而异，不强制检查具体内容
+	// Relax error message check; consider test passed if 401/403 is returned
+	// Error messages may vary by implementation; specific content is not enforced
 
 	t.Logf("✓ Invalid API Key rejected: Status %d", resp.StatusCode)
 }
 
-// TestHeraldAPIKeyAuth 测试 Herald API Key 认证
+// TestHeraldAPIKeyAuth tests Herald API Key authentication
 func TestHeraldAPIKeyAuth(t *testing.T) {
 	ensureServicesReady(t)
 
-	// 添加延迟以避免限流
+	// Add delay to avoid rate limiting
 	time.Sleep(2 * time.Second)
 
 	reqBody := HeraldChallengeRequest{
@@ -306,7 +306,7 @@ func TestHeraldAPIKeyAuth(t *testing.T) {
 		}
 	}()
 
-	// 处理限流情况（429）
+	// Handle rate limiting (429)
 	if resp.StatusCode == http.StatusTooManyRequests {
 		t.Logf("⚠ Rate limited, skipping this test. Status: %d", resp.StatusCode)
 		return
@@ -321,7 +321,7 @@ func TestHeraldAPIKeyAuth(t *testing.T) {
 	t.Logf("✓ Valid API Key accepted: %+v", challengeResp)
 }
 
-// TestHeraldAPIKeyInvalid 测试 Herald 无效 API Key
+// TestHeraldAPIKeyInvalid tests Herald invalid API Key
 func TestHeraldAPIKeyInvalid(t *testing.T) {
 	ensureServicesReady(t)
 

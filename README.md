@@ -1,8 +1,8 @@
-# stargate-suite - 三服务端到端集成测试套件
+# stargate-suite - Three-Service End-to-End Integration Test Suite
 
-本项目提供 Stargate + Warden + Herald 三个服务的完整端到端集成测试环境，包含全面的测试用例覆盖正常流程、异常场景、服务间鉴权、幂等性、审计日志、监控指标等各个方面。
+This project provides a complete end-to-end integration test environment for the Stargate + Warden + Herald services, containing comprehensive test cases covering normal flows, error scenarios, inter-service authentication, idempotency, audit logs, monitoring metrics, and more.
 
-## 项目结构
+## Project Structure
 
 ```
 stargate-suite/

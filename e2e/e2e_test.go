@@ -19,13 +19,13 @@ const (
 	authHost    = "auth.test.localhost"
 )
 
-// TestCompleteLoginFlow 测试完整的登录流程
-// 1. 发送验证码
-// 2. 从 Herald 测试端点获取验证码
-// 3. 使用验证码登录
-// 4. 验证 forwardAuth 检查返回正确的授权 Header
+// TestCompleteLoginFlow tests the complete login flow
+// 1. Send verification code
+// 2. Get verification code from Herald test endpoint
+// 3. Login with verification code
+// 4. Verify forwardAuth check returns correct authorization headers
 func TestCompleteLoginFlow(t *testing.T) {
-	// 等待服务就绪
+	// Wait for services to be ready
 	if !waitForService(t, stargateURL+"/_auth", 30*time.Second) {
 		t.Fatalf("Stargate service is not ready")
 	}
@@ -36,21 +36,21 @@ func TestCompleteLoginFlow(t *testing.T) {
 		t.Fatalf("Warden service is not ready")
 	}
 
-	// 使用测试用户：13800138000 (admin@example.com)
+	// Use test user: 13800138000 (admin@example.com)
 	testPhone := "13800138000"
 	expectedUserID := "test-admin-001"
 	expectedEmail := "admin@example.com"
 	expectedScopes := "read,write,admin"
 	expectedRole := "admin"
 
-	// Step 1: 发送验证码
+	// Step 1: Send verification code
 	t.Log("Step 1: Sending verification code...")
 	challengeID, err := sendVerificationCode(t, testPhone)
 	testza.AssertNoError(t, err)
 	testza.AssertNotNil(t, challengeID)
 	t.Logf("Challenge ID: %s", challengeID)
 
-	// Step 2: 从 Herald 测试端点获取验证码
+	// Step 2: Get verification code from Herald test endpoint
 	t.Log("Step 2: Getting verification code from Herald test endpoint...")
 	verifyCode, err := getTestCode(t, challengeID)
 	testza.AssertNoError(t, err)
@@ -58,14 +58,14 @@ func TestCompleteLoginFlow(t *testing.T) {
 	testza.AssertEqual(t, 6, len(verifyCode))
 	t.Logf("Verification code: %s", verifyCode)
 
-	// Step 3: 使用验证码登录
+	// Step 3: Login with verification code
 	t.Log("Step 3: Logging in with verification code...")
 	sessionCookie, err := login(t, testPhone, challengeID, verifyCode)
 	testza.AssertNoError(t, err)
 	testza.AssertNotNil(t, sessionCookie)
 	t.Logf("Session cookie: %s", sessionCookie)
 
-	// Step 4: 验证 forwardAuth 检查
+	// Step 4: Verify forwardAuth check
 	t.Log("Step 4: Verifying forwardAuth check...")
 	authHeaders, err := checkAuth(t, sessionCookie)
 	testza.AssertNoError(t, err)
@@ -77,9 +77,9 @@ func TestCompleteLoginFlow(t *testing.T) {
 	t.Log("✓ All authorization headers verified successfully")
 }
 
-// sendVerificationCode 发送验证码请求
+// sendVerificationCode sends a verification code request
 func sendVerificationCode(t *testing.T, phone string) (string, error) {
-	// 添加延迟以避免限流
+	// Add delay to avoid rate limiting
 	time.Sleep(2 * time.Second)
 
 	url := fmt.Sprintf("%s/_send_verify_code", stargateURL)
@@ -104,7 +104,7 @@ func sendVerificationCode(t *testing.T, phone string) (string, error) {
 		}
 	}()
 
-	// 处理限流情况
+	// Handle rate limiting
 	if resp.StatusCode == http.StatusTooManyRequests {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return "", fmt.Errorf("rate limited: status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
@@ -132,7 +132,7 @@ func sendVerificationCode(t *testing.T, phone string) (string, error) {
 	return result.ChallengeID, nil
 }
 
-// getTestCode 从 Herald 测试端点获取验证码
+// getTestCode gets the verification code from Herald test endpoint
 func getTestCode(t *testing.T, challengeID string) (string, error) {
 	if challengeID == "" {
 		return "", fmt.Errorf("challengeID cannot be empty")
@@ -178,7 +178,7 @@ func getTestCode(t *testing.T, challengeID string) (string, error) {
 	return result.Code, nil
 }
 
-// login 使用验证码登录
+// login logs in with verification code
 func login(t *testing.T, phone, challengeID, verifyCode string) (string, error) {
 	url := fmt.Sprintf("%s/_login", stargateURL)
 	body := fmt.Sprintf("auth_method=warden&phone=%s&challenge_id=%s&verify_code=%s",
@@ -208,17 +208,17 @@ func login(t *testing.T, phone, challengeID, verifyCode string) (string, error) 
 		return "", fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	// 提取 Set-Cookie header
+	// Extract Set-Cookie header
 	setCookieHeaders := resp.Header.Values("Set-Cookie")
 	if len(setCookieHeaders) == 0 {
 		return "", fmt.Errorf("no Set-Cookie header found")
 	}
 
-	// 查找 session cookie (stargate_session_id)
+	// Find session cookie (stargate_session_id)
 	var sessionCookie string
 	for _, cookieHeader := range setCookieHeaders {
 		if strings.Contains(cookieHeader, "stargate_session_id") {
-			// 提取 name=value 部分（分号之前）
+			// Extract name=value part (before semicolon)
 			parts := strings.Split(cookieHeader, ";")
 			if len(parts) > 0 {
 				sessionCookie = strings.TrimSpace(parts[0])
@@ -234,7 +234,7 @@ func login(t *testing.T, phone, challengeID, verifyCode string) (string, error) 
 	return sessionCookie, nil
 }
 
-// AuthHeaders 表示 forwardAuth 返回的授权 Header
+// AuthHeaders represents the auth headers returned by forwardAuth
 type AuthHeaders struct {
 	UserID string
 	Email  string
@@ -242,7 +242,7 @@ type AuthHeaders struct {
 	Role   string
 }
 
-// checkAuth 验证 forwardAuth 检查
+// checkAuth verifies the forwardAuth check
 func checkAuth(t *testing.T, sessionCookie string) (*AuthHeaders, error) {
 	url := fmt.Sprintf("%s/_auth", stargateURL)
 
@@ -280,7 +280,7 @@ func checkAuth(t *testing.T, sessionCookie string) (*AuthHeaders, error) {
 	return headers, nil
 }
 
-// waitForService 等待服务就绪
+// waitForService waits for the service to be ready
 func waitForService(t *testing.T, url string, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
 	client := &http.Client{Timeout: 2 * time.Second}
