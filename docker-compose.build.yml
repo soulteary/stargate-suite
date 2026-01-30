@@ -87,7 +87,7 @@ services:
 
   # Warden Redis
   warden-redis:
-    image: ${WARDEN_REDIS_IMAGE:-redis:6.2.4-alpine}
+    image: ${WARDEN_REDIS_IMAGE:-redis:7-alpine}
     container_name: the-gate-warden-redis
     expose:
       - 6379

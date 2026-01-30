@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # Herald - OTP/Verification Code Service
   herald:
-    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.2.0}
+    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.4.1}
     container_name: the-gate-herald
     ports:
       - "8082:8082"
@@ -52,7 +52,7 @@ services:
 
   # Warden - Whitelist User Service
   warden:
-    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.5.0}
+    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.8.0}
     container_name: the-gate-warden
     ports:
       - "8081:8081"
@@ -83,7 +83,7 @@ services:
 
   # Warden Redis
   warden-redis:
-    image: ${WARDEN_REDIS_IMAGE:-redis:6.2.4-alpine}
+    image: ${WARDEN_REDIS_IMAGE:-redis:7-alpine}
     container_name: the-gate-warden-redis
     expose:
       - 6379
@@ -100,7 +100,7 @@ services:
 
   # Stargate - Authentication/Authorization Service
   stargate:
-    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.4.0}
+    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.7.1}
     container_name: the-gate-stargate
     ports:
       - "8080:80"
