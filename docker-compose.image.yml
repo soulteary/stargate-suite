@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Herald - OTP/Verification Code Service
   herald:
