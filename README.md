@@ -6,10 +6,22 @@ This project provides a complete end-to-end integration test environment for the
 
 ```
 stargate-suite/
-├── docker-compose.yml      # Docker Compose 编排配置
+├── compose/                # Docker Compose 示例（每种用法对应一个子目录）
+│   ├── README.md           # Compose 使用说明
+│   ├── build/              # 从源码构建
+│   │   └── docker-compose.yml
+│   ├── image/              # 预构建镜像（默认）
+│   │   └── docker-compose.yml
+│   ├── traefik/            # 三合一：接入 Traefik + 受保护服务
+│   │   └── docker-compose.yml
+│   ├── traefik-herald/     # 三分开：仅 Herald
+│   ├── traefik-warden/     # 三分开：仅 Warden
+│   └── traefik-stargate/   # 三分开：仅 Stargate + 受保护服务
 ├── go.mod                  # Go 模块定义
 ├── go.sum                  # Go 依赖锁定
 ├── Makefile                # 便捷命令脚本
+├── cmd/suite/              # Go CLI（与 Makefile 等效）
+│   └── main.go
 ├── README.md               # 本文档
 ├── LICENSE                  # 许可证文件
 ├── e2e/                    # 端到端测试代码
@@ -42,22 +54,71 @@ stargate-suite/
 ### 启动服务
 
 ```bash
-# 方式 1: 使用 Makefile（推荐）
+# 方式 1: 使用 Makefile（推荐，默认使用 compose/image）
 make up
 
-# 方式 2: 直接使用 docker compose
-docker compose up -d --build
+# 使用不同 compose 示例
+make up-image    # 预构建镜像（compose/image）
+make up-build    # 从源码构建（compose/build）
+make up-traefik  # 接入 Traefik（compose/traefik）
+
+# 方式 2: 直接指定 compose 文件（在项目根目录执行）
+docker compose -f compose/image/docker-compose.yml up -d
+docker compose -f compose/build/docker-compose.yml up -d --build
+docker compose -f compose/traefik/docker-compose.yml up -d
 
 # 查看服务状态
 make ps
 # 或
-docker compose ps
+docker compose -f compose/image/docker-compose.yml ps
 
 # 查看服务日志
 make logs
 # 或
-docker compose logs -f
+docker compose -f compose/image/docker-compose.yml logs -f
 ```
+
+**方式 3：使用 Go CLI（与 Makefile 等效，跨平台）**
+
+```bash
+# 查看所有命令
+go run ./cmd/suite help
+# 或先构建再使用
+make suite-build && ./bin/suite help
+
+# 通过 Makefile 调用 CLI（ARGS 为子命令及参数）
+make suite ARGS="up"
+make suite ARGS="health"
+
+# 直接运行
+go run ./cmd/suite up
+go run ./cmd/suite test-wait
+go run ./cmd/suite health
+```
+
+支持通过环境变量 `COMPOSE_FILE` 指定默认 compose 文件，与 Makefile 一致。
+
+**生成 build 目录（输出不同使用方式的 compose 与 .env）**
+
+通过 CLI 将指定使用方式的 `docker-compose.yml` 和 `.env` 输出到 `build` 目录（或通过 `-o` 指定目录），便于分发或 CI 使用：
+
+```bash
+# 在项目根目录执行
+go run ./cmd/suite gen [mode]     # 输出到 build/，mode 默认为 all
+go run ./cmd/suite gen image      # 仅生成 image 模式 → build/image/
+go run ./cmd/suite gen build      # 仅生成 build 模式 → build/build/
+go run ./cmd/suite gen traefik    # 仅生成 traefik 模式 → build/traefik/（含多份 compose）
+go run ./cmd/suite gen all        # 生成 image、build、traefik 三种
+
+# 指定输出目录（默认 build）
+go run ./cmd/suite -o dist gen traefik   # 输出到 dist/traefik/
+# 或环境变量
+GEN_OUT_DIR=dist go run ./cmd/suite gen all
+```
+
+生成后可在输出目录使用：`docker compose -f build/image/docker-compose.yml --env-file build/image/.env up -d`（或在对应子目录下执行 compose）。
+
+Compose 示例说明见 [compose/README.md](./compose/README.md)。
 
 ### 运行测试
 
@@ -80,15 +141,15 @@ go test -v ./e2e/... -run TestCompleteLoginFlow
 ### 停止服务
 
 ```bash
-# 停止所有服务
+# 停止所有服务（与启动时使用的 compose 一致，默认 compose/image）
 make down
 # 或
-docker compose down
+docker compose -f compose/image/docker-compose.yml down
 
 # 停止服务并清理数据卷
 make clean
 # 或
-docker compose down -v
+docker compose -f compose/image/docker-compose.yml down -v
 ```
 
 ## 服务配置
@@ -241,22 +302,25 @@ go test -v ./e2e/... -run TestWardenUnavailable
 
 ## Makefile 命令
 
-项目提供了便捷的 Makefile 命令：
+项目提供了便捷的 Makefile 命令（默认使用 `compose/image`，可通过 `COMPOSE_FILE` 覆盖）：
 
 ```bash
-make help          # 显示帮助信息
-make up            # 启动所有服务
-make down          # 停止所有服务
-make logs          # 查看服务日志
-make ps             # 查看服务状态
-make test           # 运行端到端测试
-make test-wait      # 等待服务就绪后运行测试（推荐）
-make clean          # 清理服务和数据卷
-make restart        # 重启所有服务
-make restart-warden # 重启 Warden 服务
-make restart-herald # 重启 Herald 服务
+make help            # 显示帮助信息
+make up              # 启动所有服务（默认 compose/image）
+make up-build        # 从源码构建并启动（compose/build）
+make up-image        # 使用预构建镜像启动（compose/image）
+make up-traefik      # 接入 Traefik 启动（compose/traefik）
+make down            # 停止所有服务
+make logs            # 查看服务日志
+make ps              # 查看服务状态
+make test            # 运行端到端测试
+make test-wait       # 等待服务就绪后运行测试（推荐）
+make clean           # 清理服务和数据卷
+make restart         # 重启所有服务
+make restart-warden  # 重启 Warden 服务
+make restart-herald  # 重启 Herald 服务
 make restart-stargate # 重启 Stargate 服务
-make health         # 检查服务健康状态
+make health          # 检查服务健康状态
 ```
 
 ## 服务说明
@@ -354,10 +418,10 @@ Traefik forwardAuth 鉴权服务，负责：
 2. 查看服务日志：
    ```bash
    make logs
-   # 或查看特定服务
-   docker compose logs stargate
-   docker compose logs warden
-   docker compose logs herald
+   # 或查看特定服务（使用与启动时相同的 compose 文件）
+   docker compose -f compose/image/docker-compose.yml logs stargate
+   docker compose -f compose/image/docker-compose.yml logs warden
+   docker compose -f compose/image/docker-compose.yml logs herald
    ```
 
 3. 检查服务健康状态：
@@ -398,7 +462,7 @@ Traefik forwardAuth 鉴权服务，负责：
 确保 Herald 已启用测试模式（`HERALD_TEST_MODE=true`），检查 Herald 日志确认测试端点已启用：
 
 ```bash
-docker compose logs herald | grep -i "test"
+docker compose -f compose/image/docker-compose.yml logs herald | grep -i "test"
 ```
 
 ### Redis 连接问题
@@ -408,7 +472,7 @@ docker compose logs herald | grep -i "test"
 1. 确保 Herald Redis 端口已映射到 `localhost:6379`
 2. 检查 Redis 是否正常运行：
    ```bash
-   docker compose ps herald-redis
+   docker compose -f compose/image/docker-compose.yml ps herald-redis
    redis-cli -h localhost -p 6379 ping
    ```
 
@@ -420,8 +484,8 @@ docker compose logs herald | grep -i "test"
 
 ```bash
 make restart-warden
-# 或
-docker compose restart warden
+# 或（使用与启动时相同的 compose 文件）
+docker compose -f compose/image/docker-compose.yml restart warden
 ```
 
 ### 添加新测试
@@ -452,18 +516,18 @@ func TestMyNewTest(t *testing.T) {
 
 如果需要修改服务代码，可以：
 
-1. 修改对应服务的源码
-2. 重新构建镜像：
+1. 使用 `compose/build` 示例并从源码构建：
    ```bash
-   docker compose build stargate
-   docker compose build warden
-   docker compose build herald
-   ```
-3. 重启服务：
-   ```bash
-   make restart
+   make up-build
    # 或
-   docker compose up -d
+   docker compose -f compose/build/docker-compose.yml up -d --build
+   ```
+2. 修改对应服务源码后重新构建并重启：
+   ```bash
+   docker compose -f compose/build/docker-compose.yml build stargate
+   docker compose -f compose/build/docker-compose.yml up -d
+   # 或
+   make restart
    ```
 
 ### 代码质量检查

@@ -1,0 +1,193 @@
+# Stargate Suite with Traefik - 三合一版本（默认）
+# Stargate + Warden + Herald 写在同一 compose 中，接入外部 Traefik 网络。
+#
+# 使用（在 stargate-suite 根目录）：
+#   docker network create traefik   # 若尚未创建
+#   docker compose -f compose/traefik/docker-compose.yml up -d
+#   或：make up-traefik
+#
+# 三分开版本：见 compose/traefik-herald/、compose/traefik-warden/、compose/traefik-stargate/
+# 使用：make net-traefik-split && make up-traefik-herald && make up-traefik-warden && make up-traefik-stargate
+
+services:
+  # Herald - OTP/验证码服务
+  herald:
+    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.4.1}
+    container_name: the-gate-herald
+    ports:
+      - "8082:8082"
+    environment:
+      - PORT=:8082
+      - REDIS_ADDR=herald-redis:6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - LOG_LEVEL=info
+      - API_KEY=${HERALD_API_KEY:-test-herald-api-key}
+      - HMAC_SECRET=${HERALD_HMAC_SECRET:-test-hmac-secret}
+      - HERALD_TEST_MODE=true
+      - PROVIDER_FAILURE_POLICY=soft
+      - CHALLENGE_EXPIRY=5m
+      - CODE_LENGTH=6
+      - MAX_ATTEMPTS=5
+    depends_on:
+      herald-redis:
+        condition: service_healthy
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  herald-redis:
+    image: ${HERALD_REDIS_IMAGE:-redis:7-alpine}
+    container_name: the-gate-herald-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - herald-redis-data:/data
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # Warden - 白名单用户服务
+  warden:
+    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.8.0}
+    container_name: the-gate-warden
+    ports:
+      - "8081:8081"
+    environment:
+      - PORT=8081
+      - REDIS=warden-redis:6379
+      - REDIS_PASSWORD=
+      - MODE=ONLY_LOCAL
+      - API_KEY=${WARDEN_API_KEY:-test-warden-api-key}
+      - INTERVAL=5
+      - LOG_LEVEL=info
+    volumes:
+      - ../../fixtures/warden/data.json:/app/data.json:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    depends_on:
+      warden-redis:
+        condition: service_healthy
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  warden-redis:
+    image: ${WARDEN_REDIS_IMAGE:-redis:7-alpine}
+    container_name: the-gate-warden-redis
+    expose:
+      - 6379
+    volumes:
+      - warden-redis-data:/data
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # Stargate - Forward Auth，依赖 Warden/Herald（内网）
+  stargate:
+    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.7.1}
+    container_name: the-gate-stargate
+    ports: []
+    environment:
+      - AUTH_HOST=${AUTH_HOST:-auth.test.localhost}
+      - PASSWORDS=${PASSWORDS:-plaintext:test1234|test1337}
+      - LANGUAGE=${LANGUAGE:-zh}
+      - WARDEN_URL=http://warden:8081
+      - WARDEN_ENABLED=${WARDEN_ENABLED:-true}
+      - WARDEN_API_KEY=${WARDEN_API_KEY:-test-warden-api-key}
+      - WARDEN_CACHE_TTL=300
+      - HERALD_URL=http://herald:8082
+      - HERALD_ENABLED=${HERALD_ENABLED:-true}
+      - HERALD_API_KEY=${HERALD_API_KEY:-test-herald-api-key}
+      - HERALD_HMAC_SECRET=${HERALD_HMAC_SECRET:-test-hmac-secret}
+      - SESSION_STORAGE_ENABLED=${SESSION_STORAGE_ENABLED:-false}
+      - DEBUG=false
+    depends_on:
+      warden:
+        condition: service_healthy
+      herald:
+        condition: service_healthy
+    networks:
+      - the-gate-network
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-http.entrypoints=http"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-http.middlewares=redir-https"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-http.rule=Host(`${STARGATE_DOMAIN:-auth.test.localhost}`) || PathPrefix(`/_session_exchange`)"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-http.service=noop@internal"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.entrypoints=https"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.tls=true"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.middlewares=gzip"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.rule=Host(`${STARGATE_DOMAIN:-auth.test.localhost}`) || PathPrefix(`/_session_exchange`)"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.service=${STARGATE_PREFIX:-stargate}-backend"
+      - "traefik.http.services.${STARGATE_PREFIX:-stargate}-backend.loadbalancer.server.scheme=http"
+      - "traefik.http.services.${STARGATE_PREFIX:-stargate}-backend.loadbalancer.server.port=80"
+      - "traefik.http.middlewares.stargate-auth.forwardauth.address=http://stargate/_auth"
+      - "traefik.http.middlewares.stargate-auth.forwardauth.authResponseHeaders=${USER_HEADER_NAME:-X-Forwarded-User}"
+      - "traefik.http.middlewares.stargate-auth.forwardauth.authResponseHeadersRegex=X-Forwarded-.*"
+      - "traefik.http.middlewares.stargate-auth.forwardauth.trustForwardHeader=true"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  # 示例：受保护服务（whoami），经 Stargate Forward Auth
+  protected-service:
+    image: ${PROTECTED_IMAGE:-ghcr.io/traefik/whoami:v1.11}
+    container_name: the-gate-whoami
+    restart: unless-stopped
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-http.entrypoints=http"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-http.middlewares=redir-https"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-http.rule=Host(`${PROTECTED_DOMAIN:-whoami.test.localhost}`)"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-http.service=noop@internal"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-https.entrypoints=https"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-https.tls=true"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-https.middlewares=gzip,stargate-auth"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-https.rule=Host(`${PROTECTED_DOMAIN:-whoami.test.localhost}`)"
+      - "traefik.http.routers.${PROTECTED_PREFIX:-protected}-https.service=${PROTECTED_PREFIX:-protected}-backend"
+      - "traefik.http.services.${PROTECTED_PREFIX:-protected}-backend.loadbalancer.server.scheme=http"
+      - "traefik.http.services.${PROTECTED_PREFIX:-protected}-backend.loadbalancer.server.port=80"
+
+volumes:
+  herald-redis-data:
+    driver: local
+  warden-redis-data:
+    driver: local
+
+networks:
+  the-gate-network:
+    driver: bridge
+  traefik:
+    external: true

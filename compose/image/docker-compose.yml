@@ -1,3 +1,8 @@
+# Stargate Suite - 使用预构建镜像运行
+# 使用说明：在项目根目录执行
+#   docker compose -f compose/image/docker-compose.yml up -d
+# 或进入本目录（需在项目根执行）：docker compose -f compose/image/docker-compose.yml up -d
+
 services:
   # Herald - OTP/Verification Code Service
   herald:
@@ -63,7 +68,7 @@ services:
       - INTERVAL=5
       - LOG_LEVEL=info
     volumes:
-      - ./fixtures/warden/data.json:/app/data.json:ro
+      - ../../fixtures/warden/data.json:/app/data.json:ro
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
     depends_on:

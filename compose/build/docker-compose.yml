@@ -1,8 +1,14 @@
+# Stargate Suite - 从源码构建运行
+# 使用说明：在项目根目录执行
+#   docker compose -f compose/build/docker-compose.yml up -d --build
+# 或进入本目录（需在项目根执行）：docker compose -f compose/build/docker-compose.yml up -d --build
+# 注意：build context 为 ../../herald、../../warden、../../stargate，需在 stargate-suite 根目录执行。
+
 services:
   # Herald - OTP/Verification Code Service
   herald:
     build:
-      context: ../herald
+      context: ../../herald
       dockerfile: docker/Dockerfile.manual
     container_name: the-gate-herald
     ports:
@@ -53,7 +59,7 @@ services:
   # Warden - Whitelist User Service
   warden:
     build:
-      context: ../warden
+      context: ../../warden
       dockerfile: docker/Dockerfile.manual
     container_name: the-gate-warden
     ports:
@@ -67,7 +73,7 @@ services:
       - INTERVAL=5
       - LOG_LEVEL=info
     volumes:
-      - ./fixtures/warden/data.json:/app/data.json:ro
+      - ../../fixtures/warden/data.json:/app/data.json:ro
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
     depends_on:
@@ -103,7 +109,7 @@ services:
   # Stargate - Authentication/Authorization Service
   stargate:
     build:
-      context: ../stargate
+      context: ../../stargate
       dockerfile: docker/Dockerfile.manual
     container_name: the-gate-stargate
     ports:

@@ -1,0 +1,9 @@
+{
+  "default": "compose/image/docker-compose.yml",
+  "build": "compose/build/docker-compose.yml",
+  "image": "compose/image/docker-compose.yml",
+  "traefik": "compose/traefik/docker-compose.yml",
+  "traefik-herald": "compose/traefik-herald/docker-compose.yml",
+  "traefik-warden": "compose/traefik-warden/docker-compose.yml",
+  "traefik-stargate": "compose/traefik-stargate/docker-compose.yml"
+}
