@@ -94,6 +94,8 @@ Defined in `fixtures/warden/data.json`:
 | Admin | `13800138000` | `admin@example.com` | `test-admin-001` |
 | User | `13900139000` | `user@example.com` | `test-user-002` |
 | Guest | `13700137000` | `guest@example.com` | `test-guest-003` |
+| Inactive | `13600136000` | `inactive@example.com` | `test-inactive-004` |
+| Rate-limit test | `13500135000` | `ratelimit@example.com` | `test-ratelimit-005` |
 
 ## See also
 

@@ -410,3 +410,65 @@ func clearRateLimitKeys(t *testing.T) error {
 
 	return nil
 }
+
+// waitForService waits for the service to be ready (HTTP status < 500).
+func waitForService(t *testing.T, url string, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	client := &http.Client{Timeout: 2 * time.Second}
+
+	for time.Now().Before(deadline) {
+		resp, err := client.Get(url)
+		if err == nil {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				t.Logf("Warning: failed to close response body: %v", closeErr)
+			}
+			if resp.StatusCode < 500 {
+				return true
+			}
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	return false
+}
+
+// ensureServicesReady ensures all services (Stargate, Warden, Herald) are ready and clears rate-limit state.
+func ensureServicesReady(t *testing.T) {
+	if !waitForService(t, stargateURL+"/_auth", 30*time.Second) {
+		t.Fatalf("Stargate service is not ready")
+	}
+	if !waitForService(t, heraldURL+"/healthz", 30*time.Second) {
+		t.Fatalf("Herald service is not ready")
+	}
+	if !waitForService(t, wardenURL+"/health", 30*time.Second) {
+		t.Fatalf("Warden service is not ready")
+	}
+
+	if err := clearRateLimitKeys(t); err != nil {
+		t.Logf("Warning: Failed to clear rate limit keys: %v (continuing test anyway)", err)
+	}
+}
+
+// waitForServiceDown polls the URL until it returns non-2xx or connection error, or timeout.
+// Returns true if the service is down (connection failed or status >= 400) within timeout, false on timeout.
+// Use in tests that stop a service and need to assert it is down (e.g. service-down scenarios).
+//
+//nolint:unused
+func waitForServiceDown(t *testing.T, url string, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	client := &http.Client{Timeout: 2 * time.Second}
+
+	for time.Now().Before(deadline) {
+		resp, err := client.Get(url)
+		if err != nil {
+			return true // connection failed, service considered down
+		}
+		code := resp.StatusCode
+		_ = resp.Body.Close()
+		if code >= 400 {
+			return true // non-2xx, service considered down
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return false
+}

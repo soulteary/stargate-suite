@@ -473,21 +473,3 @@ func TestInvalidAuthMethod(t *testing.T) {
 		"Should return 400 Bad Request or 401 Unauthorized")
 	t.Logf("✓ Invalid auth_method rejected: Status %d", resp.StatusCode)
 }
-
-// ensureServicesReady ensures all services are ready
-func ensureServicesReady(t *testing.T) {
-	if !waitForService(t, stargateURL+"/_auth", 30*time.Second) {
-		t.Fatalf("Stargate service is not ready")
-	}
-	if !waitForService(t, heraldURL+"/healthz", 30*time.Second) {
-		t.Fatalf("Herald service is not ready")
-	}
-	if !waitForService(t, wardenURL+"/health", 30*time.Second) {
-		t.Fatalf("Warden service is not ready")
-	}
-
-	// Clear rate limit keys to avoid previous tests affecting current test
-	if err := clearRateLimitKeys(t); err != nil {
-		t.Logf("Warning: Failed to clear rate limit keys: %v (continuing test anyway)", err)
-	}
-}

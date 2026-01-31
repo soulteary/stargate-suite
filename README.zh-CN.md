@@ -42,10 +42,11 @@ stargate-suite/
 ├── go.mod                  # Go 模块定义
 ├── go.sum                  # Go 依赖锁定
 ├── Makefile                # 便捷命令脚本
+├── config/                 # CLI 预设（presets.json）、Web UI 配置（page.yaml）
 ├── cmd/suite/              # Go CLI + Web UI
 │   ├── main.go
 │   ├── compose_split.go
-│   └── static/index.html  # 生成器页面
+│   └── static/index.html.tmpl  # 生成器页面模板
 ├── internal/composegen/    # Compose 解析与生成
 ├── README.md, README.zh-CN.md   # 根目录文档（本文为 README.zh-CN.md）
 ├── LICENSE                 # 许可证文件
@@ -75,8 +76,15 @@ stargate-suite/
 ### 前置要求
 
 - Docker 和 Docker Compose
-- Go 1.25+
+- Go 1.25+（见 `go.mod`，构建请使用该版本或更高）
 - 约 1GB 可用磁盘空间（用于 Docker 镜像和数据卷）
+
+### 默认 compose 与预设
+
+- **未执行 `gen` 前**：默认 compose 路径为 `compose/example/image/docker-compose.yml`（或使用 `--preset default`），可直接用该静态示例启动。
+- **执行 `make gen` 或 `go run ./cmd/suite gen all` 后**：日常推荐使用 `build/image/docker-compose.yml`，可用 `--preset image` 或 `-f build/image/docker-compose.yml` 指定；默认不会自动切换到 `build/`，需显式指定。
+
+详见 [config/README.zh-CN.md](./config/README.zh-CN.md) 的预设列表与覆盖顺序。
 
 ### 启动服务
 
@@ -157,6 +165,8 @@ GEN_OUT_DIR=dist go run ./cmd/suite gen all
 **Web UI 生成**
 
 在项目根目录执行 `go run ./cmd/suite serve`（默认 http://localhost:8085），在网页上勾选要生成的 compose 类型，点击生成即可下载 `docker-compose.yml` 与 `.env`。也可通过 `-port` 或 `SERVE_PORT` 指定端口。
+
+- **安全说明**：Web UI 与 `/api/generate` 无鉴权，仅在本地或可信环境使用，请勿暴露到公网。
 
 ### 运行测试
 
@@ -343,22 +353,36 @@ go test -v ./e2e/... -run TestWardenUnavailable
 项目提供了便捷的 Makefile 命令（默认使用 `build/image`，可通过 `COMPOSE_FILE` 覆盖）：
 
 ```bash
-make help            # 显示帮助信息
-make up              # 启动所有服务（默认 build/image）
-make up-build        # 从源码构建并启动（build/build）
-make up-image        # 使用预构建镜像启动（build/image）
-make up-traefik      # 接入 Traefik 启动（build/traefik）
-make down            # 停止所有服务
-make logs            # 查看服务日志
-make ps              # 查看服务状态
-make test            # 运行端到端测试
-make test-wait       # 等待服务就绪后运行测试（推荐）
-make clean           # 清理服务和数据卷
-make restart         # 重启所有服务
-make restart-warden  # 重启 Warden 服务
-make restart-herald  # 重启 Herald 服务
-make restart-stargate # 重启 Stargate 服务
-make health          # 检查服务健康状态
+make help                  # 显示帮助信息
+make gen                   # 生成 compose 与 .env 到 build/
+make up                    # 启动所有服务（默认 build/image）
+make up-build              # 从源码构建并启动（build/build）
+make up-image              # 使用预构建镜像启动（build/image）
+make up-traefik            # 接入 Traefik 启动（build/traefik）
+make up-traefik-herald     # 三分开：仅 Herald
+make up-traefik-warden     # 三分开：仅 Warden
+make up-traefik-stargate   # 三分开：Stargate + 受保护服务
+make down                  # 停止所有服务
+make down-build            # 停止 build/build 启动的服务
+make down-image            # 停止 build/image 启动的服务
+make down-traefik          # 停止 build/traefik 三合一
+make down-traefik-herald   # 三分开：停止 Herald
+make down-traefik-warden   # 三分开：停止 Warden
+make down-traefik-stargate # 三分开：停止 Stargate
+make net-traefik-split     # 创建三分开所需网络（执行一次）
+make logs                  # 查看服务日志
+make ps                    # 查看服务状态
+make test                  # 运行端到端测试
+make test-wait             # 等待服务就绪后运行测试（推荐）
+make clean                 # 清理服务和数据卷
+make restart               # 重启所有服务
+make restart-warden        # 重启 Warden 服务
+make restart-herald        # 重启 Herald 服务
+make restart-stargate      # 重启 Stargate 服务
+make health                # 检查服务健康状态
+make suite ARGS="..."      # 运行 CLI（如 make suite ARGS="up"）
+make suite-build           # 构建 bin/suite
+make serve                 # 启动 Web UI（默认 :8085）
 ```
 
 ## 服务说明

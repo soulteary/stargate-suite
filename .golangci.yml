@@ -1,0 +1,21 @@
+# golangci-lint v2 config for stargate-suite (see README Development section)
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - ineffassign
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+
+issues:
+  max-same-issues: 100000

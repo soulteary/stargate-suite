@@ -166,14 +166,16 @@ go test -v ./e2e/... -run TestWardenUnavailable
 
 ### test_helpers.go 提供的函数
 
+- `waitForService`, `ensureServicesReady`: 等待服务就绪；`ensureServicesReady` 还会清理限流状态
+- `waitForServiceDown`: 等待服务停止（返回非 2xx 或连接失败）
 - `sendVerificationCodeWithError`: 发送验证码并返回错误响应（如果失败）
 - `loginWithError`: 登录并返回错误响应（如果失败）
 - `checkAuthWithError`: 验证授权并返回错误响应（如果失败）
-- `waitForServiceDown`: 等待服务停止
 - `triggerRateLimit`: 触发限流（快速发送多次请求）
 - `stopDockerServiceInDir`: 在指定目录停止 Docker 服务
 - `startDockerServiceInDir`: 在指定目录启动 Docker 服务
 - `sendVerificationCodeWithEmail`: 使用邮箱发送验证码
+- `clearRateLimitKeys`: 清理 Redis 中的测试状态
 
 ## 错误响应格式
 

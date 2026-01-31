@@ -68,10 +68,13 @@ go test -v ./e2e/... -run TestWardenUnavailable
 
 ## Helpers (test_helpers.go)
 
+- `waitForService`, `ensureServicesReady` — wait for services to be ready; `ensureServicesReady` also clears rate-limit state
+- `waitForServiceDown` — wait until a service returns non-2xx or connection error
 - `sendVerificationCodeWithError`, `loginWithError`, `checkAuthWithError`
-- `waitForServiceDown`, `triggerRateLimit`
+- `triggerRateLimit`
 - `stopDockerServiceInDir`, `startDockerServiceInDir`
 - `sendVerificationCodeWithEmail`
+- `clearRateLimitKeys` — clear test state in Redis
 
 ## ErrorResponse
 

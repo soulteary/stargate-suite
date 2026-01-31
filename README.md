@@ -42,10 +42,11 @@ stargate-suite/
 ├── go.mod
 ├── go.sum
 ├── Makefile
+├── config/                 # CLI presets (presets.json), Web UI (page.yaml)
 ├── cmd/suite/              # Go CLI + Web UI
 │   ├── main.go
 │   ├── compose_split.go
-│   └── static/index.html
+│   └── static/index.html.tmpl
 ├── internal/composegen/
 ├── README.md
 ├── LICENSE
@@ -75,8 +76,15 @@ Root docs: `README.md` (this file), `README.zh-CN.md` (Chinese). Same pattern in
 ### Prerequisites
 
 - Docker and Docker Compose
-- Go 1.25+
+- Go 1.25+ (see `go.mod`; use this version or newer for builds)
 - ~1GB disk (Docker images and volumes)
+
+### Default compose and presets
+
+- **Before running `gen`**: The default compose path is `compose/example/image/docker-compose.yml` (or use `--preset default`). You can start services from this static example.
+- **After running `make gen` or `go run ./cmd/suite gen all`**: Prefer `build/image/docker-compose.yml` for day-to-day use. Use `--preset image` or `-f build/image/docker-compose.yml` to select it. Do not assume the default is `build/` until you have run `gen` at least once.
+
+See [config/README.md](./config/README.md) for the full preset list and override order.
 
 ### Start services
 
@@ -146,6 +154,8 @@ Example after gen: `docker compose -f build/image/docker-compose.yml --env-file 
 **Web UI**
 
 From project root: `go run ./cmd/suite serve` (default http://localhost:8085). Use `-port` or `SERVE_PORT` to change port.
+
+- **Security**: The Web UI and `/api/generate` have no authentication. Use only on localhost or in a trusted environment; do not expose to the public internet.
 
 ### Run tests
 
@@ -230,11 +240,22 @@ Default compose: `build/image` (override with `COMPOSE_FILE`).
 
 ```bash
 make help
+make gen                  # Generate compose + .env into build/
 make up
 make up-build
 make up-image
 make up-traefik
+make up-traefik-herald    # Split: Herald only
+make up-traefik-warden    # Split: Warden only
+make up-traefik-stargate  # Split: Stargate + protected service
 make down
+make down-build
+make down-image
+make down-traefik
+make down-traefik-herald
+make down-traefik-warden
+make down-traefik-stargate
+make net-traefik-split    # Create networks for split (run once)
 make logs
 make ps
 make test
@@ -245,6 +266,9 @@ make restart-warden
 make restart-herald
 make restart-stargate
 make health
+make suite ARGS="..."     # Run CLI (e.g. make suite ARGS="up")
+make suite-build          # Build bin/suite
+make serve                # Web UI (default :8085)
 ```
 
 ## Services

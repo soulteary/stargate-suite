@@ -83,7 +83,6 @@ func TestHeraldHMACSignatureInvalid(t *testing.T) {
 
 	bodyBytes, err := json.Marshal(reqBody)
 	testza.AssertNoError(t, err)
-	bodyStr := string(bodyBytes)
 
 	timestamp := time.Now().Unix()
 	service := "stargate"
@@ -113,7 +112,7 @@ func TestHeraldHMACSignatureInvalid(t *testing.T) {
 		"Should return 401 Unauthorized or 403 Forbidden with invalid signature")
 
 	bodyBytes, _ = io.ReadAll(resp.Body)
-	bodyStr = string(bodyBytes)
+	bodyStr := string(bodyBytes)
 	testza.AssertTrue(t, strings.Contains(bodyStr, "unauthorized") || strings.Contains(bodyStr, "signature") ||
 		strings.Contains(bodyStr, "auth") || strings.Contains(bodyStr, "认证"),
 		"Error message should mention authentication failure")

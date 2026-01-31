@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
@@ -18,16 +17,7 @@ import (
 // 3. Login with verification code
 // 4. Verify forwardAuth check returns correct authorization headers
 func TestCompleteLoginFlow(t *testing.T) {
-	// Wait for services to be ready
-	if !waitForService(t, stargateURL+"/_auth", 30*time.Second) {
-		t.Fatalf("Stargate service is not ready")
-	}
-	if !waitForService(t, heraldURL+"/healthz", 30*time.Second) {
-		t.Fatalf("Herald service is not ready")
-	}
-	if !waitForService(t, wardenURL+"/health", 30*time.Second) {
-		t.Fatalf("Warden service is not ready")
-	}
+	ensureServicesReady(t)
 
 	// Use test user: 13800138000 (admin@example.com)
 	testPhone := "13800138000"
@@ -70,59 +60,14 @@ func TestCompleteLoginFlow(t *testing.T) {
 	t.Log("✓ All authorization headers verified successfully")
 }
 
-// sendVerificationCode sends a verification code request
+// sendVerificationCode sends a verification code request (success path; uses sendVerificationCodeWithError).
 func sendVerificationCode(t *testing.T, phone string) (string, error) {
-	// Add delay to avoid rate limiting
-	time.Sleep(2 * time.Second)
-
-	url := fmt.Sprintf("%s/_send_verify_code", stargateURL)
-	body := fmt.Sprintf("phone=%s", phone)
-
-	req, err := http.NewRequest("POST", url, strings.NewReader(body))
-	if err != nil {
-		return "", err
+	time.Sleep(2 * time.Second) // avoid rate limiting
+	challengeID, errResp := sendVerificationCodeWithError(t, phone)
+	if errResp != nil {
+		return "", fmt.Errorf("status %d: %s", errResp.StatusCode, errResp.Message)
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Forwarded-Host", authHost)
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			t.Logf("Warning: failed to close response body: %v", closeErr)
-		}
-	}()
-
-	// Handle rate limiting
-	if resp.StatusCode == http.StatusTooManyRequests {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("rate limited: status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	var result struct {
-		Success     bool   `json:"success"`
-		ChallengeID string `json:"challenge_id"`
-		ExpiresIn   int    `json:"expires_in"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
-	}
-
-	if !result.Success {
-		return "", fmt.Errorf("send verification code failed")
-	}
-
-	return result.ChallengeID, nil
+	return challengeID, nil
 }
 
 // getTestCode gets the verification code from Herald test endpoint
@@ -171,117 +116,20 @@ func getTestCode(t *testing.T, challengeID string) (string, error) {
 	return result.Code, nil
 }
 
-// login logs in with verification code
+// login logs in with verification code (success path; uses loginWithError).
 func login(t *testing.T, phone, challengeID, verifyCode string) (string, error) {
-	url := fmt.Sprintf("%s/_login", stargateURL)
-	body := fmt.Sprintf("auth_method=warden&phone=%s&challenge_id=%s&verify_code=%s",
-		phone, challengeID, verifyCode)
-
-	req, err := http.NewRequest("POST", url, strings.NewReader(body))
-	if err != nil {
-		return "", err
+	sessionCookie, errResp := loginWithError(t, phone, challengeID, verifyCode)
+	if errResp != nil {
+		return "", fmt.Errorf("status %d: %s", errResp.StatusCode, errResp.Message)
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Forwarded-Host", authHost)
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			t.Logf("Warning: failed to close response body: %v", closeErr)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	// Extract Set-Cookie header
-	setCookieHeaders := resp.Header.Values("Set-Cookie")
-	if len(setCookieHeaders) == 0 {
-		return "", fmt.Errorf("no Set-Cookie header found")
-	}
-
-	// Find session cookie (stargate_session_id)
-	var sessionCookie string
-	for _, cookieHeader := range setCookieHeaders {
-		if strings.Contains(cookieHeader, "stargate_session_id") {
-			// Extract name=value part (before semicolon)
-			parts := strings.Split(cookieHeader, ";")
-			if len(parts) > 0 {
-				sessionCookie = strings.TrimSpace(parts[0])
-				break
-			}
-		}
-	}
-
-	if sessionCookie == "" {
-		return "", fmt.Errorf("session cookie not found in Set-Cookie headers")
-	}
-
 	return sessionCookie, nil
 }
 
-// checkAuth verifies the forwardAuth check
+// checkAuth verifies the forwardAuth check (success path; uses checkAuthWithError).
 func checkAuth(t *testing.T, sessionCookie string) (*AuthHeaders, error) {
-	url := fmt.Sprintf("%s/_auth", stargateURL)
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
+	headers, errResp := checkAuthWithError(t, sessionCookie)
+	if errResp != nil {
+		return nil, fmt.Errorf("status %d: %s", errResp.StatusCode, errResp.Message)
 	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Host", authHost)
-	req.Header.Set("Cookie", sessionCookie)
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			t.Logf("Warning: failed to close response body: %v", closeErr)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	headers := &AuthHeaders{
-		UserID: resp.Header.Get("X-Auth-User"),
-		Email:  resp.Header.Get("X-Auth-Email"),
-		Scopes: resp.Header.Get("X-Auth-Scopes"),
-		Role:   resp.Header.Get("X-Auth-Role"),
-	}
-
 	return headers, nil
-}
-
-// waitForService waits for the service to be ready
-func waitForService(t *testing.T, url string, timeout time.Duration) bool {
-	deadline := time.Now().Add(timeout)
-	client := &http.Client{Timeout: 2 * time.Second}
-
-	for time.Now().Before(deadline) {
-		resp, err := client.Get(url)
-		if err == nil {
-			if closeErr := resp.Body.Close(); closeErr != nil {
-				t.Logf("Warning: failed to close response body: %v", closeErr)
-			}
-			if resp.StatusCode < 500 {
-				return true
-			}
-		}
-		time.Sleep(1 * time.Second)
-	}
-
-	return false
 }

@@ -20,7 +20,7 @@
 
 ## 使用方式
 
-- **默认**：不指定时使用 `presets.json` 中的 `default` 对应路径（示例为 compose/example/image，生成后可用 build/image）。
+- **默认**：不指定时使用 `presets.json` 中的 `default`，即 `compose/example/image/docker-compose.yml`（静态示例，无需先执行 gen）。执行 gen 后请用 `--preset image` 或 `-f build/image/docker-compose.yml` 使用生成目录；CLI 默认不会自动切换到 `build/`。
 - **环境变量**：`COMPOSE_FILE=<路径>` 可覆盖默认（优先级高于默认，低于命令行）。
 - **命令行**：
   - `-f <路径>` / `--file <路径>`：直接指定 compose 文件路径。

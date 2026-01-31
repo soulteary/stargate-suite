@@ -29,15 +29,16 @@ if ! docker compose -f "$COMPOSE_FILE" ps 2>/dev/null | grep -q "Up"; then
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "Starting services..."
         docker compose -f "$COMPOSE_FILE" up -d --build
-        echo "Waiting for services to be ready (30s)..."
-        sleep 30
+        echo "Waiting for services to be ready (uses TEST_WAIT_TIMEOUT, default 60s), then running tests..."
+        go run ./cmd/suite test-wait
+        exit $?
     else
         echo "Please start services first: make up  or  docker compose -f $COMPOSE_FILE up -d"
         exit 1
     fi
 fi
 
-# Check service health status
+# Services already up: check health then run tests
 echo "Checking service health status..."
 services=("stargate:8080/_auth" "warden:8081/health" "herald:8082/healthz")
 all_healthy=true
@@ -65,7 +66,6 @@ echo ""
 echo "Running End-to-End Tests..."
 echo ""
 
-# Run tests
 go test -v ./e2e/...
 
 test_exit_code=$?

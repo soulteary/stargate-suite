@@ -13,8 +13,10 @@ import (
 	"github.com/MarvinJWendt/testza"
 )
 
-// parsePrometheusMetrics parses Prometheus format metrics text
-// Returns a map of metric name to value
+// parsePrometheusMetrics parses Prometheus format metrics text.
+// Returns a map of metric name to value. Kept for future metric assertions.
+//
+//nolint:unused
 func parsePrometheusMetrics(metricsText string) map[string]string {
 	result := make(map[string]string)
 	lines := strings.Split(metricsText, "\n")

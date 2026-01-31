@@ -20,11 +20,11 @@ See [compose/README.md](../compose/README.md) for more.
 
 ## Usage
 
-- **Default**: When unspecified, the path from `presets.json` key `default` is used (e.g. compose/example/image; after gen you can use build/image).
+- **Default**: When unspecified, the path from `presets.json` key `default` is used. That is `compose/example/image/docker-compose.yml` (static example, no `gen` required). After you run `gen`, use `--preset image` or `-f build/image/docker-compose.yml` to use the generated build dir; the CLI default does not switch to `build/` automatically.
 - **Environment**: `COMPOSE_FILE=<path>` overrides default (higher than default, lower than CLI).
 - **CLI**:
   - `-f <path>` / `--file <path>`: explicit compose file path.
-  - `--preset <name>`: use a preset from `presets.json` (e.g. `traefik`, `build`).
+  - `--preset <name>`: use a preset from `presets.json` (e.g. `image`, `traefik`, `build`).
 
 Priority: **CLI -f / --preset > COMPOSE_FILE > default (presets.default)**.
 
