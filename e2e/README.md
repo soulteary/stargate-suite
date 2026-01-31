@@ -1,4 +1,6 @@
-# the-gate 端到端测试文档
+# 端到端测试文档
+
+本文档说明 e2e 测试用例结构与运行方式。项目总览与快速开始见 [../README.md](../README.md)。
 
 ## 测试文件结构
 
@@ -212,3 +214,8 @@ type ErrorResponse struct {
     Body       string // 响应体
 }
 ```
+
+## 相关文档
+
+- [../README.md](../README.md) — 项目总览、服务说明、故障排查
+- [MANUAL_TESTING.md](../MANUAL_TESTING.md) — 浏览器手动验证

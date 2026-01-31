@@ -1,8 +1,19 @@
 # stargate-suite - Three-Service End-to-End Integration Test Suite
 
-This project provides a complete end-to-end integration test environment for the Stargate + Warden + Herald services, containing comprehensive test cases covering normal flows, error scenarios, inter-service authentication, idempotency, audit logs, monitoring metrics, and more.
+本仓库为 **Stargate + Warden + Herald** 三服务的端到端集成测试环境，提供多种 Compose 用法、CLI 编排与自动化测试，覆盖正常流程、异常场景、服务间鉴权、幂等、审计与监控等。
 
-## Project Structure
+## 文档导航
+
+| 文档 | 说明 |
+|------|------|
+| [README.md](./README.md)（本文） | 项目总览、快速开始、服务说明、故障排查 |
+| [compose/README.md](./compose/README.md) | Compose 各子目录用法（build / image / traefik 等） |
+| [config/README.md](./config/README.md) | CLI 预设与 `-f` / `--preset` 使用方式 |
+| [compose/traefik/README.md](./compose/traefik/README.md) | Traefik 三合一与三分开部署说明 |
+| [e2e/README.md](./e2e/README.md) | 端到端测试用例与运行说明 |
+| [MANUAL_TESTING.md](./MANUAL_TESTING.md) | 浏览器手动验证与健康检查 |
+
+## 项目结构
 
 ```
 stargate-suite/
@@ -15,8 +26,11 @@ stargate-suite/
 │   ├── traefik/            # 三合一：接入 Traefik + 受保护服务
 │   │   └── docker-compose.yml
 │   ├── traefik-herald/     # 三分开：仅 Herald
+│   │   └── docker-compose.yml
 │   ├── traefik-warden/     # 三分开：仅 Warden
+│   │   └── docker-compose.yml
 │   └── traefik-stargate/   # 三分开：仅 Stargate + 受保护服务
+│       └── docker-compose.yml
 ├── go.mod                  # Go 模块定义
 ├── go.sum                  # Go 依赖锁定
 ├── Makefile                # 便捷命令脚本
@@ -100,25 +114,22 @@ go run ./cmd/suite health
 
 **生成 build 目录（输出不同使用方式的 compose 与 .env）**
 
-通过 CLI 将指定使用方式的 `docker-compose.yml` 和 `.env` 输出到 `build` 目录（或通过 `-o` 指定目录），便于分发或 CI 使用：
+通过 CLI 将指定使用方式的 `docker-compose.yml` 和 `.env` 输出到 `build` 目录（可通过 `-o` 指定），便于分发或 CI：
 
 ```bash
 # 在项目根目录执行
-go run ./cmd/suite gen [mode]     # 输出到 build/，mode 默认为 all
-go run ./cmd/suite gen image      # 仅生成 image 模式 → build/image/
-go run ./cmd/suite gen build      # 仅生成 build 模式 → build/build/
-go run ./cmd/suite gen traefik    # 仅生成 traefik 模式 → build/traefik/（含多份 compose）
-go run ./cmd/suite gen all        # 生成 image、build、traefik 三种
+go run ./cmd/suite gen [mode]     # mode 默认 all，输出到 build/
+go run ./cmd/suite gen image      # → build/image/
+go run ./cmd/suite gen build      # → build/build/
+go run ./cmd/suite gen traefik    # → build/traefik/、build/traefik-herald/、build/traefik-warden/、build/traefik-stargate/
+go run ./cmd/suite gen all        # 上述全部（共 6 个子目录）
 
 # 指定输出目录（默认 build）
-go run ./cmd/suite -o dist gen traefik   # 输出到 dist/traefik/
-# 或环境变量
+go run ./cmd/suite -o dist gen traefik
 GEN_OUT_DIR=dist go run ./cmd/suite gen all
 ```
 
-生成后可在输出目录使用：`docker compose -f build/image/docker-compose.yml --env-file build/image/.env up -d`（或在对应子目录下执行 compose）。
-
-Compose 示例说明见 [compose/README.md](./compose/README.md)。
+生成后使用示例：`docker compose -f build/image/docker-compose.yml --env-file build/image/.env up -d`。Compose 各子目录说明见 [compose/README.md](./compose/README.md)。
 
 ### 运行测试
 
@@ -555,7 +566,11 @@ golangci-lint run --max-same-issues=100000
 
 ## 参考文档
 
-- [e2e/README.md](./e2e/README.md) - 详细测试文档
+- [compose/README.md](./compose/README.md) — Compose 各子目录用法
+- [config/README.md](./config/README.md) — CLI 预设与 compose 路径
+- [compose/traefik/README.md](./compose/traefik/README.md) — Traefik 三合一/三分开
+- [e2e/README.md](./e2e/README.md) — 端到端测试用例说明
+- [MANUAL_TESTING.md](./MANUAL_TESTING.md) — 浏览器手动验证
 
 ## 许可证
 

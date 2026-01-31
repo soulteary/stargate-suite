@@ -1,6 +1,6 @@
 # Traefik 接入
 
-本目录仅保留 **三合一** 部署；**三分开** 部署见独立子目录 `compose/traefik-herald/`、`compose/traefik-warden/`、`compose/traefik-stargate/`。
+本目录仅保留 **三合一** 部署；**三分开** 部署见独立子目录 `compose/traefik-herald/`、`compose/traefik-warden/`、`compose/traefik-stargate/`。Compose 总览见 [../README.md](../README.md)，项目总览见 [../../README.md](../../README.md)。
 
 ## 版本一：三合一（本目录）
 
@@ -89,3 +89,8 @@ make down-traefik-herald
 - `*_IMAGE`、`*_REDIS_IMAGE` 等
 
 详见项目根目录 `.env` 示例。
+
+## 相关文档
+
+- [../README.md](../README.md) — Compose 各子目录说明
+- [../../README.md](../../README.md) — 项目总览

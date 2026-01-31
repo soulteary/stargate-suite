@@ -1,6 +1,6 @@
 # Compose 示例
 
-不同目录对应不同使用场景的 Docker Compose 配置，**均在项目根目录 `stargate-suite` 下执行**（路径相对于各 compose 文件所在目录）。
+本目录下每种使用方式对应一个子目录，目录内仅包含该方式所需的 `docker-compose.yml`。所有命令均在项目根目录 `stargate-suite` 下执行。项目总览见 [README.md](../README.md)。
 
 ## 目录说明
 
@@ -55,3 +55,9 @@ docker compose -f compose/traefik/docker-compose.yml up -d
 - `AUTH_HOST`、`STARGATE_DOMAIN`、`PROTECTED_DOMAIN`
 - `HERALD_API_KEY`、`HERALD_HMAC_SECRET`、`WARDEN_API_KEY`
 - `*_IMAGE`：覆盖默认镜像
+
+## 相关文档
+
+- [README.md](../README.md) — 项目总览与快速开始
+- [config/README.md](../config/README.md) — CLI 预设与 compose 路径
+- [traefik/README.md](./traefik/README.md) — Traefik 三合一/三分开详细说明

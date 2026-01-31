@@ -1,6 +1,6 @@
 # 配置目录
 
-本目录存放 stargate-suite CLI 可用的 compose 场景配置，供程序读取以解析默认 compose 文件与预设名称。
+本目录存放 CLI 预设配置（`presets.json`），用于解析默认 compose 文件与 `--preset` 名称。项目总览见 [README.md](../README.md)。
 
 ## 与 compose 的对应关系
 
@@ -43,9 +43,14 @@ COMPOSE_FILE=compose/traefik/docker-compose.yml ./suite up
 
 ## 生成 build 目录（gen 命令）
 
-将不同使用方式的 `docker-compose.yml` 与 `.env` 输出到指定目录（默认 `build`），便于分发或 CI：
+将各使用方式的 `docker-compose.yml` 与 `.env` 输出到指定目录（默认 `build`），便于分发或 CI：
 
 ```bash
-./suite gen [image|build|traefik|all]   # 默认 all，输出到 build/
-./suite -o dist gen traefik             # 输出到 dist/traefik/
+./suite gen [image|build|traefik|all]   # 默认 all
+./suite -o dist gen traefik             # 输出到 dist/，含 dist/traefik/、dist/traefik-herald/、dist/traefik-warden/、dist/traefik-stargate/
 ```
+
+## 相关文档
+
+- [README.md](../README.md) — 项目总览
+- [compose/README.md](../compose/README.md) — Compose 各子目录用法
