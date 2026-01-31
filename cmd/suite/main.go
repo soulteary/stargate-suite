@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"flag"
@@ -11,8 +12,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/soulteary/cli-kit/configutil"
@@ -25,12 +28,13 @@ import (
 var staticFS embed.FS
 
 const (
-	pageYAMLPath     = "config/page.yaml"
-	presetsPath      = "config/presets.json"
-	fallbackCompose  = "compose/example/image/docker-compose.yml"
-	canonicalCompose = "compose/canonical/docker-compose.yml"
-	defaultEnvBody   = "" // 使用 composegen.DefaultEnvBody 或从 compose 推断
-	buildDirRelative = "build"
+	pageYAMLPath         = "config/page.yaml"
+	presetsPath          = "config/presets.json"
+	fallbackCompose      = "compose/example/image/docker-compose.yml"
+	canonicalCompose     = "compose/canonical/docker-compose.yml"
+	defaultEnvBody       = "" // 使用 composegen.DefaultEnvBody 或从 compose 推断
+	buildDirRelative     = "build"
+	maxGenerateBodyBytes = 1 << 20 // 1MB for /api/generate request body
 )
 
 // pageData 与 config/page.yaml 对应，用于渲染 index 模板。
@@ -176,29 +180,9 @@ func loadPresets(path string) (map[string]string, error) {
 	return out, nil
 }
 
-// getDefaultComposePath 从 config/presets.json 读取 default 预设，失败则返回 fallbackCompose。
-func getDefaultComposePath() string {
-	path := presetsPath
-	if !filepath.IsAbs(path) {
-		if wd, err := os.Getwd(); err == nil {
-			path = filepath.Join(wd, presetsPath)
-		}
-	}
-	presets, err := loadPresets(path)
-	if err != nil || presets == nil {
-		return fallbackCompose
-	}
-	if p := strings.TrimSpace(presets["default"]); p != "" {
-		return p
-	}
-	return fallbackCompose
-}
-
+// composeFile 返回当前解析后的 compose 文件路径。main() 保证 resolvedComposeFile 非空。
 func composeFile() string {
-	if resolvedComposeFile != "" {
-		return resolvedComposeFile
-	}
-	return fallbackCompose
+	return resolvedComposeFile
 }
 
 func run(name string, args ...string) error {
@@ -348,9 +332,53 @@ func cmdTest() error {
 	return run("go", "test", "-v", "./e2e/...")
 }
 
+// testWaitTimeout 为 test-wait 轮询健康检查的超时时间，可通过环境变量 TEST_WAIT_TIMEOUT 覆盖（如 60s、1m）。
+var testWaitTimeout = 60 * time.Second
+
+// waitForServicesReady 轮询 Stargate/Warden/Herald 健康检查，全部就绪返回 true，超时返回 false。
+func waitForServicesReady(timeout time.Duration) bool {
+	checks := []struct {
+		name, url string
+	}{
+		{"Stargate", "http://localhost:8080/_auth"},
+		{"Warden", "http://localhost:8081/health"},
+		{"Herald", "http://localhost:8082/healthz"},
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		allOk := true
+		for _, c := range checks {
+			resp, err := client.Get(c.url)
+			if err != nil || resp == nil || resp.StatusCode < 200 || resp.StatusCode >= 400 {
+				allOk = false
+				if resp != nil {
+					_ = resp.Body.Close()
+				}
+				break
+			}
+			_ = resp.Body.Close()
+		}
+		if allOk {
+			return true
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return false
+}
+
 func cmdTestWait() error {
-	fmt.Println("Waiting for services to be ready (3s)...")
-	time.Sleep(3 * time.Second)
+	if s := strings.TrimSpace(os.Getenv("TEST_WAIT_TIMEOUT")); s != "" {
+		if d, err := time.ParseDuration(s); err == nil && d > 0 {
+			testWaitTimeout = d
+		}
+	}
+	fmt.Printf("Waiting for services to be ready (timeout %s)...\n", testWaitTimeout)
+	if !waitForServicesReady(testWaitTimeout) {
+		fmt.Fprintf(os.Stderr, "Services did not become ready within %s. Run make health to check.\n", testWaitTimeout)
+		return fmt.Errorf("services not ready")
+	}
+	fmt.Println("All services ready. Running tests.")
 	return run("go", "test", "-v", "./e2e/...")
 }
 
@@ -472,18 +500,8 @@ func cmdGen() error {
 		if err != nil {
 			return err
 		}
-		for _, mode := range traefikModes {
-			dir := filepath.Join(outBase, mode)
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				return fmt.Errorf("mkdir %s: %w", dir, err)
-			}
-			ymlPath := filepath.Join(dir, "docker-compose.yml")
-			if err := os.WriteFile(ymlPath, gen.Composes[mode], 0644); err != nil {
-				return fmt.Errorf("write %s: %w", ymlPath, err)
-			}
-			if err := os.WriteFile(filepath.Join(dir, ".env"), gen.Env, 0644); err != nil {
-				return fmt.Errorf("write .env: %w", err)
-			}
+		if err := writeGenerated(outBase, gen, traefikModes); err != nil {
+			return err
 		}
 	}
 	allModes := append(exampleModes, traefikModes...)
@@ -535,6 +553,24 @@ func copyFile(src, dst string) error {
 	}
 	if err := os.WriteFile(dst, data, 0644); err != nil {
 		return fmt.Errorf("write %s: %w", dst, err)
+	}
+	return nil
+}
+
+// writeGenerated 将 gen 中各 mode 的 docker-compose.yml 与 .env 写入 outBase/<mode>/，供 cmdGen 与 cmdGenSplit 共用。
+func writeGenerated(outBase string, gen *composegen.Generated, modes []string) error {
+	for _, mode := range modes {
+		dir := filepath.Join(outBase, mode)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("mkdir %s: %w", dir, err)
+		}
+		ymlPath := filepath.Join(dir, "docker-compose.yml")
+		if err := os.WriteFile(ymlPath, gen.Composes[mode], 0644); err != nil {
+			return fmt.Errorf("write %s: %w", ymlPath, err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, ".env"), gen.Env, 0644); err != nil {
+			return fmt.Errorf("write .env: %w", err)
+		}
 	}
 	return nil
 }
@@ -645,7 +681,9 @@ func cmdServe() error {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if err := tmpl.Execute(w, page); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fmt.Fprintf(os.Stderr, "template execute: %v\n", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
 		}
 	})
 	mux.Handle("/static/", http.StripPrefix("/static", staticHandler))
@@ -654,9 +692,14 @@ func cmdServe() error {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxGenerateBodyBytes)
 		var req generateRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "invalid json: "+err.Error(), http.StatusBadRequest)
+			if strings.Contains(err.Error(), "request body too large") {
+				http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+				return
+			}
+			http.Error(w, "invalid json", http.StatusBadRequest)
 			return
 		}
 		if len(req.Modes) == 0 {
@@ -667,13 +710,15 @@ func cmdServe() error {
 		fullPath := filepath.Join(root, canonicalCompose)
 		full, err := composegen.LoadCompose(fullPath)
 		if err != nil {
-			http.Error(w, "load compose: "+err.Error(), http.StatusInternalServerError)
+			fmt.Fprintf(os.Stderr, "load compose: %v\n", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		opts := reqOptionsToComposegen(req.Options)
 		gen, err := composegen.Generate(full, req.Modes, req.EnvOverride, opts)
 		if err != nil {
-			http.Error(w, "generate: "+err.Error(), http.StatusInternalServerError)
+			fmt.Fprintf(os.Stderr, "generate: %v\n", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		res := map[string]interface{}{
@@ -687,8 +732,23 @@ func cmdServe() error {
 		_ = json.NewEncoder(w).Encode(res)
 	})
 	addr := ":" + servePort
+	srv := &http.Server{Addr: addr, Handler: mux}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Fprintf(os.Stderr, "serve: %v\n", err)
+		}
+	}()
 	fmt.Printf("Web UI: http://localhost%s\n", addr)
-	return http.ListenAndServe(addr, mux)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	<-sigCh
+	fmt.Println("Shutting down...")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		return err
+	}
+	return nil
 }
 
 func findCommand(name string) *command {
@@ -702,8 +762,6 @@ func findCommand(name string) *command {
 }
 
 func main() {
-	defaultPath := getDefaultComposePath()
-
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	_ = fs.String("f", "", "compose file path")
@@ -724,19 +782,23 @@ func main() {
 		cmdName = strings.TrimSpace(args[0])
 	}
 
+	// 只读一次 presets，用于 default 与 --preset
+	presetPath := filepath.Join(projectRoot(), presetsPath)
+	presets, _ := loadPresets(presetPath)
+	defaultPath := fallbackCompose
+	if presets != nil {
+		if p := strings.TrimSpace(presets["default"]); p != "" {
+			defaultPath = p
+		}
+	}
+
 	// 解析 compose 路径：-f > --preset > COMPOSE_FILE > default
 	resolvedComposeFile = configutil.ResolveString(fs, "f", "COMPOSE_FILE", defaultPath, true)
 	if !flagutil.HasFlag(fs, "f") && flagutil.HasFlag(fs, "preset") {
-		pname := flagutil.GetString(fs, "preset", "")
-		pname = strings.TrimSpace(pname)
+		pname := strings.TrimSpace(flagutil.GetString(fs, "preset", ""))
 		if pname != "" {
-			presetPath := filepath.Join(".", presetsPath)
-			if wd, err := os.Getwd(); err == nil {
-				presetPath = filepath.Join(wd, presetsPath)
-			}
-			presets, err := loadPresets(presetPath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to load presets: %v\n", err)
+			if presets == nil {
+				fmt.Fprintf(os.Stderr, "Failed to load presets from %s\n", presetPath)
 				os.Exit(1)
 			}
 			if p, ok := presets[pname]; ok && strings.TrimSpace(p) != "" {

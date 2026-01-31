@@ -1,5 +1,6 @@
 build
 dist
 suite
+.env
 !cmd/suite
 !compose/example/build

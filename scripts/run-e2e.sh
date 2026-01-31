@@ -9,25 +9,30 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 cd "$PROJECT_DIR"
 
+# Use build/image by default; override with COMPOSE_FILE if set
+COMPOSE_FILE="${COMPOSE_FILE:-$PROJECT_DIR/build/image/docker-compose.yml}"
+export COMPOSE_FILE
+
 echo "=========================================="
 echo "the-gate End-to-End Integration Tests"
 echo "=========================================="
+echo "Using compose: $COMPOSE_FILE"
 echo ""
 
 # Check Docker Compose service status
 echo "Checking service status..."
-if ! docker compose ps | grep -q "Up"; then
-    echo "Warning: Services may not be started. Please run first: docker compose up -d --build"
+if ! docker compose -f "$COMPOSE_FILE" ps 2>/dev/null | grep -q "Up"; then
+    echo "Warning: Services may not be started. Please run first: make up  or  docker compose -f $COMPOSE_FILE up -d"
     echo ""
     read -p "Start services now? (y/n) " -n 1 -r
     echo ""
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "Starting services..."
-        docker compose up -d --build
+        docker compose -f "$COMPOSE_FILE" up -d --build
         echo "Waiting for services to be ready (30s)..."
         sleep 30
     else
-        echo "Please start services first: docker compose up -d --build"
+        echo "Please start services first: make up  or  docker compose -f $COMPOSE_FILE up -d"
         exit 1
     fi
 fi
@@ -52,7 +57,7 @@ done
 
 if [ "$all_healthy" = false ]; then
     echo ""
-    echo "Some services are unhealthy. Please check logs: docker compose logs"
+    echo "Some services are unhealthy. Please check logs: docker compose -f $COMPOSE_FILE logs"
     exit 1
 fi
 

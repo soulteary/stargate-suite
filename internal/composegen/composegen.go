@@ -368,7 +368,7 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 	if !opts.HealthCheck {
 		delete(svc, "healthcheck")
 	} else if opts.HealthCheckInterval != "" || opts.HealthCheckStartPeriod != "" {
-		// 覆盖健康检查间隔与启动延迟
+		// 覆盖健康检查间隔与启动延迟。保留两分支以兼容不同 unmarshal 结果（yaml.v3 通常为 map[interface{}]interface{}）。
 		if hc, ok := svc["healthcheck"].(map[string]interface{}); ok {
 			if opts.HealthCheckInterval != "" {
 				hc["interval"] = opts.HealthCheckInterval
