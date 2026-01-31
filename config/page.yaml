@@ -1,0 +1,754 @@
+# Page data for Stargate Suite compose generator UI.
+# i18n: zh/en; modes: compose types; configOptions: options + Redis block; services: Stargate/Warden/Herald env vars.
+#
+# 互斥与联动：
+# - Compose 类型：当前为多选（可一次生成多种 compose）；若需互斥可改为 radio。
+# - 配置选项：Redis 存储为 radio，已互斥；traefikNetworkName 依赖 traefikNetwork（showWhenOption）；Redis 路径依赖「使用主机绑定路径」选中的联动已在 JS 中实现。
+# - 服务 env：SESSION_STORAGE_REDIS_* 依赖 SESSION_STORAGE_ENABLED（showWhenEnv）。
+
+i18n:
+  zh:
+    title: "Stargate Suite - 生成 docker-compose 与 .env"
+    subtitle: "勾选要生成的 compose 类型与配置选项，点击生成后即可下载。"
+    composeType: "Compose 类型"
+    modeTraefik: "全量 Traefik（三合一）"
+    modeTraefikDesc: "生成包含 Traefik、Stargate、Warden、Herald 的完整 compose。"
+    modeHeraldOnly: "Herald 仅"
+    modeHeraldOnlyDesc: "仅生成 Traefik + Herald 的 compose。"
+    modeWardenOnly: "Warden 仅"
+    modeWardenOnlyDesc: "仅生成 Traefik + Warden 的 compose。"
+    modeStargateOnly: "Stargate + 受保护服务 仅"
+    modeStargateOnlyDesc: "仅生成 Traefik + Stargate + 受保护示例服务的 compose。"
+    configOptions: "配置选项"
+    healthCheckSection: "健康检查"
+    traefikNetworkSection: "Traefik 网络"
+    exposePortsSection: "暴露端口"
+    containerPrefixSection: "容器与命名"
+    healthCheck: "启用健康检查"
+    healthCheckDesc: "在生成的 compose 中为服务启用 healthcheck 配置。"
+    healthCheckIntervalLabel: "检查间隔"
+    healthCheckIntervalDesc: "健康检查间隔时间，如 10s、30s、1m；留空使用 compose 默认。"
+    healthCheckStartPeriodLabel: "启动延迟"
+    healthCheckStartPeriodDesc: "启动后等待多久再开始计失败次数，如 10s、15s；留空使用 compose 默认。"
+    traefikNetwork: "配置 Traefik 网络"
+    traefikNetworkDesc: "为 compose 中的服务配置 Traefik 外部网络。"
+    traefikNetworkNameLabel: "Traefik 网络名称"
+    traefikNetworkNameDesc: "Compose 中使用的 Traefik 网络名称，需与现有 Traefik 一致。"
+    exposePorts: "暴露端口到主机"
+    exposePortsDesc: "将服务端口映射到主机，便于本地访问调试。"
+    portHeraldLabel: "Herald 主机端口"
+    portHeraldDesc: "Herald 服务映射到主机的端口，默认 8082。"
+    portWardenLabel: "Warden 主机端口"
+    portWardenDesc: "Warden 服务映射到主机的端口，默认 8081。"
+    portHeraldRedisLabel: "Herald Redis 主机端口"
+    portHeraldRedisDesc: "Herald Redis 映射到主机的端口，默认 6379。"
+    containerNamePrefixLabel: "容器名称前缀"
+    containerNamePrefixDesc: "生成的容器名称前缀，留空使用默认。"
+    containerPrefixPlaceholder: "the-gate-（留空使用默认）"
+    redisStorage: "Redis 数据存储"
+    redisVolume: "使用 Docker 命名卷"
+    redisVolumeDesc: "Redis 数据使用 Docker 命名卷，便于备份与迁移。"
+    redisPath: "使用主机绑定路径"
+    redisPathDesc: "Redis 数据绑定到主机目录，需填写下方路径。"
+    heraldRedisPathLabel: "Herald Redis 数据路径"
+    heraldRedisPathDesc: "Herald 使用的 Redis 数据在主机上的路径。"
+    wardenRedisPathLabel: "Warden Redis 数据路径"
+    wardenRedisPathDesc: "Warden 使用的 Redis 数据在主机上的路径。"
+    serviceEnv: "服务特性（环境变量）"
+    stargateDomainRouting: "域名与路由"
+    authHostLabel: "认证页 Host"
+    authHostDesc: "认证入口的 Host 域名，用于登录页与回调。"
+    stargateDomainLabel: "Stargate 域名"
+    stargateDomainDesc: "Stargate 认证服务对外使用的域名。"
+    protectedDomainLabel: "受保护服务域名"
+    protectedDomainDesc: "通过 Stargate 鉴权后访问的受保护服务域名。"
+    stargatePrefixLabel: "Stargate 路由前缀"
+    stargatePrefixDesc: "Traefik 中认证服务路由的前缀路径。"
+    protectedPrefixLabel: "受保护服务路由前缀"
+    protectedPrefixDesc: "Traefik 中受保护服务路由的前缀路径。"
+    userHeaderLabel: "用户头名称"
+    userHeaderDesc: "鉴权通过后转发给下游服务的用户信息 Header 名称。"
+    stargateUi: "界面与功能"
+    languageLabel: "界面语言"
+    languageDesc: "Stargate 登录页与界面显示语言。"
+    loginPageTitleLabel: "登录页标题"
+    loginPageTitleDesc: "Stargate 登录页显示的标题文案。"
+    loginPageFooterLabel: "登录页页脚"
+    loginPageFooterDesc: "登录页底部显示的版权或说明文案。"
+    cookieDomainLabel: "Cookie 域名"
+    cookieDomainDesc: "多子域共享登录态时设置，留空表示不限制域名。"
+    wardenEnabledDesc: "是否启用 Warden 白名单用户服务。"
+    heraldEnabledDesc: "是否启用 Herald 验证码/OTP 服务。"
+    wardenCacheTtlLabel: "Warden 缓存 TTL（秒）"
+    wardenCacheTtlDesc: "Stargate 缓存 Warden 用户信息的秒数。"
+    sessionStorageDesc: "是否使用 Redis 存储会话（否则使用 cookie）。"
+    sessionStorageRedisAddrLabel: "会话 Redis 地址"
+    sessionStorageRedisAddrDesc: "启用会话存储时使用的 Redis 地址（host:port）。"
+    sessionStorageRedisPasswordLabel: "会话 Redis 密码"
+    sessionStorageRedisPasswordDesc: "会话 Redis 有认证时填写，留空表示无密码。"
+    auditLogEnabledLabel: "启用审计日志"
+    auditLogEnabledDesc: "是否记录登录、鉴权等审计日志。"
+    auditLogFormatLabel: "审计日志格式"
+    auditLogFormatDesc: "审计日志输出格式：json 或 text。"
+    debugDesc: "开启后输出更多调试日志。"
+    optionalSensitive: "可选（敏感）"
+    wardenEnabledLabel: "启用 Warden"
+    heraldEnabledLabel: "启用 Herald"
+    sessionStorageEnabledLabel: "启用会话存储"
+    debugLabel: "调试模式"
+    languageZh: "zh"
+    languageEn: "en"
+    languageFr: "fr"
+    languageIt: "it"
+    languageJa: "ja"
+    languageDe: "de"
+    languageKo: "ko"
+    auditLogFormatJson: "json"
+    auditLogFormatText: "text"
+    logLevelInfo: "info"
+    logLevelDebug: "debug"
+    logLevelWarn: "warn"
+    logLevelError: "error"
+    modeOnlyLocal: "ONLY_LOCAL"
+    modeRemote: "REMOTE"
+    modeHybrid: "HYBRID"
+    providerSoft: "soft"
+    providerStrict: "strict"
+    passwordsLabel: "PASSWORDS"
+    passwordsDesc: "可选密码列表，留空使用 compose 默认；生产环境请修改。"
+    wardenLogLevelLabel: "日志级别"
+    wardenLogLevelDesc: "同时作用于 Warden 与 Herald 的日志级别。"
+    modeLabel: "运行模式"
+    modeDesc: "Warden 用户数据源：仅本地、仅远程或混合。"
+    wardenApiKeyLabel: "API 密钥"
+    wardenApiKeyDesc: "Stargate 调用 Warden 时使用的 API Key，留空使用 compose 默认；生产请修改。"
+    intervalLabel: "轮询间隔（秒）"
+    intervalDesc: "Warden 从远程拉取用户数据的间隔秒数。"
+    wardenRedisPasswordLabel: "Warden Redis 密码"
+    wardenRedisPasswordDesc: "Warden 使用的 Redis 有认证时填写，留空表示无密码。"
+    wardenDataFileLabel: "本地数据文件路径"
+    wardenDataFileDesc: "ONLY_LOCAL 模式下 Warden 读取的用户数据文件在容器内的路径，需与 volume 挂载一致。"
+    wardenHttpTimeoutLabel: "HTTP 超时（秒）"
+    wardenHttpTimeoutDesc: "Warden 拉取远程配置或数据时的 HTTP 请求超时秒数。"
+    heraldTestModeLabel: "测试模式"
+    heraldTestModeDesc: "开启后不真实发送短信/邮件，便于本地联调。"
+    heraldRedisPasswordLabel: "Herald Redis 密码"
+    heraldRedisPasswordDesc: "Herald 使用的 Redis 有认证时填写，留空表示无密码。"
+    heraldRedisDbLabel: "Herald Redis 库号"
+    heraldRedisDbDesc: "Herald Redis 使用的数据库编号，通常为 0。"
+    challengeExpiryLabel: "验证码有效期"
+    challengeExpiryDesc: "OTP challenge 的有效时长，如 5m。"
+    codeLengthLabel: "验证码长度"
+    codeLengthDesc: "OTP 数字码位数（通常 4–8）。"
+    maxAttemptsLabel: "最大尝试次数"
+    maxAttemptsDesc: "单次 challenge 允许的错误验证次数，超过则锁定。"
+    providerFailurePolicyLabel: "发送失败策略"
+    providerFailurePolicyDesc: "soft 允许继续；strict 在发送失败时拒绝。"
+    resendCooldownLabel: "重发冷却"
+    resendCooldownDesc: "同一 challenge 允许再次发送前的等待时间，如 60s。"
+    lockoutDurationLabel: "锁定时长"
+    lockoutDurationDesc: "超过最大尝试次数后的锁定时长，如 10m。"
+    rateLimitPerUserLabel: "每用户限流（/小时）"
+    rateLimitPerUserDesc: "同一 user_id 每小时最多创建的 challenge 数量。"
+    rateLimitPerIpLabel: "每 IP 限流（/分钟）"
+    rateLimitPerIpDesc: "同一 IP 每分钟最多创建的 challenge 数量。"
+    rateLimitPerDestLabel: "每目标限流（/小时）"
+    rateLimitPerDestDesc: "同一手机/邮箱每小时最多收到的 challenge 数量。"
+    heraldApiKeyLabel: "Herald API 密钥"
+    heraldApiKeyDesc: "Stargate 调用 Herald 时使用的 API Key，留空使用 compose 默认。"
+    heraldHmacLabel: "HMAC 密钥"
+    heraldHmacDesc: "Stargate 与 Herald 间请求签名的 HMAC 密钥，留空使用 compose 默认。"
+    btnGenerate: "生成"
+    generating: "生成中..."
+    resultSuccess: "生成成功。可下载以下文件："
+    resultErrorNeedMode: "请至少勾选一种 compose 类型。"
+    requestFailed: "请求失败: "
+  en:
+    title: "Stargate Suite - Generate docker-compose & .env"
+    subtitle: "Select compose type(s) and options, then click Generate to download."
+    composeType: "Compose Type"
+    modeTraefik: "Full Traefik (all-in-one)"
+    modeTraefikDesc: "Generate full compose with Traefik, Stargate, Warden, Herald."
+    modeHeraldOnly: "Herald only"
+    modeHeraldOnlyDesc: "Generate only Traefik + Herald compose."
+    modeWardenOnly: "Warden only"
+    modeWardenOnlyDesc: "Generate only Traefik + Warden compose."
+    modeStargateOnly: "Stargate + protected service only"
+    modeStargateOnlyDesc: "Generate only Traefik + Stargate + protected example service compose."
+    configOptions: "Options"
+    healthCheckSection: "Health check"
+    traefikNetworkSection: "Traefik network"
+    exposePortsSection: "Expose ports"
+    containerPrefixSection: "Container & naming"
+    healthCheck: "Enable health checks"
+    healthCheckDesc: "Enable healthcheck in generated compose for services."
+    healthCheckIntervalLabel: "Check interval"
+    healthCheckIntervalDesc: "Health check interval, e.g. 10s, 30s, 1m; leave empty for compose default."
+    healthCheckStartPeriodLabel: "Start period"
+    healthCheckStartPeriodDesc: "Grace period before failed checks count, e.g. 10s, 15s; leave empty for default."
+    traefikNetwork: "Configure Traefik network"
+    traefikNetworkDesc: "Attach services to Traefik external network in compose."
+    traefikNetworkNameLabel: "Traefik network name"
+    traefikNetworkNameDesc: "Network name used in compose; must match existing Traefik."
+    exposePorts: "Expose ports to host"
+    exposePortsDesc: "Map service ports to host for local access and debugging."
+    portHeraldLabel: "Herald host port"
+    portHeraldDesc: "Host port for Herald service; default 8082."
+    portWardenLabel: "Warden host port"
+    portWardenDesc: "Host port for Warden service; default 8081."
+    portHeraldRedisLabel: "Herald Redis host port"
+    portHeraldRedisDesc: "Host port for Herald Redis; default 6379."
+    containerNamePrefixLabel: "Container name prefix"
+    containerNamePrefixDesc: "Prefix for generated container names; leave empty for default."
+    containerPrefixPlaceholder: "the-gate- (leave empty for default)"
+    redisStorage: "Redis storage"
+    redisVolume: "Use Docker named volume"
+    redisVolumeDesc: "Store Redis data in Docker named volume for backup and migration."
+    redisPath: "Use host bind path"
+    redisPathDesc: "Bind Redis data to host directory; set paths below."
+    heraldRedisPathLabel: "Herald Redis data path"
+    heraldRedisPathDesc: "Host path for Herald Redis data."
+    wardenRedisPathLabel: "Warden Redis data path"
+    wardenRedisPathDesc: "Host path for Warden Redis data."
+    serviceEnv: "Service env vars"
+    stargateDomainRouting: "Domain & routing"
+    authHostLabel: "Auth page host"
+    authHostDesc: "Host domain for auth entry, login page and callback."
+    stargateDomainLabel: "Stargate domain"
+    stargateDomainDesc: "Domain used by Stargate auth service."
+    protectedDomainLabel: "Protected service domain"
+    protectedDomainDesc: "Domain of the service protected behind Stargate auth."
+    stargatePrefixLabel: "Stargate route prefix"
+    stargatePrefixDesc: "Traefik route prefix for auth service."
+    protectedPrefixLabel: "Protected route prefix"
+    protectedPrefixDesc: "Traefik route prefix for protected service."
+    userHeaderLabel: "User header name"
+    userHeaderDesc: "Header name for forwarded user info to downstream after auth."
+    stargateUi: "UI & features"
+    languageLabel: "UI language"
+    languageDesc: "Language for Stargate login page and UI."
+    loginPageTitleLabel: "Login page title"
+    loginPageTitleDesc: "Title text shown on Stargate login page."
+    loginPageFooterLabel: "Login page footer"
+    loginPageFooterDesc: "Copyright or footer text at bottom of login page."
+    cookieDomainLabel: "Cookie domain"
+    cookieDomainDesc: "Set for cross-subdomain login; leave empty for no domain restriction."
+    wardenEnabledDesc: "Enable Warden allowlist user service."
+    heraldEnabledDesc: "Enable Herald OTP/verification code service."
+    wardenCacheTtlLabel: "Warden cache TTL (sec)"
+    wardenCacheTtlDesc: "Seconds Stargate caches Warden user info."
+    sessionStorageDesc: "Use Redis for session storage (otherwise cookie)."
+    sessionStorageRedisAddrLabel: "Session Redis address"
+    sessionStorageRedisAddrDesc: "Redis address (host:port) when session storage is enabled."
+    sessionStorageRedisPasswordLabel: "Session Redis password"
+    sessionStorageRedisPasswordDesc: "Leave empty if Redis has no auth."
+    auditLogEnabledLabel: "Enable audit log"
+    auditLogEnabledDesc: "Record login and auth audit logs."
+    auditLogFormatLabel: "Audit log format"
+    auditLogFormatDesc: "Audit log output format: json or text."
+    debugDesc: "Enable extra debug logging."
+    optionalSensitive: "Optional (sensitive)"
+    wardenEnabledLabel: "Enable Warden"
+    heraldEnabledLabel: "Enable Herald"
+    sessionStorageEnabledLabel: "Enable session storage"
+    debugLabel: "Debug"
+    languageZh: "zh"
+    languageEn: "en"
+    languageFr: "fr"
+    languageIt: "it"
+    languageJa: "ja"
+    languageDe: "de"
+    languageKo: "ko"
+    auditLogFormatJson: "json"
+    auditLogFormatText: "text"
+    logLevelInfo: "info"
+    logLevelDebug: "debug"
+    logLevelWarn: "warn"
+    logLevelError: "error"
+    modeOnlyLocal: "ONLY_LOCAL"
+    modeRemote: "REMOTE"
+    modeHybrid: "HYBRID"
+    providerSoft: "soft"
+    providerStrict: "strict"
+    passwordsLabel: "PASSWORDS"
+    passwordsDesc: "Optional password list; empty uses compose default; change in production."
+    wardenLogLevelLabel: "Log level"
+    wardenLogLevelDesc: "Log level for both Warden and Herald."
+    modeLabel: "Run mode"
+    modeDesc: "Warden data source: local only, remote only, or hybrid."
+    wardenApiKeyLabel: "API key"
+    wardenApiKeyDesc: "API key for Stargate to call Warden; empty = compose default; change in prod."
+    intervalLabel: "Poll interval (sec)"
+    intervalDesc: "Interval in seconds for Warden to fetch user data from remote."
+    wardenRedisPasswordLabel: "Warden Redis password"
+    wardenRedisPasswordDesc: "Leave empty if Warden Redis has no auth."
+    wardenDataFileLabel: "Local data file path"
+    wardenDataFileDesc: "Path inside container for ONLY_LOCAL user data file; must match volume mount."
+    wardenHttpTimeoutLabel: "HTTP timeout (sec)"
+    wardenHttpTimeoutDesc: "HTTP request timeout in seconds when Warden fetches remote config or data."
+    heraldTestModeLabel: "Test mode"
+    heraldTestModeDesc: "When on, do not send real SMS/email; for local testing."
+    heraldRedisPasswordLabel: "Herald Redis password"
+    heraldRedisPasswordDesc: "Leave empty if Herald Redis has no auth."
+    heraldRedisDbLabel: "Herald Redis DB"
+    heraldRedisDbDesc: "Redis database number for Herald; usually 0."
+    challengeExpiryLabel: "Challenge expiry"
+    challengeExpiryDesc: "OTP challenge validity, e.g. 5m."
+    codeLengthLabel: "Code length"
+    codeLengthDesc: "Number of digits for OTP code (typically 4–8)."
+    maxAttemptsLabel: "Max attempts"
+    maxAttemptsDesc: "Max wrong verification attempts per challenge before lock."
+    providerFailurePolicyLabel: "Provider failure policy"
+    providerFailurePolicyDesc: "soft: continue; strict: reject when send fails."
+    resendCooldownLabel: "Resend cooldown"
+    resendCooldownDesc: "Wait time before resending same challenge, e.g. 60s."
+    lockoutDurationLabel: "Lockout duration"
+    lockoutDurationDesc: "Duration to lock after max attempts, e.g. 10m."
+    rateLimitPerUserLabel: "Rate limit per user (/hour)"
+    rateLimitPerUserDesc: "Max challenges per user_id per hour."
+    rateLimitPerIpLabel: "Rate limit per IP (/min)"
+    rateLimitPerIpDesc: "Max challenges per IP per minute."
+    rateLimitPerDestLabel: "Rate limit per destination (/hour)"
+    rateLimitPerDestDesc: "Max challenges per phone/email per hour."
+    heraldApiKeyLabel: "Herald API key"
+    heraldApiKeyDesc: "API key for Stargate to call Herald; empty = compose default."
+    heraldHmacLabel: "HMAC secret"
+    heraldHmacDesc: "HMAC secret for Stargate–Herald request signing; empty = compose default."
+    btnGenerate: "Generate"
+    generating: "Generating..."
+    resultSuccess: "Done. Download:"
+    resultErrorNeedMode: "Please select at least one compose type."
+    requestFailed: "Request failed: "
+
+modes:
+  - value: traefik
+    labelKey: modeTraefik
+    descKey: modeTraefikDesc
+  - value: traefik-herald
+    labelKey: modeHeraldOnly
+    descKey: modeHeraldOnlyDesc
+  - value: traefik-warden
+    labelKey: modeWardenOnly
+    descKey: modeWardenOnlyDesc
+  - value: traefik-stargate
+    labelKey: modeStargateOnly
+    descKey: modeStargateOnlyDesc
+
+configSections:
+  - titleKey: healthCheckSection
+    options:
+      - type: checkbox
+        id: healthCheck
+        name: healthCheck
+        envName: healthCheck
+        labelKey: healthCheck
+        descKey: healthCheckDesc
+        default: true
+      - type: text
+        id: healthCheckInterval
+        name: healthCheckInterval
+        envName: healthCheckInterval
+        labelKey: healthCheckIntervalLabel
+        descKey: healthCheckIntervalDesc
+        placeholder: "10s"
+        showWhenOption: healthCheck
+      - type: text
+        id: healthCheckStartPeriod
+        name: healthCheckStartPeriod
+        envName: healthCheckStartPeriod
+        labelKey: healthCheckStartPeriodLabel
+        descKey: healthCheckStartPeriodDesc
+        placeholder: "10s"
+        showWhenOption: healthCheck
+  - titleKey: traefikNetworkSection
+    options:
+      - type: checkbox
+        id: traefikNetwork
+        name: traefikNetwork
+        envName: traefikNetwork
+        labelKey: traefikNetwork
+        descKey: traefikNetworkDesc
+        default: true
+      - type: text
+        id: traefikNetworkName
+        name: traefikNetworkName
+        envName: traefikNetworkName
+        labelKey: traefikNetworkNameLabel
+        descKey: traefikNetworkNameDesc
+        default: "traefik"
+        placeholder: "traefik"
+        showWhenOption: traefikNetwork
+  - titleKey: exposePortsSection
+    options:
+      - type: checkbox
+        id: exposePorts
+        name: exposePorts
+        envName: exposePorts
+        labelKey: exposePorts
+        descKey: exposePortsDesc
+        default: true
+      - type: number
+        id: portHerald
+        name: portHerald
+        envName: portHerald
+        labelKey: portHeraldLabel
+        descKey: portHeraldDesc
+        default: "8082"
+        placeholder: "8082"
+        min: 1
+        max: 65535
+        showWhenOption: exposePorts
+      - type: number
+        id: portWarden
+        name: portWarden
+        envName: portWarden
+        labelKey: portWardenLabel
+        descKey: portWardenDesc
+        default: "8081"
+        placeholder: "8081"
+        min: 1
+        max: 65535
+        showWhenOption: exposePorts
+      - type: number
+        id: portHeraldRedis
+        name: portHeraldRedis
+        envName: portHeraldRedis
+        labelKey: portHeraldRedisLabel
+        descKey: portHeraldRedisDesc
+        default: "6379"
+        placeholder: "6379"
+        min: 1
+        max: 65535
+        showWhenOption: exposePorts
+  - titleKey: containerPrefixSection
+    options:
+      - type: text
+        id: containerNamePrefix
+        name: containerNamePrefix
+        envName: containerNamePrefix
+        labelKey: containerNamePrefixLabel
+        descKey: containerNamePrefixDesc
+        placeholderKey: containerPrefixPlaceholder
+  - titleKey: redisStorage
+    options:
+      - type: radio
+        name: redisStorage
+        id: redisStorageVolume
+        value: volume
+        labelKey: redisVolume
+        descKey: redisVolumeDesc
+        default: true
+      - type: radio
+        name: redisStorage
+        id: redisStoragePath
+        value: path
+        labelKey: redisPath
+        descKey: redisPathDesc
+      - type: redisPaths
+        paths:
+          - env: HERALD_REDIS_DATA_PATH
+            id: heraldRedisDataPath
+            labelKey: heraldRedisPathLabel
+            descKey: heraldRedisPathDesc
+            default: "./data/herald-redis"
+            placeholder: "./data/herald-redis"
+          - env: WARDEN_REDIS_DATA_PATH
+            id: wardenRedisDataPath
+            labelKey: wardenRedisPathLabel
+            descKey: wardenRedisPathDesc
+            default: "./data/warden-redis"
+            placeholder: "./data/warden-redis"
+
+services:
+  - id: stargate
+    name: Stargate
+    open: true
+    sections:
+      - titleKey: stargateDomainRouting
+        envVars:
+          - env: AUTH_HOST
+            type: text
+            labelKey: authHostLabel
+            descKey: authHostDesc
+            default: "auth.test.localhost"
+            placeholder: "auth.test.localhost"
+          - env: STARGATE_DOMAIN
+            type: text
+            labelKey: stargateDomainLabel
+            descKey: stargateDomainDesc
+            default: "auth.test.localhost"
+            placeholder: "auth.test.localhost"
+          - env: PROTECTED_DOMAIN
+            type: text
+            labelKey: protectedDomainLabel
+            descKey: protectedDomainDesc
+            default: "whoami.test.localhost"
+            placeholder: "whoami.test.localhost"
+          - env: STARGATE_PREFIX
+            type: text
+            labelKey: stargatePrefixLabel
+            descKey: stargatePrefixDesc
+            default: "stargate"
+            placeholder: "stargate"
+          - env: PROTECTED_PREFIX
+            type: text
+            labelKey: protectedPrefixLabel
+            descKey: protectedPrefixDesc
+            default: "protected"
+            placeholder: "protected"
+          - env: USER_HEADER_NAME
+            type: text
+            labelKey: userHeaderLabel
+            descKey: userHeaderDesc
+            default: "X-Forwarded-User"
+            placeholder: "X-Forwarded-User"
+      - titleKey: stargateUi
+        envVars:
+          - env: LANGUAGE
+            type: select
+            labelKey: languageLabel
+            descKey: languageDesc
+            default: zh
+            options:
+              - value: zh
+                labelKey: languageZh
+              - value: en
+                labelKey: languageEn
+              - value: fr
+                labelKey: languageFr
+              - value: it
+                labelKey: languageIt
+              - value: ja
+                labelKey: languageJa
+              - value: de
+                labelKey: languageDe
+              - value: ko
+                labelKey: languageKo
+          - env: LOGIN_PAGE_TITLE
+            type: text
+            labelKey: loginPageTitleLabel
+            descKey: loginPageTitleDesc
+            placeholder: "Stargate - Login"
+          - env: LOGIN_PAGE_FOOTER_TEXT
+            type: text
+            labelKey: loginPageFooterLabel
+            descKey: loginPageFooterDesc
+            placeholder: "Copyright © 2024 - Stargate"
+          - env: COOKIE_DOMAIN
+            type: text
+            labelKey: cookieDomainLabel
+            descKey: cookieDomainDesc
+          - env: WARDEN_ENABLED
+            type: checkbox
+            labelKey: wardenEnabledLabel
+            descKey: wardenEnabledDesc
+            default: true
+          - env: HERALD_ENABLED
+            type: checkbox
+            labelKey: heraldEnabledLabel
+            descKey: heraldEnabledDesc
+            default: true
+          - env: WARDEN_CACHE_TTL
+            type: number
+            labelKey: wardenCacheTtlLabel
+            descKey: wardenCacheTtlDesc
+            default: "300"
+            placeholder: "300"
+            min: 1
+          - env: SESSION_STORAGE_ENABLED
+            type: checkbox
+            labelKey: sessionStorageEnabledLabel
+            descKey: sessionStorageDesc
+          - env: SESSION_STORAGE_REDIS_ADDR
+            type: text
+            labelKey: sessionStorageRedisAddrLabel
+            descKey: sessionStorageRedisAddrDesc
+            placeholder: "localhost:6379"
+            showWhenEnv: SESSION_STORAGE_ENABLED
+          - env: SESSION_STORAGE_REDIS_PASSWORD
+            type: text
+            labelKey: sessionStorageRedisPasswordLabel
+            descKey: sessionStorageRedisPasswordDesc
+            showWhenEnv: SESSION_STORAGE_ENABLED
+          - env: AUDIT_LOG_ENABLED
+            type: checkbox
+            labelKey: auditLogEnabledLabel
+            descKey: auditLogEnabledDesc
+            default: true
+          - env: AUDIT_LOG_FORMAT
+            type: select
+            labelKey: auditLogFormatLabel
+            descKey: auditLogFormatDesc
+            default: json
+            options:
+              - value: json
+                labelKey: auditLogFormatJson
+              - value: text
+                labelKey: auditLogFormatText
+          - env: DEBUG
+            type: checkbox
+            labelKey: debugLabel
+            descKey: debugDesc
+      - titleKey: optionalSensitive
+        envVars:
+          - env: PASSWORDS
+            type: text
+            labelKey: passwordsLabel
+            descKey: passwordsDesc
+            placeholder: "plaintext:pass1|pass2"
+  - id: warden
+    name: Warden
+    open: false
+    sections:
+      - envVars:
+          - env: LOG_LEVEL
+            type: select
+            labelKey: wardenLogLevelLabel
+            descKey: wardenLogLevelDesc
+            default: info
+            options:
+              - value: info
+                labelKey: logLevelInfo
+              - value: debug
+                labelKey: logLevelDebug
+              - value: warn
+                labelKey: logLevelWarn
+              - value: error
+                labelKey: logLevelError
+          - env: MODE
+            type: select
+            labelKey: modeLabel
+            descKey: modeDesc
+            default: ONLY_LOCAL
+            options:
+              - value: ONLY_LOCAL
+                labelKey: modeOnlyLocal
+              - value: REMOTE
+                labelKey: modeRemote
+              - value: HYBRID
+                labelKey: modeHybrid
+          - env: WARDEN_API_KEY
+            type: text
+            labelKey: wardenApiKeyLabel
+            descKey: wardenApiKeyDesc
+            placeholder: "test-warden-api-key"
+          - env: INTERVAL
+            type: number
+            labelKey: intervalLabel
+            descKey: intervalDesc
+            default: "5"
+            placeholder: "5"
+            min: 1
+          - env: WARDEN_REDIS_PASSWORD
+            type: text
+            labelKey: wardenRedisPasswordLabel
+            descKey: wardenRedisPasswordDesc
+          - env: WARDEN_DATA_FILE
+            type: text
+            labelKey: wardenDataFileLabel
+            descKey: wardenDataFileDesc
+            default: "/app/data.json"
+            placeholder: "/app/data.json"
+          - env: WARDEN_HTTP_TIMEOUT
+            type: number
+            labelKey: wardenHttpTimeoutLabel
+            descKey: wardenHttpTimeoutDesc
+            default: "5"
+            placeholder: "5"
+            min: 1
+  - id: herald
+    name: Herald
+    open: false
+    sections:
+      - envVars:
+          - env: HERALD_TEST_MODE
+            type: checkbox
+            labelKey: heraldTestModeLabel
+            descKey: heraldTestModeDesc
+          - env: HERALD_REDIS_PASSWORD
+            type: text
+            labelKey: heraldRedisPasswordLabel
+            descKey: heraldRedisPasswordDesc
+          - env: HERALD_REDIS_DB
+            type: number
+            labelKey: heraldRedisDbLabel
+            descKey: heraldRedisDbDesc
+            default: "0"
+            placeholder: "0"
+            min: 0
+          - env: CHALLENGE_EXPIRY
+            type: text
+            labelKey: challengeExpiryLabel
+            descKey: challengeExpiryDesc
+            default: "5m"
+            placeholder: "5m"
+          - env: CODE_LENGTH
+            type: number
+            labelKey: codeLengthLabel
+            descKey: codeLengthDesc
+            default: "6"
+            placeholder: "6"
+            min: 4
+            max: 8
+          - env: MAX_ATTEMPTS
+            type: number
+            labelKey: maxAttemptsLabel
+            descKey: maxAttemptsDesc
+            default: "5"
+            placeholder: "5"
+            min: 1
+          - env: PROVIDER_FAILURE_POLICY
+            type: select
+            labelKey: providerFailurePolicyLabel
+            descKey: providerFailurePolicyDesc
+            default: soft
+            options:
+              - value: soft
+                labelKey: providerSoft
+              - value: strict
+                labelKey: providerStrict
+          - env: RESEND_COOLDOWN
+            type: text
+            labelKey: resendCooldownLabel
+            descKey: resendCooldownDesc
+            default: "60s"
+            placeholder: "60s"
+          - env: LOCKOUT_DURATION
+            type: text
+            labelKey: lockoutDurationLabel
+            descKey: lockoutDurationDesc
+            default: "10m"
+            placeholder: "10m"
+          - env: RATE_LIMIT_PER_USER
+            type: number
+            labelKey: rateLimitPerUserLabel
+            descKey: rateLimitPerUserDesc
+            default: "10"
+            placeholder: "10"
+            min: 1
+          - env: RATE_LIMIT_PER_IP
+            type: number
+            labelKey: rateLimitPerIpLabel
+            descKey: rateLimitPerIpDesc
+            default: "5"
+            placeholder: "5"
+            min: 1
+          - env: RATE_LIMIT_PER_DESTINATION
+            type: number
+            labelKey: rateLimitPerDestLabel
+            descKey: rateLimitPerDestDesc
+            default: "10"
+            placeholder: "10"
+            min: 1
+      - titleKey: optionalSensitive
+        envVars:
+          - env: HERALD_API_KEY
+            type: text
+            labelKey: heraldApiKeyLabel
+            descKey: heraldApiKeyDesc
+            placeholder: "test-herald-api-key"
+          - env: HERALD_HMAC_SECRET
+            type: text
+            labelKey: heraldHmacLabel
+            descKey: heraldHmacDesc
+            placeholder: "test-hmac-secret"

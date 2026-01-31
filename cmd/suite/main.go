@@ -2,9 +2,12 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html/template"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
@@ -14,33 +17,152 @@ import (
 
 	"github.com/soulteary/cli-kit/configutil"
 	"github.com/soulteary/cli-kit/flagutil"
+	"github.com/soulteary/the-gate/internal/composegen"
+	"gopkg.in/yaml.v3"
 )
+
+//go:embed static
+var staticFS embed.FS
 
 const (
-	presetsPath     = "config/presets.json"
-	fallbackCompose = "compose/image/docker-compose.yml"
-	defaultEnvBody  = `# Container Image Version Configuration
-
-# Herald Service Image
-HERALD_IMAGE=ghcr.io/soulteary/herald:v0.4.1
-
-# Warden Service Image
-WARDEN_IMAGE=ghcr.io/soulteary/warden:v0.8.0
-
-# Stargate Service Image
-STARGATE_IMAGE=ghcr.io/soulteary/stargate:v0.7.1
-
-# Redis Image Version
-HERALD_REDIS_IMAGE=redis:7-alpine
-WARDEN_REDIS_IMAGE=redis:7-alpine
-`
+	pageYAMLPath     = "config/page.yaml"
+	presetsPath      = "config/presets.json"
+	fallbackCompose  = "compose/example/image/docker-compose.yml"
+	canonicalCompose = "compose/canonical/docker-compose.yml"
+	defaultEnvBody   = "" // 使用 composegen.DefaultEnvBody 或从 compose 推断
+	buildDirRelative = "build"
 )
+
+// pageData 与 config/page.yaml 对应，用于渲染 index 模板。
+type pageData struct {
+	I18N           template.JS           `json:"-"`
+	Title          string                `yaml:"-"`
+	Lang           string                `yaml:"-"`
+	Modes          []pageMode            `yaml:"modes"`
+	ConfigSections []configOptionSection `yaml:"configSections"`
+	Services       []pageService         `yaml:"services"`
+}
+
+// configOptionSection 配置选项分组（类似服务特性中的 env-group）。
+type configOptionSection struct {
+	TitleKey string         `yaml:"titleKey"`
+	Options  []configOption `yaml:"options"`
+}
+
+type pageMode struct {
+	Value    string `yaml:"value"`
+	LabelKey string `yaml:"labelKey"`
+	DescKey  string `yaml:"descKey"`
+}
+
+type configOption struct {
+	Type           string      `yaml:"type"`
+	Id             string      `yaml:"id"`
+	Name           string      `yaml:"name"`
+	EnvName        string      `yaml:"envName"`
+	LabelKey       string      `yaml:"labelKey"`
+	DescKey        string      `yaml:"descKey"`
+	PlaceholderKey string      `yaml:"placeholderKey"`
+	Placeholder    string      `yaml:"placeholder"`
+	Default        interface{} `yaml:"default"`
+	TitleKey       string      `yaml:"titleKey"`
+	Value          string      `yaml:"value"`
+	Paths          []redisPath `yaml:"paths"`
+	ShowWhenOption string      `yaml:"showWhenOption"` // 仅当某 checkbox 勾选时显示
+	Min            int         `yaml:"min"`
+	Max            int         `yaml:"max"`
+}
+
+type redisPath struct {
+	Env         string `yaml:"env"`
+	Id          string `yaml:"id"`
+	LabelKey    string `yaml:"labelKey"`
+	DescKey     string `yaml:"descKey"`
+	Default     string `yaml:"default"`
+	Placeholder string `yaml:"placeholder"`
+}
+
+type pageService struct {
+	Id       string        `yaml:"id"`
+	Name     string        `yaml:"name"`
+	Open     bool          `yaml:"open"`
+	Sections []pageSection `yaml:"sections"`
+}
+
+type pageSection struct {
+	TitleKey string   `yaml:"titleKey"`
+	EnvVars  []envVar `yaml:"envVars"`
+}
+
+type envVar struct {
+	Env         string         `yaml:"env"`
+	Type        string         `yaml:"type"`
+	LabelKey    string         `yaml:"labelKey"`
+	DescKey     string         `yaml:"descKey"`
+	Default     interface{}    `yaml:"default"`
+	Placeholder string         `yaml:"placeholder"`
+	Min         int            `yaml:"min"`
+	Max         int            `yaml:"max"`
+	Options     []selectOption `yaml:"options"`
+	ShowWhenEnv string         `yaml:"showWhenEnv"` // 仅当某 env 为 true 时显示
+}
+
+type selectOption struct {
+	Value    string `yaml:"value"`
+	LabelKey string `yaml:"labelKey"`
+}
+
+type pageYAML struct {
+	I18N           map[string]map[string]string `yaml:"i18n"`
+	Modes          []pageMode                   `yaml:"modes"`
+	ConfigSections []configOptionSection        `yaml:"configSections"`
+	Services       []pageService                `yaml:"services"`
+}
+
+// cacheControlHandler wraps h and sets Cache-Control on successful responses.
+func cacheControlHandler(value string, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", value)
+		h.ServeHTTP(w, r)
+	})
+}
+
+func loadPageData(yamlPath string) (*pageData, error) {
+	data, err := os.ReadFile(yamlPath)
+	if err != nil {
+		return nil, err
+	}
+	var raw pageYAML
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		return nil, err
+	}
+	// I18N as JSON for window.I18N (trusted YAML source, no user input)
+	jsonI18N, err := json.Marshal(raw.I18N)
+	if err != nil {
+		return nil, err
+	}
+	title := "Stargate Suite - Compose 生成"
+	if t, ok := raw.I18N["zh"]["title"]; ok && t != "" {
+		title = t
+	}
+	return &pageData{
+		I18N:           template.JS(jsonI18N),
+		Title:          title,
+		Lang:           "zh-CN",
+		Modes:          raw.Modes,
+		ConfigSections: raw.ConfigSections,
+		Services:       raw.Services,
+	}, nil
+}
 
 // resolvedComposeFile 由 main 在解析全局 flag 后设置，供使用默认 compose 的命令读取。
 var resolvedComposeFile string
 
 // genOutDir、genModeArg 由 main 在解析 gen 命令时设置，供 cmdGen 使用。
 var genOutDir, genModeArg string
+
+// servePort 由 main 在解析 serve 命令时设置。
+var servePort string
 
 func loadPresets(path string) (map[string]string, error) {
 	data, err := os.ReadFile(path)
@@ -124,6 +246,8 @@ func getCommands() []command {
 			{"restart-stargate", "Restart Stargate service", cmdRestartStargate},
 			{"health", "Check service health status", cmdHealth},
 			{"gen", "Generate docker-compose.yml and .env for mode(s) into build dir (use -o to set output dir)", cmdGen},
+			{"gen-split", "从 canonical 生成三分开 compose 到 build/（traefik-herald/warden/stargate）", cmdGenSplit},
+			{"serve", "Start web UI for compose generation (default :8085)", cmdServe},
 		}
 	}
 	return commands
@@ -146,16 +270,20 @@ func cmdUp() error {
 	return run("docker", "compose", "-f", composeFile(), "up", "-d")
 }
 
+func buildComposePath(mode string) string {
+	return filepath.Join(projectRoot(), buildDirRelative, mode, "docker-compose.yml")
+}
+
 func cmdUpBuild() error {
-	return run("docker", "compose", "-f", "compose/build/docker-compose.yml", "up", "-d", "--build")
+	return run("docker", "compose", "-f", buildComposePath("build"), "up", "-d", "--build")
 }
 
 func cmdUpImage() error {
-	return run("docker", "compose", "-f", "compose/image/docker-compose.yml", "up", "-d")
+	return run("docker", "compose", "-f", buildComposePath("image"), "up", "-d")
 }
 
 func cmdUpTraefik() error {
-	return run("docker", "compose", "-f", "compose/traefik/docker-compose.yml", "up", "-d")
+	return run("docker", "compose", "-f", buildComposePath("traefik"), "up", "-d")
 }
 
 func cmdNetTraefikSplit() error {
@@ -169,15 +297,15 @@ func cmdNetTraefikSplit() error {
 }
 
 func cmdUpTraefikHerald() error {
-	return run("docker", "compose", "-f", "compose/traefik-herald/docker-compose.yml", "up", "-d")
+	return run("docker", "compose", "-f", buildComposePath("traefik-herald"), "up", "-d")
 }
 
 func cmdUpTraefikWarden() error {
-	return run("docker", "compose", "-f", "compose/traefik-warden/docker-compose.yml", "up", "-d")
+	return run("docker", "compose", "-f", buildComposePath("traefik-warden"), "up", "-d")
 }
 
 func cmdUpTraefikStargate() error {
-	return run("docker", "compose", "-f", "compose/traefik-stargate/docker-compose.yml", "up", "-d")
+	return run("docker", "compose", "-f", buildComposePath("traefik-stargate"), "up", "-d")
 }
 
 func cmdDown() error {
@@ -185,27 +313,27 @@ func cmdDown() error {
 }
 
 func cmdDownBuild() error {
-	return run("docker", "compose", "-f", "compose/build/docker-compose.yml", "down")
+	return run("docker", "compose", "-f", buildComposePath("build"), "down")
 }
 
 func cmdDownImage() error {
-	return run("docker", "compose", "-f", "compose/image/docker-compose.yml", "down")
+	return run("docker", "compose", "-f", buildComposePath("image"), "down")
 }
 
 func cmdDownTraefik() error {
-	return run("docker", "compose", "-f", "compose/traefik/docker-compose.yml", "down")
+	return run("docker", "compose", "-f", buildComposePath("traefik"), "down")
 }
 
 func cmdDownTraefikHerald() error {
-	return run("docker", "compose", "-f", "compose/traefik-herald/docker-compose.yml", "down")
+	return run("docker", "compose", "-f", buildComposePath("traefik-herald"), "down")
 }
 
 func cmdDownTraefikWarden() error {
-	return run("docker", "compose", "-f", "compose/traefik-warden/docker-compose.yml", "down")
+	return run("docker", "compose", "-f", buildComposePath("traefik-warden"), "down")
 }
 
 func cmdDownTraefikStargate() error {
-	return run("docker", "compose", "-f", "compose/traefik-stargate/docker-compose.yml", "down")
+	return run("docker", "compose", "-f", buildComposePath("traefik-stargate"), "down")
 }
 
 func cmdLogs() error {
@@ -293,82 +421,111 @@ func projectRoot() string {
 func cmdGen() error {
 	outDir := genOutDir
 	if outDir == "" {
-		outDir = "build"
+		outDir = buildDirRelative
 	}
 	root := projectRoot()
+	outBase := filepath.Join(root, outDir)
 	modeArg := strings.TrimSpace(genModeArg)
 	if modeArg == "" {
 		modeArg = "all"
 	}
-	modes := []string{}
+	var exampleModes, traefikModes []string
 	switch modeArg {
 	case "image", "build":
-		modes = []string{modeArg}
+		exampleModes = []string{modeArg}
 	case "traefik":
-		// traefik 含三合一 + 三分开，输出 4 个子目录
-		modes = []string{"traefik", "traefik-herald", "traefik-warden", "traefik-stargate"}
+		traefikModes = []string{"traefik", "traefik-herald", "traefik-warden", "traefik-stargate"}
 	case "", "all":
-		modes = []string{"image", "build", "traefik", "traefik-herald", "traefik-warden", "traefik-stargate"}
+		exampleModes = []string{"image", "build"}
+		traefikModes = []string{"traefik", "traefik-herald", "traefik-warden", "traefik-stargate"}
 	default:
-		fmt.Fprintf(os.Stderr, "Unknown mode %q. Use: image, build, traefik, or all\n", modeArg)
-		return fmt.Errorf("unknown gen mode: %s", modeArg)
+		// 支持多选，如 gen traefik traefik-herald
+		if strings.HasPrefix(modeArg, "traefik") {
+			traefikModes = []string{modeArg}
+		} else if modeArg == "image" || modeArg == "build" {
+			exampleModes = []string{modeArg}
+		} else {
+			fmt.Fprintf(os.Stderr, "Unknown mode %q. Use: image, build, traefik, traefik-herald, traefik-warden, traefik-stargate, or all\n", modeArg)
+			return fmt.Errorf("unknown gen mode: %s", modeArg)
+		}
 	}
-	envBody := defaultEnvBody
+	envBody := ""
 	if b, err := os.ReadFile(filepath.Join(root, ".env")); err == nil && len(b) > 0 {
 		envBody = string(b)
 	}
-	for _, mode := range modes {
-		if err := genMode(root, filepath.Join(root, outDir), mode, envBody); err != nil {
+	if envBody == "" {
+		envBody = composegen.DefaultEnvBody()
+	}
+	for _, mode := range exampleModes {
+		if err := genModeExample(root, outBase, mode, envBody); err != nil {
 			return err
 		}
 	}
-	fmt.Printf("Generated %s for mode(s): %s\n", outDir, strings.Join(modes, ", "))
+	if len(traefikModes) > 0 {
+		fullPath := filepath.Join(root, canonicalCompose)
+		full, err := composegen.LoadCompose(fullPath)
+		if err != nil {
+			return fmt.Errorf("load canonical compose: %w", err)
+		}
+		opts := genOptionsFromEnv()
+		gen, err := composegen.Generate(full, traefikModes, envBody, opts)
+		if err != nil {
+			return err
+		}
+		for _, mode := range traefikModes {
+			dir := filepath.Join(outBase, mode)
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return fmt.Errorf("mkdir %s: %w", dir, err)
+			}
+			ymlPath := filepath.Join(dir, "docker-compose.yml")
+			if err := os.WriteFile(ymlPath, gen.Composes[mode], 0644); err != nil {
+				return fmt.Errorf("write %s: %w", ymlPath, err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, ".env"), gen.Env, 0644); err != nil {
+				return fmt.Errorf("write .env: %w", err)
+			}
+		}
+	}
+	allModes := append(exampleModes, traefikModes...)
+	fmt.Printf("Generated %s for mode(s): %s\n", outDir, strings.Join(allModes, ", "))
 	return nil
 }
 
-func genMode(projectRoot, outBase, mode, envBody string) error {
+// genOptionsFromEnv 从环境变量构建 composegen.Options（USE_NAMED_VOLUME、HERALD_REDIS_DATA_PATH、WARDEN_REDIS_DATA_PATH 等）。
+func genOptionsFromEnv() *composegen.Options {
+	useNamed := true
+	if v := strings.TrimSpace(os.Getenv("USE_NAMED_VOLUME")); v == "0" || strings.EqualFold(v, "false") {
+		useNamed = false
+	}
+	opts := &composegen.Options{
+		HealthCheck:         true,
+		TraefikNetwork:      true,
+		TraefikNetworkName:  "traefik",
+		ExposePorts:         true,
+		ContainerNamePrefix: "the-gate-",
+		UseNamedVolume:      useNamed,
+		HeraldRedisDataPath: strings.TrimSpace(os.Getenv("HERALD_REDIS_DATA_PATH")),
+		WardenRedisDataPath: strings.TrimSpace(os.Getenv("WARDEN_REDIS_DATA_PATH")),
+	}
+	if opts.HeraldRedisDataPath == "" {
+		opts.HeraldRedisDataPath = "./data/herald-redis"
+	}
+	if opts.WardenRedisDataPath == "" {
+		opts.WardenRedisDataPath = "./data/warden-redis"
+	}
+	return opts
+}
+
+func genModeExample(projectRoot, outBase, mode, envBody string) error {
 	dir := filepath.Join(outBase, mode)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("mkdir %s: %w", dir, err)
 	}
-	envPath := filepath.Join(dir, ".env")
-	if err := os.WriteFile(envPath, []byte(envBody), 0644); err != nil {
-		return fmt.Errorf("write %s: %w", envPath, err)
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte(envBody), 0644); err != nil {
+		return fmt.Errorf("write .env: %w", err)
 	}
-	switch mode {
-	case "image":
-		return copyFile(
-			filepath.Join(projectRoot, "compose", "image", "docker-compose.yml"),
-			filepath.Join(dir, "docker-compose.yml"),
-		)
-	case "build":
-		return copyFile(
-			filepath.Join(projectRoot, "compose", "build", "docker-compose.yml"),
-			filepath.Join(dir, "docker-compose.yml"),
-		)
-	case "traefik":
-		return copyFile(
-			filepath.Join(projectRoot, "compose", "traefik", "docker-compose.yml"),
-			filepath.Join(dir, "docker-compose.yml"),
-		)
-	case "traefik-herald":
-		return copyFile(
-			filepath.Join(projectRoot, "compose", "traefik-herald", "docker-compose.yml"),
-			filepath.Join(dir, "docker-compose.yml"),
-		)
-	case "traefik-warden":
-		return copyFile(
-			filepath.Join(projectRoot, "compose", "traefik-warden", "docker-compose.yml"),
-			filepath.Join(dir, "docker-compose.yml"),
-		)
-	case "traefik-stargate":
-		return copyFile(
-			filepath.Join(projectRoot, "compose", "traefik-stargate", "docker-compose.yml"),
-			filepath.Join(dir, "docker-compose.yml"),
-		)
-	default:
-		return fmt.Errorf("unsupported mode: %s", mode)
-	}
+	src := filepath.Join(projectRoot, "compose", "example", mode, "docker-compose.yml")
+	return copyFile(src, filepath.Join(dir, "docker-compose.yml"))
 }
 
 func copyFile(src, dst string) error {
@@ -380,6 +537,158 @@ func copyFile(src, dst string) error {
 		return fmt.Errorf("write %s: %w", dst, err)
 	}
 	return nil
+}
+
+// generateRequest 为 /api/generate 的请求体。
+type generateRequest struct {
+	Modes       []string               `json:"modes"`
+	EnvOverride string                 `json:"envOverride"`
+	Options     *composeGenOptionsJSON `json:"options"`
+}
+
+// composeGenOptionsJSON 与 composegen.Options 对应，用于 JSON 解析。
+type composeGenOptionsJSON struct {
+	HealthCheck            *bool             `json:"healthCheck"`
+	HealthCheckInterval    string            `json:"healthCheckInterval"`
+	HealthCheckStartPeriod string            `json:"healthCheckStartPeriod"`
+	TraefikNetwork         *bool             `json:"traefikNetwork"`
+	TraefikNetworkName     string            `json:"traefikNetworkName"`
+	ExposePorts            *bool             `json:"exposePorts"`
+	PortHerald             string            `json:"portHerald"`
+	PortWarden             string            `json:"portWarden"`
+	PortHeraldRedis        string            `json:"portHeraldRedis"`
+	ContainerNamePrefix    string            `json:"containerNamePrefix"`
+	EnvOverrides           map[string]string `json:"envOverrides"`
+	UseNamedVolume         *bool             `json:"useNamedVolume"`
+	HeraldRedisDataPath    string            `json:"heraldRedisDataPath"`
+	WardenRedisDataPath    string            `json:"wardenRedisDataPath"`
+}
+
+func reqOptionsToComposegen(o *composeGenOptionsJSON) *composegen.Options {
+	if o == nil {
+		return nil
+	}
+	opts := &composegen.Options{
+		TraefikNetworkName:  o.TraefikNetworkName,
+		ContainerNamePrefix: o.ContainerNamePrefix,
+		EnvOverrides:        o.EnvOverrides,
+	}
+	if o.HealthCheck != nil {
+		opts.HealthCheck = *o.HealthCheck
+	} else {
+		opts.HealthCheck = true
+	}
+	opts.HealthCheckInterval = strings.TrimSpace(o.HealthCheckInterval)
+	opts.HealthCheckStartPeriod = strings.TrimSpace(o.HealthCheckStartPeriod)
+	if o.TraefikNetwork != nil {
+		opts.TraefikNetwork = *o.TraefikNetwork
+	} else {
+		opts.TraefikNetwork = true
+	}
+	if o.ExposePorts != nil {
+		opts.ExposePorts = *o.ExposePorts
+	} else {
+		opts.ExposePorts = true
+	}
+	opts.PortHerald = strings.TrimSpace(o.PortHerald)
+	opts.PortWarden = strings.TrimSpace(o.PortWarden)
+	opts.PortHeraldRedis = strings.TrimSpace(o.PortHeraldRedis)
+	if opts.TraefikNetworkName == "" {
+		opts.TraefikNetworkName = "traefik"
+	}
+	if o.UseNamedVolume != nil {
+		opts.UseNamedVolume = *o.UseNamedVolume
+	} else {
+		opts.UseNamedVolume = true
+	}
+	opts.HeraldRedisDataPath = strings.TrimSpace(o.HeraldRedisDataPath)
+	opts.WardenRedisDataPath = strings.TrimSpace(o.WardenRedisDataPath)
+	if opts.HeraldRedisDataPath == "" {
+		opts.HeraldRedisDataPath = "./data/herald-redis"
+	}
+	if opts.WardenRedisDataPath == "" {
+		opts.WardenRedisDataPath = "./data/warden-redis"
+	}
+	return opts
+}
+
+func cmdServe() error {
+	root := projectRoot()
+	pagePath := filepath.Join(root, pageYAMLPath)
+	page, err := loadPageData(pagePath)
+	if err != nil {
+		// Fallback: try config/page.yaml relative to current working directory
+		if cwd, e := os.Getwd(); e == nil {
+			fallback := filepath.Join(cwd, pageYAMLPath)
+			page, err = loadPageData(fallback)
+		}
+		if err != nil {
+			return fmt.Errorf("load page config (tried %s and ./%s): %w", pagePath, pageYAMLPath, err)
+		}
+	}
+	tmpl, err := template.ParseFS(staticFS, "static/index.html.tmpl")
+	if err != nil {
+		return fmt.Errorf("parse index template: %w", err)
+	}
+	subFS, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		return fmt.Errorf("static sub FS: %w", err)
+	}
+	cacheStatic := "public, max-age=3600"
+	staticHandler := cacheControlHandler(cacheStatic, http.FileServer(http.FS(subFS)))
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := tmpl.Execute(w, page); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+	mux.Handle("/static/", http.StripPrefix("/static", staticHandler))
+	mux.HandleFunc("/api/generate", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		var req generateRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid json: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if len(req.Modes) == 0 {
+			http.Error(w, "modes required", http.StatusBadRequest)
+			return
+		}
+		root := projectRoot()
+		fullPath := filepath.Join(root, canonicalCompose)
+		full, err := composegen.LoadCompose(fullPath)
+		if err != nil {
+			http.Error(w, "load compose: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		opts := reqOptionsToComposegen(req.Options)
+		gen, err := composegen.Generate(full, req.Modes, req.EnvOverride, opts)
+		if err != nil {
+			http.Error(w, "generate: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		res := map[string]interface{}{
+			"composes": make(map[string]string),
+			"env":      string(gen.Env),
+		}
+		for mode, yml := range gen.Composes {
+			res["composes"].(map[string]string)[mode] = string(yml)
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(res)
+	})
+	addr := ":" + servePort
+	fmt.Printf("Web UI: http://localhost%s\n", addr)
+	return http.ListenAndServe(addr, mux)
 }
 
 func findCommand(name string) *command {
@@ -400,6 +709,7 @@ func main() {
 	_ = fs.String("f", "", "compose file path")
 	_ = fs.String("preset", "", "preset name from config/presets.json")
 	_ = fs.String("o", "build", "output directory for gen command (default: build)")
+	_ = fs.String("port", "8085", "port for serve command (default: 8085)")
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		if err == flag.ErrHelp {
@@ -441,10 +751,16 @@ func main() {
 		resolvedComposeFile = defaultPath
 	}
 
-	if cmdName == "gen" {
-		genOutDir = strings.TrimSpace(configutil.ResolveString(fs, "o", "GEN_OUT_DIR", "build", true))
-		if len(args) > 1 {
-			genModeArg = strings.TrimSpace(args[1])
+	if cmdName == "gen" || cmdName == "gen-split" {
+		genOutDir = strings.TrimSpace(configutil.ResolveString(fs, "o", "GEN_OUT_DIR", buildDirRelative, true))
+	}
+	if cmdName == "gen" && len(args) > 1 {
+		genModeArg = strings.TrimSpace(args[1])
+	}
+	if cmdName == "serve" {
+		servePort = strings.TrimSpace(configutil.ResolveString(fs, "port", "SERVE_PORT", "8085", true))
+		if servePort == "" {
+			servePort = "8085"
 		}
 	}
 

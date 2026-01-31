@@ -6,18 +6,19 @@
 
 | 预设名 | compose 文件路径 | 说明 |
 |--------|------------------|------|
-| `default` / `image` | `compose/image/docker-compose.yml` | 预构建镜像，默认场景 |
-| `build` | `compose/build/docker-compose.yml` | 从源码构建 |
-| `traefik` | `compose/traefik/docker-compose.yml` | 接入 Traefik（三合一） |
-| `traefik-herald` | `compose/traefik-herald/docker-compose.yml` | 三分开：仅 Herald |
-| `traefik-warden` | `compose/traefik-warden/docker-compose.yml` | 三分开：仅 Warden |
-| `traefik-stargate` | `compose/traefik-stargate/docker-compose.yml` | 三分开：Stargate + 受保护服务 |
+| `default` | `compose/example/image/docker-compose.yml` | 静态示例：预构建镜像 |
+| `image` | `build/image/docker-compose.yml` | 生成后：预构建镜像（需先执行 gen） |
+| `build` | `build/build/docker-compose.yml` | 生成后：从源码构建 |
+| `traefik` | `build/traefik/docker-compose.yml` | 生成后：接入 Traefik（三合一） |
+| `traefik-herald` | `build/traefik-herald/docker-compose.yml` | 生成后：三分开，仅 Herald |
+| `traefik-warden` | `build/traefik-warden/docker-compose.yml` | 生成后：三分开，仅 Warden |
+| `traefik-stargate` | `build/traefik-stargate/docker-compose.yml` | 生成后：三分开，Stargate + 受保护服务 |
 
 更多说明见项目根目录 [compose/README.md](../compose/README.md)。
 
 ## 使用方式
 
-- **默认**：不指定时使用 `presets.json` 中的 `default` 对应路径。
+- **默认**：不指定时使用 `presets.json` 中的 `default` 对应路径（示例为 compose/example/image，生成后可用 build/image）。
 - **环境变量**：`COMPOSE_FILE=<路径>` 可覆盖默认（优先级高于默认，低于命令行）。
 - **命令行**：
   - `-f <路径>` / `--file <路径>`：直接指定 compose 文件路径。
@@ -28,14 +29,14 @@
 示例：
 
 ```bash
-# 使用默认 compose
+# 使用默认 compose（示例或生成后的 build/image）
 ./suite up
 
 # 使用环境变量
-COMPOSE_FILE=compose/traefik/docker-compose.yml ./suite up
+COMPOSE_FILE=build/traefik/docker-compose.yml ./suite up
 
 # 使用 -f
-./suite -f compose/traefik/docker-compose.yml up
+./suite -f build/traefik/docker-compose.yml up
 
 # 使用预设名
 ./suite --preset traefik up
@@ -50,7 +51,16 @@ COMPOSE_FILE=compose/traefik/docker-compose.yml ./suite up
 ./suite -o dist gen traefik             # 输出到 dist/，含 dist/traefik/、dist/traefik-herald/、dist/traefik-warden/、dist/traefik-stargate/
 ```
 
+## Web UI（serve 命令）
+
+启动网页生成器，勾选 compose 类型后下载配置：
+
+```bash
+./suite serve
+# 默认 http://localhost:8085，可通过 -port 或 SERVE_PORT 指定端口
+```
+
 ## 相关文档
 
 - [README.md](../README.md) — 项目总览
-- [compose/README.md](../compose/README.md) — Compose 各子目录用法
+- [compose/README.md](../compose/README.md) — Compose 示例与生成

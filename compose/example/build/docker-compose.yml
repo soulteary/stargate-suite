@@ -1,7 +1,7 @@
-# Stargate Suite - 从源码构建运行
+# Stargate Suite - 从源码构建运行（示例）
 # 使用说明：在项目根目录执行
-#   docker compose -f compose/build/docker-compose.yml up -d --build
-# 或进入本目录（需在项目根执行）：docker compose -f compose/build/docker-compose.yml up -d --build
+#   docker compose -f compose/example/build/docker-compose.yml up -d --build
+# 或生成到 build 后：docker compose -f build/build/docker-compose.yml up -d --build
 # 注意：build context 为 ../../herald、../../warden、../../stargate，需在 stargate-suite 根目录执行。
 
 services:

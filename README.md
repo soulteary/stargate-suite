@@ -17,27 +17,34 @@
 
 ```
 stargate-suite/
-├── compose/                # Docker Compose 示例（每种用法对应一个子目录）
+├── compose/                # Compose 源与示例
 │   ├── README.md           # Compose 使用说明
-│   ├── build/              # 从源码构建
+│   ├── example/            # 静态示例（唯二保留）
+│   │   ├── image/          # 预构建镜像示例
+│   │   │   └── docker-compose.yml
+│   │   └── build/          # 从源码构建示例
+│   │       └── docker-compose.yml
+│   ├── canonical/          # 单一数据源（用于生成 traefik / 三分开）
 │   │   └── docker-compose.yml
-│   ├── image/              # 预构建镜像（默认）
-│   │   └── docker-compose.yml
-│   ├── traefik/            # 三合一：接入 Traefik + 受保护服务
-│   │   └── docker-compose.yml
-│   ├── traefik-herald/     # 三分开：仅 Herald
-│   │   └── docker-compose.yml
-│   ├── traefik-warden/     # 三分开：仅 Warden
-│   │   └── docker-compose.yml
-│   └── traefik-stargate/   # 三分开：仅 Stargate + 受保护服务
-│       └── docker-compose.yml
+│   └── traefik/            # 可选：Traefik 部署说明
+│       └── README.md
+├── build/                  # 生成输出（gen 或 Web UI 生成，默认不提交）
+│   ├── image/              # 来自 example/image + .env
+│   ├── build/               # 来自 example/build + .env
+│   ├── traefik/            # 来自 canonical 解析生成
+│   ├── traefik-herald/     # 三分开
+│   ├── traefik-warden/
+│   └── traefik-stargate/
 ├── go.mod                  # Go 模块定义
 ├── go.sum                  # Go 依赖锁定
 ├── Makefile                # 便捷命令脚本
-├── cmd/suite/              # Go CLI（与 Makefile 等效）
-│   └── main.go
+├── cmd/suite/              # Go CLI + Web UI
+│   ├── main.go
+│   ├── compose_split.go
+│   └── static/index.html  # 生成器页面
+├── internal/composegen/    # Compose 解析与生成
 ├── README.md               # 本文档
-├── LICENSE                  # 许可证文件
+├── LICENSE                 # 许可证文件
 ├── e2e/                    # 端到端测试代码
 │   ├── e2e_test.go         # 正常流程测试
 │   ├── error_scenarios_test.go  # 异常场景测试
@@ -67,29 +74,39 @@ stargate-suite/
 
 ### 启动服务
 
+**首次使用请先生成配置到 `build/` 目录：**
+
 ```bash
-# 方式 1: 使用 Makefile（推荐，默认使用 compose/image）
+make gen
+# 或
+go run ./cmd/suite gen all
+```
+
+然后启动：
+
+```bash
+# 方式 1: 使用 Makefile（默认使用 build/image）
 make up
 
-# 使用不同 compose 示例
-make up-image    # 预构建镜像（compose/image）
-make up-build    # 从源码构建（compose/build）
-make up-traefik  # 接入 Traefik（compose/traefik）
+# 使用不同 compose
+make up-image    # 预构建镜像（build/image）
+make up-build    # 从源码构建（build/build）
+make up-traefik  # 接入 Traefik（build/traefik）
 
 # 方式 2: 直接指定 compose 文件（在项目根目录执行）
-docker compose -f compose/image/docker-compose.yml up -d
-docker compose -f compose/build/docker-compose.yml up -d --build
-docker compose -f compose/traefik/docker-compose.yml up -d
+docker compose -f build/image/docker-compose.yml up -d
+docker compose -f build/build/docker-compose.yml up -d --build
+docker compose -f build/traefik/docker-compose.yml up -d
 
 # 查看服务状态
 make ps
 # 或
-docker compose -f compose/image/docker-compose.yml ps
+docker compose -f build/image/docker-compose.yml ps
 
 # 查看服务日志
 make logs
 # 或
-docker compose -f compose/image/docker-compose.yml logs -f
+docker compose -f build/image/docker-compose.yml logs -f
 ```
 
 **方式 3：使用 Go CLI（与 Makefile 等效，跨平台）**
@@ -119,9 +136,9 @@ go run ./cmd/suite health
 ```bash
 # 在项目根目录执行
 go run ./cmd/suite gen [mode]     # mode 默认 all，输出到 build/
-go run ./cmd/suite gen image      # → build/image/
-go run ./cmd/suite gen build      # → build/build/
-go run ./cmd/suite gen traefik    # → build/traefik/、build/traefik-herald/、build/traefik-warden/、build/traefik-stargate/
+go run ./cmd/suite gen image      # 从 compose/example/image 拷贝 → build/image/
+go run ./cmd/suite gen build      # 从 compose/example/build 拷贝 → build/build/
+go run ./cmd/suite gen traefik    # 从 compose/canonical 解析生成 → build/traefik/、traefik-herald/、traefik-warden/、traefik-stargate/
 go run ./cmd/suite gen all        # 上述全部（共 6 个子目录）
 
 # 指定输出目录（默认 build）
@@ -129,7 +146,11 @@ go run ./cmd/suite -o dist gen traefik
 GEN_OUT_DIR=dist go run ./cmd/suite gen all
 ```
 
-生成后使用示例：`docker compose -f build/image/docker-compose.yml --env-file build/image/.env up -d`。Compose 各子目录说明见 [compose/README.md](./compose/README.md)。
+生成后使用示例：`docker compose -f build/image/docker-compose.yml --env-file build/image/.env up -d`。Compose 说明见 [compose/README.md](./compose/README.md)。
+
+**Web UI 生成**
+
+在项目根目录执行 `go run ./cmd/suite serve`（默认 http://localhost:8085），在网页上勾选要生成的 compose 类型，点击生成即可下载 `docker-compose.yml` 与 `.env`。也可通过 `-port` 或 `SERVE_PORT` 指定端口。
 
 ### 运行测试
 
@@ -152,15 +173,15 @@ go test -v ./e2e/... -run TestCompleteLoginFlow
 ### 停止服务
 
 ```bash
-# 停止所有服务（与启动时使用的 compose 一致，默认 compose/image）
+# 停止所有服务（与启动时使用的 compose 一致，默认 build/image）
 make down
 # 或
-docker compose -f compose/image/docker-compose.yml down
+docker compose -f build/image/docker-compose.yml down
 
 # 停止服务并清理数据卷
 make clean
 # 或
-docker compose -f compose/image/docker-compose.yml down -v
+docker compose -f build/image/docker-compose.yml down -v
 ```
 
 ## 服务配置

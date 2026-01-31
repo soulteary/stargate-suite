@@ -1,56 +1,73 @@
-# Compose 示例
+# Compose 示例与生成
 
-本目录下每种使用方式对应一个子目录，目录内仅包含该方式所需的 `docker-compose.yml`。所有命令均在项目根目录 `stargate-suite` 下执行。项目总览见 [README.md](../README.md)。
+本目录仅保留**静态示例**与**单一数据源**，其余 compose 由 CLI 或 Web UI 生成到 `build/`。所有命令均在项目根目录 `stargate-suite` 下执行。项目总览见 [README.md](../README.md)。
 
 ## 目录说明
 
-每种使用方式对应一个子目录，目录内仅包含该方式所需的 `docker-compose.yml`（及可选 `.env`）。
+| 目录 | 说明 |
+|------|------|
+| **example/image/** | 静态示例：使用预构建镜像运行，适合快速体验与 CI |
+| **example/build/** | 静态示例：从源码构建 Stargate、Warden、Herald，适合本地开发与 E2E 测试 |
+| **canonical/** | 单一数据源：完整 Traefik 三合一 compose，用于解析生成 traefik / traefik-herald / traefik-warden / traefik-stargate |
+| **traefik/** | 可选：Traefik 三合一与三分开部署说明（见 [traefik/README.md](./traefik/README.md)） |
 
-| 目录 | 说明 | 启动命令 |
-|------|------|----------|
-| **build/** | 从源码构建 Stargate、Warden、Herald，适合本地开发与 E2E 测试 | `docker compose -f compose/build/docker-compose.yml up -d --build` |
-| **image/** | 使用预构建镜像运行，无需本地源码，适合快速体验与 CI | `docker compose -f compose/image/docker-compose.yml up -d` |
-| **traefik/** | 三合一：接入外部 Traefik，Stargate Forward Auth + 示例受保护服务 | `docker compose -f compose/traefik/docker-compose.yml up -d` |
-| **traefik-herald/** | 三分开：仅 Herald + Redis | `docker compose -f compose/traefik-herald/docker-compose.yml up -d` |
-| **traefik-warden/** | 三分开：仅 Warden + Redis | `docker compose -f compose/traefik-warden/docker-compose.yml up -d` |
-| **traefik-stargate/** | 三分开：仅 Stargate + 受保护服务（依赖 Herald/Warden 已启动） | `docker compose -f compose/traefik-stargate/docker-compose.yml up -d` |
+**生成输出**均在 `build/` 目录（由 `go run ./cmd/suite gen all` 或 Web UI 生成）：
+
+| 生成目录 | 说明 | 启动命令 |
+|----------|------|----------|
+| build/image/ | 来自 example/image + .env | `docker compose -f build/image/docker-compose.yml up -d` |
+| build/build/ | 来自 example/build + .env | `docker compose -f build/build/docker-compose.yml up -d --build` |
+| build/traefik/ | 三合一：接入 Traefik | `docker compose -f build/traefik/docker-compose.yml up -d` |
+| build/traefik-herald/ | 三分开：仅 Herald + Redis | `docker compose -f build/traefik-herald/docker-compose.yml up -d` |
+| build/traefik-warden/ | 三分开：仅 Warden + Redis | `docker compose -f build/traefik-warden/docker-compose.yml up -d` |
+| build/traefik-stargate/ | 三分开：仅 Stargate + 受保护服务（依赖 Herald/Warden 已启动） | `docker compose -f build/traefik-stargate/docker-compose.yml up -d` |
 
 ## 使用方式
 
-### 从源码构建（build）
+### 首次使用：生成到 build/
 
 ```bash
-# 在 stargate-suite 根目录
-docker compose -f compose/build/docker-compose.yml up -d --build
+# 在项目根目录
+go run ./cmd/suite gen all
+# 或
+make gen
 ```
 
-需要 `herald`、`warden`、`stargate` 与 `stargate-suite` 处于同级目录（例如同一 repo 下）。
-
-### 使用预构建镜像（image）
+### 从预构建镜像启动（build/image）
 
 ```bash
-docker compose -f compose/image/docker-compose.yml up -d
+docker compose -f build/image/docker-compose.yml up -d
 ```
 
-### 接入 Traefik（traefik）
+### 从源码构建启动（build/build）
+
+需要 `herald`、`warden`、`stargate` 与 `stargate-suite` 处于同级目录。
+
+```bash
+docker compose -f build/build/docker-compose.yml up -d --build
+```
+
+### 接入 Traefik（build/traefik）
 
 1. 创建 Traefik 网络：`docker network create traefik`
 2. 确保 Traefik 已运行
-3. 启动：
+3. 启动：`docker compose -f build/traefik/docker-compose.yml up -d`
 
-```bash
-docker compose -f compose/traefik/docker-compose.yml up -d
-```
+可在各 `build/<mode>/.env` 中配置 `STARGATE_DOMAIN`、`PROTECTED_DOMAIN` 等。
 
-可在 `.env` 中配置 `STARGATE_DOMAIN`、`PROTECTED_DOMAIN` 等。
+## 三分开与单一数据源
 
-## 通过 CLI 生成到 build 目录
+- **canonical**（`compose/canonical/docker-compose.yml`）为唯一维护的“完整 Traefik” compose。
+- **三分开**（traefik-herald / traefik-warden / traefik-stargate）由 canonical **解析生成**到 `build/`，无需手改。
+- 修改 canonical 后执行 `go run ./cmd/suite gen traefik` 或 `go run ./cmd/suite gen-split` 即可重新生成。
 
-在项目根目录执行 `go run ./cmd/suite gen [image|build|traefik|all]`（或 `./bin/suite gen ...`），可将各子目录的 compose 与根目录 `.env` 拷贝到 `build/<mode>/`。`gen traefik` 会生成 4 个子目录：`build/traefik/`、`build/traefik-herald/`、`build/traefik-warden/`、`build/traefik-stargate/`。输出目录可通过 `-o` 或 `GEN_OUT_DIR` 指定，默认 `build`。
+## Web UI 生成
+
+执行 `go run ./cmd/suite serve`（默认 http://localhost:8085），在网页上勾选要生成的 compose 类型，点击生成即可下载 `docker-compose.yml` 与 `.env`。
 
 ## 环境变量与 .env
 
-各示例会读取项目根目录的 `.env`（若存在）。常用变量：
+生成时会将根目录 `.env`（若存在）或从 canonical 推断的变量写入各 `build/<mode>/.env`。常用变量：
 
 - `AUTH_HOST`、`STARGATE_DOMAIN`、`PROTECTED_DOMAIN`
 - `HERALD_API_KEY`、`HERALD_HMAC_SECRET`、`WARDEN_API_KEY`

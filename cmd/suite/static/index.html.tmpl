@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="description" content="Generate docker-compose and .env for Stargate, Warden, Herald.">
+	<title>{{.Title}}</title>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css" integrity="sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/grids-responsive-min.css" crossorigin="anonymous">
+	<link rel="preload" href="/static/css/style.css" as="style">
+	<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+	<div class="pure-g content">
+		<div class="pure-u-1">
+			<header class="page-header pure-g pure-g-r">
+				<div class="pure-u-1 pure-u-md-3-4">
+					<h1 class="page-title"><span data-i18n="title">{{.Title}}</span></h1>
+				</div>
+				<div class="pure-u-1 pure-u-md-1-4 lang-switch-wrap">
+					<span class="lang-switch"><a href="#" class="pure-link" data-lang="zh" id="lang-zh">中文</a> | <a href="#" class="pure-link" data-lang="en" id="lang-en">English</a></span>
+				</div>
+			</header>
+			<p class="subtitle" data-i18n="subtitle">Select compose type(s) and options, then click Generate.</p>
+
+			<form id="form" class="pure-form pure-form-stacked">
+				<!-- 通用配置：单列布局，每项一行 -->
+				<div class="config-single-column pure-g">
+					<div class="pure-u-1">
+				<fieldset class="pure-group compose-type-row">
+					<legend data-i18n="composeType">Compose Type</legend>
+					{{range .Modes}}
+					<div class="config-item pure-control-group" data-env-name="mode">
+						<label>
+							<input type="checkbox" name="mode" value="{{.Value}}" class="pure-checkbox">
+							<span class="config-label" data-i18n="{{.LabelKey}}">{{.LabelKey}}</span>
+							<span class="compose-type-desc" data-i18n="{{.DescKey}}"></span>
+						</label>
+					</div>
+					{{end}}
+				</fieldset>
+				<fieldset class="pure-group config-options-cols">
+					<legend data-i18n="configOptions">Options</legend>
+					{{range .ConfigSections}}
+					<div class="env-group">
+						{{if .TitleKey}}<h2 class="section-title" data-i18n="{{.TitleKey}}"></h2>{{end}}
+						{{range .Options}}
+						{{if eq .Type "checkbox"}}
+						<div class="config-item pure-control-group" data-env-name="{{.EnvName}}">
+							<label>
+								<input type="checkbox" name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}" class="pure-checkbox"{{if .Default}} checked{{end}}>
+								<span class="config-label" data-i18n="{{.LabelKey}}"></span>
+								<span class="config-env">{{.EnvName}}</span>
+							</label>
+							<p class="config-desc" data-i18n="{{.DescKey}}"></p>
+						</div>
+						{{else if eq .Type "text"}}
+						<div class="config-item pure-control-group" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
+							<label for="{{.Id}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.EnvName}}</span></label>
+							<input type="text" name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}" class="pure-input-1"{{if .PlaceholderKey}} data-i18n-placeholder="{{.PlaceholderKey}}"{{end}}{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}>
+							<p class="config-desc" data-i18n="{{.DescKey}}"></p>
+						</div>
+						{{else if eq .Type "number"}}
+						<div class="config-item pure-control-group" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
+							<label for="{{.Id}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.EnvName}}</span></label>
+							<input type="number" name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}{{if .Min}} min="{{.Min}}"{{end}}{{if .Max}} max="{{.Max}}"{{end}}>
+							<p class="config-desc" data-i18n="{{.DescKey}}"></p>
+						</div>
+						{{else if eq .Type "radio"}}
+						<div class="config-item pure-control-group" data-env-name="">
+							<label>
+								<input type="radio" name="{{.Name}}" id="{{.Id}}" value="{{.Value}}" class="pure-radio"{{if .Default}} checked{{end}}>
+								<span class="config-label" data-i18n="{{.LabelKey}}"></span>
+							</label>
+							<p class="config-desc" data-i18n="{{.DescKey}}"></p>
+						</div>
+						{{else if eq .Type "redisPaths"}}
+						<div id="redisPathInputs" class="redis-paths" style="display:none;">
+							{{range .Paths}}
+							<div class="config-item pure-control-group" data-env-name="{{.Env}}">
+								<label for="{{.Id}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.Env}}</span></label>
+								<input type="text" id="{{.Id}}" data-option="{{.Id}}" class="pure-input-1" placeholder="{{.Placeholder}}" value="{{.Default}}">
+								<p class="config-desc" data-i18n="{{.DescKey}}"></p>
+							</div>
+							{{end}}
+						</div>
+						{{end}}
+						{{end}}
+					</div>
+					{{end}}
+				</fieldset>
+					</div>
+				</div>
+				<!-- 服务配置：Stargate 单独一列占两行高，Warden/Herald 另一列上下两行 -->
+				<fieldset class="pure-group">
+					<legend data-i18n="serviceEnv">Service env vars</legend>
+					<div class="services-grid">
+					{{range $i, $s := .Services}}
+					<div class="service-cell {{if eq $i 0}}service-cell-stargate{{else}}service-cell-other{{end}}">
+						<details class="pure-details"{{if $s.Open}} open{{end}}>
+							<summary class="pure-details-summary"><strong>{{$s.Name}}</strong></summary>
+							{{if eq $i 0}}<div class="stargate-cols">{{end}}
+							{{range $s.Sections}}
+							<div class="env-group">
+								{{if .TitleKey}}<h2 class="section-title" data-i18n="{{.TitleKey}}"></h2>{{end}}
+								{{range .EnvVars}}
+								<div class="config-item pure-control-group" data-env-name="{{.Env}}"{{if .ShowWhenEnv}} data-depends-on-env="{{.ShowWhenEnv}}"{{end}}>
+									{{if eq .Type "checkbox"}}
+									<label>
+										<input type="checkbox" name="envBool" id="env_{{.Env}}" data-env="{{.Env}}" class="pure-checkbox"{{if .Default}} checked{{end}}>
+										<span class="config-label" data-i18n="{{.LabelKey}}"></span>
+										<span class="config-env">{{.Env}}</span>
+									</label>
+									{{else}}
+									<label for="env_{{.Env}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.Env}}</span></label>
+									{{if eq .Type "text"}}
+									<input type="text" id="env_{{.Env}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}>
+									{{else if eq .Type "number"}}
+									<input type="number" id="env_{{.Env}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}{{if .Min}} min="{{.Min}}"{{end}}{{if .Max}} max="{{.Max}}"{{end}}>
+									{{else if eq .Type "select"}}
+									<select id="env_{{.Env}}" data-env="{{.Env}}" class="pure-input-1">
+										{{$def := .Default}}{{range .Options}}
+										<option value="{{.Value}}"{{if eq (printf "%v" $def) .Value}} selected{{end}}>{{.Value}}</option>
+										{{end}}
+									</select>
+									{{end}}
+									{{end}}
+									<p class="config-desc" data-i18n="{{.DescKey}}"></p>
+								</div>
+								{{end}}
+							</div>
+							{{end}}
+							{{if eq $i 0}}</div>{{end}}
+						</details>
+					</div>
+					{{end}}
+					</div>
+				</fieldset>
+				<div class="form-actions">
+					<button type="submit" id="btn-generate" class="pure-button pure-button-primary" data-i18n="btnGenerate">Generate</button>
+				</div>
+			</form>
+
+			<div id="result" class="result-area" role="status" aria-live="polite"></div>
+			<div id="downloads" class="downloads pure-menu pure-menu-list" aria-label="Download links"></div>
+		</div>
+	</div>
+
+	<script>window.I18N = {{.I18N}};</script>
+	<script src="/static/js/app.js" defer></script>
+</body>
+</html>

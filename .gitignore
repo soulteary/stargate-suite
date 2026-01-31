@@ -1,2 +1,5 @@
 build
 dist
+suite
+!cmd/suite
+!compose/example/build

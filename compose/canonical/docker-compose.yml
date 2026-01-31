@@ -1,14 +1,7 @@
-# Stargate Suite with Traefik - 三合一版本（单一数据源）
-# Stargate + Warden + Herald 写在同一 compose 中，接入外部 Traefik 网络。
-# 三分开（traefik-herald/warden/stargate）由此文件通过 gen-split 自动生成并覆盖，请只改本文件。
+# Stargate Suite with Traefik - 三合一版本（单一数据源，用于生成）
+# traefik / traefik-herald / traefik-warden / traefik-stargate 由此文件通过 gen 或 Web UI 生成到 build/。
 #
-# 使用（在 stargate-suite 根目录）：
-#   docker network create traefik   # 若尚未创建
-#   docker compose -f compose/traefik/docker-compose.yml up -d
-#   或：make up-traefik
-#
-# 生成三分开：./bin/suite gen-split
-# 三分开启动：make net-traefik-split && make up-traefik-herald && make up-traefik-warden && make up-traefik-stargate
+# 使用（生成后）：docker compose -f build/traefik/docker-compose.yml up -d
 
 services:
   # Herald - OTP/验证码服务
@@ -19,17 +12,22 @@ services:
       - "8082:8082"
     environment:
       - PORT=:8082
-      - REDIS_ADDR=herald-redis:6379
-      - REDIS_PASSWORD=
-      - REDIS_DB=0
-      - LOG_LEVEL=info
+      - REDIS_ADDR=${HERALD_REDIS_ADDR:-herald-redis:6379}
+      - REDIS_PASSWORD=${HERALD_REDIS_PASSWORD:-}
+      - REDIS_DB=${HERALD_REDIS_DB:-0}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
       - API_KEY=${HERALD_API_KEY:-test-herald-api-key}
       - HMAC_SECRET=${HERALD_HMAC_SECRET:-test-hmac-secret}
-      - HERALD_TEST_MODE=true
-      - PROVIDER_FAILURE_POLICY=soft
-      - CHALLENGE_EXPIRY=5m
-      - CODE_LENGTH=6
-      - MAX_ATTEMPTS=5
+      - HERALD_TEST_MODE=${HERALD_TEST_MODE:-false}
+      - PROVIDER_FAILURE_POLICY=${PROVIDER_FAILURE_POLICY:-soft}
+      - CHALLENGE_EXPIRY=${CHALLENGE_EXPIRY:-5m}
+      - CODE_LENGTH=${CODE_LENGTH:-6}
+      - MAX_ATTEMPTS=${MAX_ATTEMPTS:-5}
+      - RESEND_COOLDOWN=${RESEND_COOLDOWN:-60s}
+      - LOCKOUT_DURATION=${LOCKOUT_DURATION:-10m}
+      - RATE_LIMIT_PER_USER=${RATE_LIMIT_PER_USER:-10}
+      - RATE_LIMIT_PER_IP=${RATE_LIMIT_PER_IP:-5}
+      - RATE_LIMIT_PER_DESTINATION=${RATE_LIMIT_PER_DESTINATION:-10}
     depends_on:
       herald-redis:
         condition: service_healthy
@@ -67,12 +65,14 @@ services:
       - "8081:8081"
     environment:
       - PORT=8081
-      - REDIS=warden-redis:6379
-      - REDIS_PASSWORD=
-      - MODE=ONLY_LOCAL
+      - REDIS=${WARDEN_REDIS_ADDR:-warden-redis:6379}
+      - REDIS_PASSWORD=${WARDEN_REDIS_PASSWORD:-}
+      - DATA_FILE=${WARDEN_DATA_FILE:-/app/data.json}
+      - MODE=${MODE:-ONLY_LOCAL}
       - API_KEY=${WARDEN_API_KEY:-test-warden-api-key}
-      - INTERVAL=5
-      - LOG_LEVEL=info
+      - INTERVAL=${INTERVAL:-5}
+      - HTTP_TIMEOUT=${WARDEN_HTTP_TIMEOUT:-5}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ../../fixtures/warden/data.json:/app/data.json:ro
       - /etc/localtime:/etc/localtime:ro
@@ -113,17 +113,24 @@ services:
     ports: []
     environment:
       - AUTH_HOST=${AUTH_HOST:-auth.test.localhost}
+      - LOGIN_PAGE_TITLE=${LOGIN_PAGE_TITLE:-Stargate - Login}
+      - LOGIN_PAGE_FOOTER_TEXT=${LOGIN_PAGE_FOOTER_TEXT:-Copyright © 2024 - Stargate}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:-}
       - PASSWORDS=${PASSWORDS:-plaintext:test1234|test1337}
       - LANGUAGE=${LANGUAGE:-zh}
       - WARDEN_URL=http://warden:8081
       - WARDEN_ENABLED=${WARDEN_ENABLED:-true}
       - WARDEN_API_KEY=${WARDEN_API_KEY:-test-warden-api-key}
-      - WARDEN_CACHE_TTL=300
+      - WARDEN_CACHE_TTL=${WARDEN_CACHE_TTL:-300}
       - HERALD_URL=http://herald:8082
       - HERALD_ENABLED=${HERALD_ENABLED:-true}
       - HERALD_API_KEY=${HERALD_API_KEY:-test-herald-api-key}
       - HERALD_HMAC_SECRET=${HERALD_HMAC_SECRET:-test-hmac-secret}
       - SESSION_STORAGE_ENABLED=${SESSION_STORAGE_ENABLED:-false}
+      - SESSION_STORAGE_REDIS_ADDR=${SESSION_STORAGE_REDIS_ADDR:-localhost:6379}
+      - SESSION_STORAGE_REDIS_PASSWORD=${SESSION_STORAGE_REDIS_PASSWORD:-}
+      - AUDIT_LOG_ENABLED=${AUDIT_LOG_ENABLED:-true}
+      - AUDIT_LOG_FORMAT=${AUDIT_LOG_FORMAT:-json}
       - DEBUG=false
     depends_on:
       warden:

@@ -34,6 +34,8 @@ make down-traefik
 
 ## 版本二：三分开（独立子目录）
 
+三分开 compose 由**本目录的完整 compose 自动生成**（overwrite 方案）。修改本文件后执行 `./bin/suite gen-split` 即可覆盖 `compose/traefik-herald/`、`compose/traefik-warden/`、`compose/traefik-stargate/`，请勿手改三分开文件。
+
 每种用法对应一个子目录、一个 `docker-compose.yml`，便于分机器部署或独立扩缩容。
 
 | 子目录 | 内容 |
