@@ -1,66 +1,64 @@
-# 配置目录
+English | [中文](README.zh-CN.md)
 
-本目录存放 CLI 预设配置（`presets.json`），用于解析默认 compose 文件与 `--preset` 名称。项目总览见 [README.md](../README.md)。
+# Config directory
 
-## 与 compose 的对应关系
+This directory holds CLI preset config (`presets.json`) used to resolve the default compose file and `--preset` names. Project overview: [README.md](../README.md).
 
-| 预设名 | compose 文件路径 | 说明 |
-|--------|------------------|------|
-| `default` | `compose/example/image/docker-compose.yml` | 静态示例：预构建镜像 |
-| `image` | `build/image/docker-compose.yml` | 生成后：预构建镜像（需先执行 gen） |
-| `build` | `build/build/docker-compose.yml` | 生成后：从源码构建 |
-| `traefik` | `build/traefik/docker-compose.yml` | 生成后：接入 Traefik（三合一） |
-| `traefik-herald` | `build/traefik-herald/docker-compose.yml` | 生成后：三分开，仅 Herald |
-| `traefik-warden` | `build/traefik-warden/docker-compose.yml` | 生成后：三分开，仅 Warden |
-| `traefik-stargate` | `build/traefik-stargate/docker-compose.yml` | 生成后：三分开，Stargate + 受保护服务 |
+## Preset vs compose path
 
-更多说明见项目根目录 [compose/README.md](../compose/README.md)。
+| Preset | Compose path | Description |
+|--------|--------------|-------------|
+| `default` | `compose/example/image/docker-compose.yml` | Static example: pre-built images |
+| `image` | `build/image/docker-compose.yml` | After gen: pre-built (run gen first) |
+| `build` | `build/build/docker-compose.yml` | After gen: build from source |
+| `traefik` | `build/traefik/docker-compose.yml` | After gen: Traefik all-in-one |
+| `traefik-herald` | `build/traefik-herald/docker-compose.yml` | After gen: split, Herald only |
+| `traefik-warden` | `build/traefik-warden/docker-compose.yml` | After gen: split, Warden only |
+| `traefik-stargate` | `build/traefik-stargate/docker-compose.yml` | After gen: split, Stargate + protected service |
 
-## 使用方式
+See [compose/README.md](../compose/README.md) for more.
 
-- **默认**：不指定时使用 `presets.json` 中的 `default` 对应路径（示例为 compose/example/image，生成后可用 build/image）。
-- **环境变量**：`COMPOSE_FILE=<路径>` 可覆盖默认（优先级高于默认，低于命令行）。
-- **命令行**：
-  - `-f <路径>` / `--file <路径>`：直接指定 compose 文件路径。
-  - `--preset <名称>`：使用 `presets.json` 中的预设名（如 `traefik`、`build`）。
+## Usage
 
-优先级：**命令行 -f / --preset > 环境变量 COMPOSE_FILE > 默认（presets.default）**。
+- **Default**: When unspecified, the path from `presets.json` key `default` is used (e.g. compose/example/image; after gen you can use build/image).
+- **Environment**: `COMPOSE_FILE=<path>` overrides default (higher than default, lower than CLI).
+- **CLI**:
+  - `-f <path>` / `--file <path>`: explicit compose file path.
+  - `--preset <name>`: use a preset from `presets.json` (e.g. `traefik`, `build`).
 
-示例：
+Priority: **CLI -f / --preset > COMPOSE_FILE > default (presets.default)**.
+
+Examples:
 
 ```bash
-# 使用默认 compose（示例或生成后的 build/image）
 ./suite up
 
-# 使用环境变量
 COMPOSE_FILE=build/traefik/docker-compose.yml ./suite up
 
-# 使用 -f
 ./suite -f build/traefik/docker-compose.yml up
 
-# 使用预设名
 ./suite --preset traefik up
 ```
 
-## 生成 build 目录（gen 命令）
+## Generate build dir (gen)
 
-将各使用方式的 `docker-compose.yml` 与 `.env` 输出到指定目录（默认 `build`），便于分发或 CI：
+Output `docker-compose.yml` and `.env` for each mode to a directory (default `build`):
 
 ```bash
-./suite gen [image|build|traefik|all]   # 默认 all
-./suite -o dist gen traefik             # 输出到 dist/，含 dist/traefik/、dist/traefik-herald/、dist/traefik-warden/、dist/traefik-stargate/
+./suite gen [image|build|traefik|all]   # default: all
+./suite -o dist gen traefik             # output to dist/
 ```
 
-## Web UI（serve 命令）
+## Web UI (serve)
 
-启动网页生成器，勾选 compose 类型后下载配置：
+Start the web generator and download config:
 
 ```bash
 ./suite serve
-# 默认 http://localhost:8085，可通过 -port 或 SERVE_PORT 指定端口
+# default http://localhost:8085; use -port or SERVE_PORT to change
 ```
 
-## 相关文档
+## See also
 
-- [README.md](../README.md) — 项目总览
-- [compose/README.md](../compose/README.md) — Compose 示例与生成
+- [README.md](../README.md) — Project overview
+- [compose/README.md](../compose/README.md) — Compose examples and generation

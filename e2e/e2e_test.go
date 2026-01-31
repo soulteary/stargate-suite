@@ -12,13 +12,6 @@ import (
 	"github.com/MarvinJWendt/testza"
 )
 
-const (
-	stargateURL = "http://localhost:8080"
-	heraldURL   = "http://localhost:8082"
-	wardenURL   = "http://localhost:8081"
-	authHost    = "auth.test.localhost"
-)
-
 // TestCompleteLoginFlow tests the complete login flow
 // 1. Send verification code
 // 2. Get verification code from Herald test endpoint
@@ -232,14 +225,6 @@ func login(t *testing.T, phone, challengeID, verifyCode string) (string, error) 
 	}
 
 	return sessionCookie, nil
-}
-
-// AuthHeaders represents the auth headers returned by forwardAuth
-type AuthHeaders struct {
-	UserID string
-	Email  string
-	Scopes string
-	Role   string
 }
 
 // checkAuth verifies the forwardAuth check

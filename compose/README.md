@@ -1,80 +1,82 @@
-# Compose 示例与生成
+English | [中文](README.zh-CN.md)
 
-本目录仅保留**静态示例**与**单一数据源**，其余 compose 由 CLI 或 Web UI 生成到 `build/`。所有命令均在项目根目录 `stargate-suite` 下执行。项目总览见 [README.md](../README.md)。
+# Compose examples and generation
 
-## 目录说明
+This directory keeps only **static examples** and a **single canonical source**. All other compose files are generated into `build/` by the CLI or Web UI. Run all commands from the project root `stargate-suite`. Overview: [README.md](../README.md).
 
-| 目录 | 说明 |
-|------|------|
-| **example/image/** | 静态示例：使用预构建镜像运行，适合快速体验与 CI |
-| **example/build/** | 静态示例：从源码构建 Stargate、Warden、Herald，适合本地开发与 E2E 测试 |
-| **canonical/** | 单一数据源：完整 Traefik 三合一 compose，用于解析生成 traefik / traefik-herald / traefik-warden / traefik-stargate |
-| **traefik/** | 可选：Traefik 三合一与三分开部署说明（见 [traefik/README.md](./traefik/README.md)） |
+## Directory layout
 
-**生成输出**均在 `build/` 目录（由 `go run ./cmd/suite gen all` 或 Web UI 生成）：
+| Directory | Description |
+|-----------|-------------|
+| **example/image/** | Static: run with pre-built images; good for quick try and CI |
+| **example/build/** | Static: build Stargate, Warden, Herald from source; good for local dev and E2E |
+| **canonical/** | Single source: full Traefik all-in-one compose; used to generate traefik / traefik-herald / traefik-warden / traefik-stargate |
+| **traefik/** | Optional: Traefik all-in-one and split deployment notes — [traefik/README.md](./traefik/README.md) |
 
-| 生成目录 | 说明 | 启动命令 |
-|----------|------|----------|
-| build/image/ | 来自 example/image + .env | `docker compose -f build/image/docker-compose.yml up -d` |
-| build/build/ | 来自 example/build + .env | `docker compose -f build/build/docker-compose.yml up -d --build` |
-| build/traefik/ | 三合一：接入 Traefik | `docker compose -f build/traefik/docker-compose.yml up -d` |
-| build/traefik-herald/ | 三分开：仅 Herald + Redis | `docker compose -f build/traefik-herald/docker-compose.yml up -d` |
-| build/traefik-warden/ | 三分开：仅 Warden + Redis | `docker compose -f build/traefik-warden/docker-compose.yml up -d` |
-| build/traefik-stargate/ | 三分开：仅 Stargate + 受保护服务（依赖 Herald/Warden 已启动） | `docker compose -f build/traefik-stargate/docker-compose.yml up -d` |
+**Generated output** goes to `build/` (via `go run ./cmd/suite gen all` or Web UI):
 
-## 使用方式
+| Output | Description | Start command |
+|--------|-------------|---------------|
+| build/image/ | From example/image + .env | `docker compose -f build/image/docker-compose.yml up -d` |
+| build/build/ | From example/build + .env | `docker compose -f build/build/docker-compose.yml up -d --build` |
+| build/traefik/ | All-in-one with Traefik | `docker compose -f build/traefik/docker-compose.yml up -d` |
+| build/traefik-herald/ | Split: Herald + Redis only | `docker compose -f build/traefik-herald/docker-compose.yml up -d` |
+| build/traefik-warden/ | Split: Warden + Redis only | `docker compose -f build/traefik-warden/docker-compose.yml up -d` |
+| build/traefik-stargate/ | Split: Stargate + protected service (Herald/Warden must be up) | `docker compose -f build/traefik-stargate/docker-compose.yml up -d` |
 
-### 首次使用：生成到 build/
+## Usage
+
+### First run: generate into build/
 
 ```bash
-# 在项目根目录
+# From project root
 go run ./cmd/suite gen all
-# 或
+# or
 make gen
 ```
 
-### 从预构建镜像启动（build/image）
+### Start from pre-built images (build/image)
 
 ```bash
 docker compose -f build/image/docker-compose.yml up -d
 ```
 
-### 从源码构建启动（build/build）
+### Start from source build (build/build)
 
-需要 `herald`、`warden`、`stargate` 与 `stargate-suite` 处于同级目录。
+Requires `herald`, `warden`, `stargate` and `stargate-suite` at the same level.
 
 ```bash
 docker compose -f build/build/docker-compose.yml up -d --build
 ```
 
-### 接入 Traefik（build/traefik）
+### With Traefik (build/traefik)
 
-1. 创建 Traefik 网络：`docker network create traefik`
-2. 确保 Traefik 已运行
-3. 启动：`docker compose -f build/traefik/docker-compose.yml up -d`
+1. Create Traefik network: `docker network create traefik`
+2. Ensure Traefik is running
+3. Start: `docker compose -f build/traefik/docker-compose.yml up -d`
 
-可在各 `build/<mode>/.env` 中配置 `STARGATE_DOMAIN`、`PROTECTED_DOMAIN` 等。
+You can set `STARGATE_DOMAIN`, `PROTECTED_DOMAIN`, etc. in each `build/<mode>/.env`.
 
-## 三分开与单一数据源
+## Split vs single source
 
-- **canonical**（`compose/canonical/docker-compose.yml`）为唯一维护的“完整 Traefik” compose。
-- **三分开**（traefik-herald / traefik-warden / traefik-stargate）由 canonical **解析生成**到 `build/`，无需手改。
-- 修改 canonical 后执行 `go run ./cmd/suite gen traefik` 或 `go run ./cmd/suite gen-split` 即可重新生成。
+- **canonical** (`compose/canonical/docker-compose.yml`) is the only maintained “full Traefik” compose.
+- **Split** (traefik-herald / traefik-warden / traefik-stargate) is **generated** from canonical into `build/`; do not edit by hand.
+- After changing canonical, run `go run ./cmd/suite gen traefik` or `go run ./cmd/suite gen-split` to regenerate.
 
-## Web UI 生成
+## Web UI
 
-执行 `go run ./cmd/suite serve`（默认 http://localhost:8085），在网页上勾选要生成的 compose 类型，点击生成即可下载 `docker-compose.yml` 与 `.env`。
+Run `go run ./cmd/suite serve` (default http://localhost:8085), select compose type(s), then download `docker-compose.yml` and `.env`.
 
-## 环境变量与 .env
+## Environment and .env
 
-生成时会将根目录 `.env`（若存在）或从 canonical 推断的变量写入各 `build/<mode>/.env`。常用变量：
+Generation writes root `.env` (if present) or variables inferred from canonical into each `build/<mode>/.env`. Common variables:
 
-- `AUTH_HOST`、`STARGATE_DOMAIN`、`PROTECTED_DOMAIN`
-- `HERALD_API_KEY`、`HERALD_HMAC_SECRET`、`WARDEN_API_KEY`
-- `*_IMAGE`：覆盖默认镜像
+- `AUTH_HOST`, `STARGATE_DOMAIN`, `PROTECTED_DOMAIN`
+- `HERALD_API_KEY`, `HERALD_HMAC_SECRET`, `WARDEN_API_KEY`
+- `*_IMAGE`: override default images
 
-## 相关文档
+## See also
 
-- [README.md](../README.md) — 项目总览与快速开始
-- [config/README.md](../config/README.md) — CLI 预设与 compose 路径
-- [traefik/README.md](./traefik/README.md) — Traefik 三合一/三分开详细说明
+- [README.md](../README.md) — Project overview and quick start
+- [config/README.md](../config/README.md) — CLI presets and compose path
+- [traefik/README.md](./traefik/README.md) — Traefik all-in-one / split details

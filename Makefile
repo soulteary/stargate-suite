@@ -72,9 +72,7 @@ test: ## Run end-to-end tests
 	go test -v ./e2e/...
 
 test-wait: ## Wait for services to be ready then run tests (recommended)
-	@echo "Waiting for services to be ready (3s)..."
-	@sleep 3
-	@go test -v ./e2e/...
+	@go run ./cmd/suite test-wait
 
 clean: ## Clean services and data volumes
 	docker compose -f $(COMPOSE_FILE) down -v

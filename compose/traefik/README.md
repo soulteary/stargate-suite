@@ -1,67 +1,67 @@
-# Traefik 接入
+English | [中文](README.zh-CN.md)
 
-本目录仅保留 **三合一** 部署；**三分开** 部署见独立子目录 `compose/traefik-herald/`、`compose/traefik-warden/`、`compose/traefik-stargate/`。Compose 总览见 [../README.md](../README.md)，项目总览见 [../../README.md](../../README.md)。
+# Traefik integration
 
-## 版本一：三合一（本目录）
+This section describes **all-in-one** deployment; **split** deployment uses the generated dirs `build/traefik-herald/`, `build/traefik-warden/`, `build/traefik-stargate/`. Compose overview: [../README.md](../README.md), project overview: [../../README.md](../../README.md).
 
-Stargate、Warden、Herald 及示例受保护服务写在同一文件中，适合本地/单机一键启动。
+## Option 1: All-in-one (build/traefik)
 
-**文件**：`compose/traefik/docker-compose.yml`
+Stargate, Warden, Herald and the sample protected service in one compose; good for local one-shot run.
 
-**前置**：创建 Traefik 外部网络（若尚未存在）
+**File**: after generation use `build/traefik/docker-compose.yml`.
+
+**Prerequisite**: Create Traefik network if needed
 
 ```bash
 docker network create traefik
 ```
 
-**启动**（在项目根目录 `stargate-suite` 下）：
+**Start** (from project root):
 
 ```bash
-docker compose -f compose/traefik/docker-compose.yml up -d
-# 或
+docker compose -f build/traefik/docker-compose.yml up -d
+# or
 make up-traefik
 ```
 
-**停止**：
+**Stop**:
 
 ```bash
-docker compose -f compose/traefik/docker-compose.yml down
-# 或
+docker compose -f build/traefik/docker-compose.yml down
+# or
 make down-traefik
 ```
 
 ---
 
-## 版本二：三分开（独立子目录）
+## Option 2: Split (separate compose dirs)
 
-三分开 compose 由**本目录的完整 compose 自动生成**（overwrite 方案）。修改本文件后执行 `./bin/suite gen-split` 即可覆盖 `compose/traefik-herald/`、`compose/traefik-warden/`、`compose/traefik-stargate/`，请勿手改三分开文件。
+Split compose files are **generated** from canonical into `build/`. After editing `compose/canonical/docker-compose.yml`, run `go run ./cmd/suite gen-split` or `gen traefik` to regenerate `build/traefik-herald/`, `build/traefik-warden/`, `build/traefik-stargate/`; do not edit those by hand.
 
-每种用法对应一个子目录、一个 `docker-compose.yml`，便于分机器部署或独立扩缩容。
+| Dir | Contents |
+|-----|----------|
+| build/traefik-herald/ | Herald + herald-redis |
+| build/traefik-warden/ | Warden + warden-redis |
+| build/traefik-stargate/ | Stargate + protected-service (whoami) |
 
-| 子目录 | 内容 |
-|--------|------|
-| `compose/traefik-herald/` | Herald + herald-redis |
-| `compose/traefik-warden/` | Warden + warden-redis |
-| `compose/traefik-stargate/` | Stargate + protected-service（whoami） |
-
-**前置**：创建共享网络（执行一次）
+**Prerequisite**: Create shared networks (once)
 
 ```bash
 docker network create the-gate-network
 docker network create traefik
-# 或
+# or
 make net-traefik-split
 ```
 
-**启动顺序**：Herald → Warden → Stargate（Stargate 依赖前两者）
+**Start order**: Herald → Warden → Stargate (Stargate depends on the other two)
 
 ```bash
-docker compose -f compose/traefik-herald/docker-compose.yml up -d
-docker compose -f compose/traefik-warden/docker-compose.yml up -d
-docker compose -f compose/traefik-stargate/docker-compose.yml up -d
+docker compose -f build/traefik-herald/docker-compose.yml up -d
+docker compose -f build/traefik-warden/docker-compose.yml up -d
+docker compose -f build/traefik-stargate/docker-compose.yml up -d
 ```
 
-或使用 Makefile：
+Or with Makefile:
 
 ```bash
 make up-traefik-herald
@@ -69,7 +69,7 @@ make up-traefik-warden
 make up-traefik-stargate
 ```
 
-**停止**：按需分别停止
+**Stop**: in reverse order if desired
 
 ```bash
 make down-traefik-stargate
@@ -77,22 +77,21 @@ make down-traefik-warden
 make down-traefik-herald
 ```
 
-**说明**：三分开时 Stargate 通过容器名访问 Warden/Herald（`the-gate-warden:8081`、`the-gate-herald:8082`），需保证三者都接入同一外部网络 `the-gate-network`。
+Split mode uses container names for Warden/Herald (`the-gate-warden:8081`, `the-gate-herald:8082`); all three must join the same external network `the-gate-network`.
 
 ---
 
-## 环境变量
+## Environment variables
 
-两种方式均支持通过 `.env` 或环境变量覆盖，例如：
+Both modes support overrides via `.env` or environment, e.g.:
 
-- `STARGATE_DOMAIN`、`PROTECTED_DOMAIN`、`AUTH_HOST`
-- `HERALD_API_KEY`、`HERALD_HMAC_SECRET`
-- `WARDEN_API_KEY`
-- `*_IMAGE`、`*_REDIS_IMAGE` 等
+- `STARGATE_DOMAIN`, `PROTECTED_DOMAIN`, `AUTH_HOST`
+- `HERALD_API_KEY`, `HERALD_HMAC_SECRET`, `WARDEN_API_KEY`
+- `*_IMAGE`, `*_REDIS_IMAGE`
 
-详见项目根目录 `.env` 示例。
+See root `.env.example` or `.env` for examples.
 
-## 相关文档
+## See also
 
-- [../README.md](../README.md) — Compose 各子目录说明
-- [../../README.md](../../README.md) — 项目总览
+- [../README.md](../README.md) — Compose directory layout
+- [../../README.md](../../README.md) — Project overview
