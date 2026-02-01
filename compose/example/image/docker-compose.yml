@@ -63,6 +63,7 @@ services:
       - PORT=8081
       - REDIS=${WARDEN_REDIS_ADDR:-warden-redis:6379}
       - REDIS_PASSWORD=${WARDEN_REDIS_PASSWORD:-}
+      - DATA_FILE=${WARDEN_DATA_FILE:-/app/data.json}
       - MODE=ONLY_LOCAL
       - API_KEY=${WARDEN_API_KEY:-test-warden-api-key}
       - INTERVAL=5

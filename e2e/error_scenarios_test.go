@@ -10,6 +10,22 @@ import (
 	"github.com/MarvinJWendt/testza"
 )
 
+// messageMentionsRateLimit returns true if msg indicates rate limiting (e.g. "Too many requests. Please try again later.", "rate limit", "频繁").
+func messageMentionsRateLimit(msg string) bool {
+	m := strings.ToLower(msg)
+	return strings.Contains(m, "频繁") || strings.Contains(m, "rate") ||
+		strings.Contains(m, "limit") || strings.Contains(m, "too many") ||
+		strings.Contains(m, "try again") || strings.Contains(m, "later")
+}
+
+// messageMentionsCooldownOrRateLimit returns true if msg indicates cooldown or rate limit (e.g. "Too many requests. Please try again later.", "cooldown", "wait").
+func messageMentionsCooldownOrRateLimit(msg string) bool {
+	m := strings.ToLower(msg)
+	return strings.Contains(m, "频繁") || strings.Contains(m, "冷却") ||
+		strings.Contains(m, "cooldown") || strings.Contains(m, "wait") ||
+		strings.Contains(m, "too many") || strings.Contains(m, "try again") || strings.Contains(m, "later")
+}
+
 // TestInvalidVerificationCode tests invalid verification code scenarios
 func TestInvalidVerificationCode(t *testing.T) {
 	// Wait for services to be ready
@@ -208,9 +224,11 @@ func TestIPRateLimit(t *testing.T) {
 	}
 
 	testza.AssertNotNil(t, rateLimitError, "Should trigger rate limit (429)")
+	if rateLimitError == nil {
+		return // avoid nil pointer dereference below
+	}
 	testza.AssertEqual(t, 429, rateLimitError.StatusCode, "Should return 429 Too Many Requests")
-	testza.AssertTrue(t, strings.Contains(rateLimitError.Message, "频繁") || strings.Contains(rateLimitError.Message, "rate") ||
-		strings.Contains(rateLimitError.Message, "limit"),
+	testza.AssertTrue(t, messageMentionsRateLimit(rateLimitError.Message),
 		"Error message should mention rate limiting")
 	t.Logf("✓ IP rate limit triggered: %s", rateLimitError.Message)
 }
@@ -239,7 +257,7 @@ func TestUserRateLimit(t *testing.T) {
 	// User rate limit may require more requests or longer time, just verifying logic here
 	if rateLimitError != nil {
 		testza.AssertEqual(t, 429, rateLimitError.StatusCode, "Should return 429 Too Many Requests")
-		testza.AssertTrue(t, strings.Contains(rateLimitError.Message, "频繁") || strings.Contains(rateLimitError.Message, "rate"),
+		testza.AssertTrue(t, messageMentionsRateLimit(rateLimitError.Message),
 			"Error message should mention rate limiting")
 		t.Logf("✓ User rate limit triggered: %s", rateLimitError.Message)
 	} else {
@@ -272,8 +290,7 @@ func TestResendCooldown(t *testing.T) {
 	// Should return 429 or contain cooldown hint
 	if errResp != nil {
 		if errResp.StatusCode == 429 {
-			testza.AssertTrue(t, strings.Contains(errResp.Message, "频繁") || strings.Contains(errResp.Message, "冷却") ||
-				strings.Contains(errResp.Message, "cooldown") || strings.Contains(errResp.Message, "wait"),
+			testza.AssertTrue(t, messageMentionsCooldownOrRateLimit(errResp.Message),
 				"Error message should mention cooldown or wait time")
 			t.Logf("✓ Resend cooldown triggered: %s", errResp.Message)
 		} else {

@@ -53,6 +53,9 @@ func TestCompleteLoginFlow(t *testing.T) {
 	authHeaders, err := checkAuth(t, sessionCookie)
 	testza.AssertNoError(t, err)
 	testza.AssertNotNil(t, authHeaders, "AuthHeaders should not be nil")
+	if authHeaders == nil {
+		return // avoid nil pointer dereference in assertions below
+	}
 	testza.AssertEqual(t, expectedUserID, authHeaders.UserID, "X-Auth-User should match")
 	testza.AssertEqual(t, expectedEmail, authHeaders.Email, "X-Auth-Email should match")
 	testza.AssertEqual(t, expectedScopes, authHeaders.Scopes, "X-Auth-Scopes should match")

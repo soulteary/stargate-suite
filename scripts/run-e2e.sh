@@ -19,6 +19,9 @@ echo "=========================================="
 echo "Using compose: $COMPOSE_FILE"
 echo ""
 
+# Ensure compose config is applied (recreates services if env/volumes changed, e.g. Warden DATA_FILE)
+docker compose -f "$COMPOSE_FILE" up -d 2>/dev/null || true
+
 # Check Docker Compose service status
 echo "Checking service status..."
 if ! docker compose -f "$COMPOSE_FILE" ps 2>/dev/null | grep -q "Up"; then
