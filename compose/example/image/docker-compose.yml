@@ -6,7 +6,7 @@
 services:
   # Herald - OTP/Verification Code Service
   herald:
-    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.4.1}
+    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.4.3}
     container_name: the-gate-herald
     ports:
       - "8082:8082"
@@ -55,7 +55,7 @@ services:
 
   # Warden - Whitelist User Service
   warden:
-    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.8.0}
+    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.9.2}
     container_name: the-gate-warden
     ports:
       - "8081:8081"
@@ -103,7 +103,7 @@ services:
 
   # Stargate - Authentication/Authorization Service
   stargate:
-    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.7.1}
+    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.8.2}
     container_name: the-gate-stargate
     ports:
       - "8080:80"
