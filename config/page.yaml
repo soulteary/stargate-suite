@@ -365,32 +365,32 @@ configSections:
         envName: HERALD_IMAGE
         labelKey: heraldImageLabel
         descKey: heraldImageDesc
-        default: "ghcr.io/soulteary/herald:v0.4.3"
-        placeholder: "ghcr.io/soulteary/herald:v0.4.3"
+        default: "ghcr.io/soulteary/herald:v0.5.0"
+        placeholder: "ghcr.io/soulteary/herald:v0.5.0"
       - type: imageEnv
         envName: WARDEN_IMAGE
         labelKey: wardenImageLabel
         descKey: wardenImageDesc
-        default: "ghcr.io/soulteary/warden:v0.9.2"
-        placeholder: "ghcr.io/soulteary/warden:v0.9.2"
+        default: "ghcr.io/soulteary/warden:v0.9.3"
+        placeholder: "ghcr.io/soulteary/warden:v0.9.3"
       - type: imageEnv
         envName: STARGATE_IMAGE
         labelKey: stargateImageLabel
         descKey: stargateImageDesc
-        default: "ghcr.io/soulteary/stargate:v0.8.2"
-        placeholder: "ghcr.io/soulteary/stargate:v0.8.2"
+        default: "ghcr.io/soulteary/stargate:v0.8.4"
+        placeholder: "ghcr.io/soulteary/stargate:v0.8.4"
       - type: imageEnv
         envName: HERALD_REDIS_IMAGE
         labelKey: heraldRedisImageLabel
         descKey: heraldRedisImageDesc
-        default: "redis:7-alpine"
-        placeholder: "redis:7-alpine"
+        default: "redis:8.4-alpine"
+        placeholder: "redis:8.4-alpine"
       - type: imageEnv
         envName: WARDEN_REDIS_IMAGE
         labelKey: wardenRedisImageLabel
         descKey: wardenRedisImageDesc
-        default: "redis:7-alpine"
-        placeholder: "redis:7-alpine"
+        default: "redis:8.4-alpine"
+        placeholder: "redis:8.4-alpine"
   - titleKey: healthCheckSection
     options:
       - type: checkbox

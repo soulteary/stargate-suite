@@ -287,17 +287,17 @@ func DefaultEnvBody() string {
 	return `# Container Image Version Configuration
 
 # Herald Service Image
-HERALD_IMAGE=ghcr.io/soulteary/herald:v0.4.3
+HERALD_IMAGE=ghcr.io/soulteary/herald:v0.5.0
 
 # Warden Service Image
-WARDEN_IMAGE=ghcr.io/soulteary/warden:v0.9.2
+WARDEN_IMAGE=ghcr.io/soulteary/warden:v0.9.3
 
 # Stargate Service Image
-STARGATE_IMAGE=ghcr.io/soulteary/stargate:v0.8.2
+STARGATE_IMAGE=ghcr.io/soulteary/stargate:v0.8.4
 
 # Redis Image Version
-HERALD_REDIS_IMAGE=redis:7-alpine
-WARDEN_REDIS_IMAGE=redis:7-alpine
+HERALD_REDIS_IMAGE=redis:8.4-alpine
+WARDEN_REDIS_IMAGE=redis:8.4-alpine
 
 # Herald Redis connection (Herald uses REDIS_ADDR; HERALD_REDIS_URL is spec suggestion, not yet used)
 HERALD_REDIS_ADDR=herald-redis:6379

@@ -41,7 +41,7 @@ services:
 
   # Herald Redis
   herald-redis:
-    image: ${HERALD_REDIS_IMAGE:-redis:7-alpine}
+    image: ${HERALD_REDIS_IMAGE:-redis:8.4-alpine}
     container_name: the-gate-herald-redis
     ports:
       - "6379:6379"
@@ -91,7 +91,7 @@ services:
 
   # Warden Redis
   warden-redis:
-    image: ${WARDEN_REDIS_IMAGE:-redis:7-alpine}
+    image: ${WARDEN_REDIS_IMAGE:-redis:8.4-alpine}
     container_name: the-gate-warden-redis
     expose:
       - 6379
