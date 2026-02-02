@@ -33,7 +33,7 @@ type Options struct {
 
 // serviceNameToContainerSuffix 逻辑服务名 -> container_name 后缀（前缀由 Options 提供）
 var serviceNameToContainerSuffix = map[string]string{
-	"herald": "herald", "herald-redis": "herald-redis",
+	"herald": "herald", "herald-redis": "herald-redis", "herald-dingtalk": "herald-dingtalk",
 	"warden": "warden", "warden-redis": "warden-redis",
 	"stargate": "stargate", "protected-service": "whoami",
 }
@@ -55,49 +55,56 @@ var traefikSplitDefs = []splitDef{
 
 // envComments 环境变量名 -> 注释（用于在生成的 docker-compose 中插入注释，便于用户查看和修改）
 var envComments = map[string]string{
-	"PORT":                           "服务监听端口",
-	"REDIS_ADDR":                     "Herald Redis 地址 (host:port)，可通过 HERALD_REDIS_ADDR 覆盖",
-	"REDIS_PASSWORD":                 "Redis 密码，留空表示无认证",
-	"REDIS_DB":                       "Herald Redis 库号",
-	"LOG_LEVEL":                      "日志级别 (info/debug/warn/error)",
-	"API_KEY":                        "服务间 API 密钥，生产请修改",
-	"HMAC_SECRET":                    "Herald HMAC 签名密钥，生产请修改",
-	"HERALD_TEST_MODE":               "Herald 测试模式（免真实发送验证码）",
-	"PROVIDER_FAILURE_POLICY":        "Provider 失败策略 (soft/strict)",
-	"CHALLENGE_EXPIRY":               "验证码有效期",
-	"CODE_LENGTH":                    "验证码长度",
-	"MAX_ATTEMPTS":                   "单 challenge 最大验证次数",
-	"RESEND_COOLDOWN":                "重发冷却时间",
-	"REDIS":                          "Warden Redis 地址 (host:port)，可通过 WARDEN_REDIS_ADDR 覆盖",
-	"DATA_FILE":                      "Warden 本地用户数据文件路径（容器内路径）",
-	"MODE":                           "Warden 模式 (ONLY_LOCAL/REMOTE/HYBRID)",
-	"INTERVAL":                       "Warden 轮询间隔（秒）",
-	"AUTH_HOST":                      "认证页 Host / 域名",
-	"LOGIN_PAGE_TITLE":               "登录页标题",
-	"LOGIN_PAGE_FOOTER_TEXT":         "登录页页脚文案",
-	"COOKIE_DOMAIN":                  "Cookie 域名（多子域时设置）",
-	"PASSWORDS":                      "登录密码配置，生产请修改",
-	"LANGUAGE":                       "界面语言",
-	"WARDEN_URL":                     "Stargate 调用 Warden 的地址",
-	"WARDEN_ENABLED":                 "是否启用 Warden",
-	"WARDEN_API_KEY":                 "Warden API 密钥",
-	"WARDEN_CACHE_TTL":               "Warden 缓存 TTL（秒）",
-	"HERALD_URL":                     "Stargate 调用 Herald 的地址",
-	"HERALD_ENABLED":                 "是否启用 Herald",
-	"HERALD_API_KEY":                 "Herald API 密钥",
-	"HERALD_HMAC_SECRET":             "Herald HMAC 密钥",
-	"SESSION_STORAGE_ENABLED":        "是否启用会话存储",
-	"SESSION_STORAGE_REDIS_ADDR":     "会话存储 Redis 地址",
-	"SESSION_STORAGE_REDIS_PASSWORD": "会话存储 Redis 密码",
-	"AUDIT_LOG_ENABLED":              "是否启用审计日志",
-	"AUDIT_LOG_FORMAT":               "审计日志格式 (json/text)",
-	"WARDEN_REDIS_PASSWORD":          "Warden Redis 密码",
-	"WARDEN_HTTP_TIMEOUT":            "Warden HTTP 请求超时（秒）",
-	"LOCKOUT_DURATION":               "Herald 锁定时长（超过最大尝试次数后）",
-	"RATE_LIMIT_PER_USER":            "Herald 每用户/小时限流",
-	"RATE_LIMIT_PER_IP":              "Herald 每 IP/分钟限流",
-	"RATE_LIMIT_PER_DESTINATION":     "Herald 每目标/小时限流",
-	"DEBUG":                          "调试模式",
+	"PORT":                            "服务监听端口",
+	"REDIS_ADDR":                      "Herald Redis 地址 (host:port)，可通过 HERALD_REDIS_ADDR 覆盖",
+	"REDIS_PASSWORD":                  "Redis 密码，留空表示无认证",
+	"REDIS_DB":                        "Herald Redis 库号",
+	"LOG_LEVEL":                       "日志级别 (info/debug/warn/error)",
+	"API_KEY":                         "服务间 API 密钥，生产请修改",
+	"HMAC_SECRET":                     "Herald HMAC 签名密钥，生产请修改",
+	"HERALD_TEST_MODE":                "Herald 测试模式（免真实发送验证码）",
+	"PROVIDER_FAILURE_POLICY":         "Provider 失败策略 (soft/strict)",
+	"CHALLENGE_EXPIRY":                "验证码有效期",
+	"CODE_LENGTH":                     "验证码长度",
+	"MAX_ATTEMPTS":                    "单 challenge 最大验证次数",
+	"RESEND_COOLDOWN":                 "重发冷却时间",
+	"REDIS":                           "Warden Redis 地址 (host:port)，可通过 WARDEN_REDIS_ADDR 覆盖",
+	"DATA_FILE":                       "Warden 本地用户数据文件路径（容器内路径）",
+	"MODE":                            "Warden 模式 (ONLY_LOCAL/REMOTE/HYBRID)",
+	"INTERVAL":                        "Warden 轮询间隔（秒）",
+	"AUTH_HOST":                       "认证页 Host / 域名",
+	"LOGIN_PAGE_TITLE":                "登录页标题",
+	"LOGIN_PAGE_FOOTER_TEXT":          "登录页页脚文案",
+	"COOKIE_DOMAIN":                   "Cookie 域名（多子域时设置）",
+	"PASSWORDS":                       "登录密码配置，生产请修改",
+	"LANGUAGE":                        "界面语言",
+	"WARDEN_URL":                      "Stargate 调用 Warden 的地址",
+	"WARDEN_ENABLED":                  "是否启用 Warden",
+	"WARDEN_API_KEY":                  "Warden API 密钥",
+	"WARDEN_CACHE_TTL":                "Warden 缓存 TTL（秒）",
+	"HERALD_URL":                      "Stargate 调用 Herald 的地址",
+	"HERALD_ENABLED":                  "是否启用 Herald",
+	"HERALD_API_KEY":                  "Herald API 密钥",
+	"HERALD_HMAC_SECRET":              "Herald HMAC 密钥",
+	"SESSION_STORAGE_ENABLED":         "是否启用会话存储",
+	"SESSION_STORAGE_REDIS_ADDR":      "会话存储 Redis 地址",
+	"SESSION_STORAGE_REDIS_PASSWORD":  "会话存储 Redis 密码",
+	"AUDIT_LOG_ENABLED":               "是否启用审计日志",
+	"AUDIT_LOG_FORMAT":                "审计日志格式 (json/text)",
+	"WARDEN_REDIS_PASSWORD":           "Warden Redis 密码",
+	"WARDEN_HTTP_TIMEOUT":             "Warden HTTP 请求超时（秒）",
+	"LOCKOUT_DURATION":                "Herald 锁定时长（超过最大尝试次数后）",
+	"RATE_LIMIT_PER_USER":             "Herald 每用户/小时限流",
+	"RATE_LIMIT_PER_IP":               "Herald 每 IP/分钟限流",
+	"RATE_LIMIT_PER_DESTINATION":      "Herald 每目标/小时限流",
+	"HERALD_DINGTALK_API_URL":         "Herald 钉钉通道：herald-dingtalk 服务地址（可选）",
+	"HERALD_DINGTALK_API_KEY":         "Herald 钉钉通道：herald-dingtalk API 密钥（可选）",
+	"HERALD_DINGTALK_IMAGE":           "herald-dingtalk 服务镜像（可选）",
+	"DINGTALK_APP_KEY":                "herald-dingtalk：钉钉应用 Key",
+	"DINGTALK_APP_SECRET":             "herald-dingtalk：钉钉应用 Secret",
+	"DINGTALK_AGENT_ID":               "herald-dingtalk：钉钉应用 AgentId（工作通知）",
+	"HERALD_DINGTALK_IDEMPOTENCY_TTL": "herald-dingtalk 幂等缓存 TTL（秒）",
+	"DEBUG":                           "调试模式",
 }
 
 // LoadCompose 读取并解析 compose 文件为 map。
@@ -304,6 +311,14 @@ WARDEN_REDIS_PASSWORD=
 # Redis data path (only used when UseNamedVolume=false / bind path)
 # HERALD_REDIS_DATA_PATH=./data/herald-redis
 # WARDEN_REDIS_DATA_PATH=./data/warden-redis
+
+# DingTalk channel (optional): Herald calls herald-dingtalk via HTTP for verification code push
+# HERALD_DINGTALK_IMAGE=ghcr.io/soulteary/herald-dingtalk:latest
+# HERALD_DINGTALK_API_URL=http://herald-dingtalk:8083
+# HERALD_DINGTALK_API_KEY=
+# DINGTALK_APP_KEY=
+# DINGTALK_APP_SECRET=
+# DINGTALK_AGENT_ID=
 `
 }
 

@@ -28,6 +28,9 @@ services:
       - RATE_LIMIT_PER_USER=${RATE_LIMIT_PER_USER:-10}
       - RATE_LIMIT_PER_IP=${RATE_LIMIT_PER_IP:-5}
       - RATE_LIMIT_PER_DESTINATION=${RATE_LIMIT_PER_DESTINATION:-10}
+      # DingTalk channel (optional): Herald calls herald-dingtalk via HTTP; set when using DingTalk for verification code push
+      - HERALD_DINGTALK_API_URL=${HERALD_DINGTALK_API_URL:-}
+      - HERALD_DINGTALK_API_KEY=${HERALD_DINGTALK_API_KEY:-}
     depends_on:
       herald-redis:
         condition: service_healthy
@@ -55,6 +58,30 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
+
+  # herald-dingtalk - 钉钉验证码推送（可选）：Herald 通过 HTTP 调用，钉钉凭证仅在此服务
+  herald-dingtalk:
+    image: ${HERALD_DINGTALK_IMAGE:-ghcr.io/soulteary/herald-dingtalk:latest}
+    container_name: the-gate-herald-dingtalk
+    ports:
+      - "8083:8083"
+    environment:
+      - PORT=:8083
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - API_KEY=${HERALD_DINGTALK_API_KEY:-}
+      - DINGTALK_APP_KEY=${DINGTALK_APP_KEY:-}
+      - DINGTALK_APP_SECRET=${DINGTALK_APP_SECRET:-}
+      - DINGTALK_AGENT_ID=${DINGTALK_AGENT_ID:-}
+      - IDEMPOTENCY_TTL_SECONDS=${HERALD_DINGTALK_IDEMPOTENCY_TTL:-300}
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
     restart: unless-stopped
 
   # Warden - 白名单用户服务
