@@ -74,6 +74,7 @@ docker compose -f build/build/docker-compose.yml up -d --build
 - `AUTH_HOST`、`STARGATE_DOMAIN`、`PROTECTED_DOMAIN`
 - `HERALD_API_KEY`、`HERALD_HMAC_SECRET`、`WARDEN_API_KEY`
 - `*_IMAGE`：覆盖默认镜像
+- 钉钉通道（可选）：`HERALD_DINGTALK_*`、`DINGTALK_*`（含 `DINGTALK_LOOKUP_MODE`）
 
 ## 相关文档
 

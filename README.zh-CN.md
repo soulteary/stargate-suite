@@ -418,7 +418,7 @@ Traefik forwardAuth 鉴权服务，负责：
 - OTP/验证码生命周期管理（创建、验证、撤销）
 - 风控与限流（用户限流、IP 限流、destination 限流、重发冷却）
 - 审计日志记录
-- Provider 插件化（SMS/Email）
+- Provider 插件化（SMS/Email）；可选钉钉通道（herald-dingtalk，Herald 通过 HTTP 调用，钉钉凭证仅存在于 herald-dingtalk）
 
 **主要接口**:
 - `POST /v1/otp/challenges`: 创建并发送验证码

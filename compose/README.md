@@ -74,6 +74,7 @@ Generation writes root `.env` (if present) or variables inferred from canonical 
 - `AUTH_HOST`, `STARGATE_DOMAIN`, `PROTECTED_DOMAIN`
 - `HERALD_API_KEY`, `HERALD_HMAC_SECRET`, `WARDEN_API_KEY`
 - `*_IMAGE`: override default images
+- DingTalk channel (optional): `HERALD_DINGTALK_*`, `DINGTALK_*` (including `DINGTALK_LOOKUP_MODE`)
 
 ## See also
 

@@ -38,6 +38,12 @@ providers:
             labelKey: dingtalkAgentIdLabel
             descKey: dingtalkAgentIdDesc
             placeholder: ""
+          - env: DINGTALK_LOOKUP_MODE
+            type: text
+            labelKey: dingtalkLookupModeLabel
+            descKey: dingtalkLookupModeDesc
+            default: "none"
+            placeholder: "none"
           - env: HERALD_DINGTALK_IDEMPOTENCY_TTL
             type: number
             labelKey: heraldDingtalkIdempotencyTtlLabel

@@ -113,6 +113,7 @@ var envComments = map[string]string{
 	"DINGTALK_APP_KEY":                "herald-dingtalk：钉钉应用 Key",
 	"DINGTALK_APP_SECRET":             "herald-dingtalk：钉钉应用 Secret",
 	"DINGTALK_AGENT_ID":               "herald-dingtalk：钉钉应用 AgentId（工作通知）",
+	"DINGTALK_LOOKUP_MODE":            "herald-dingtalk：none=to 仅 userid；mobile=to 可为 userid 或 11 位手机号",
 	"HERALD_DINGTALK_IDEMPOTENCY_TTL": "herald-dingtalk 幂等缓存 TTL（秒）",
 	"PROTECTED_IMAGE":                 "受保护服务（whoami）镜像，E2E/演示用",
 	"DEBUG":                           "调试模式",
@@ -268,7 +269,7 @@ func EnvBodyFromVars(vars map[string]string, optionalOverride string) string {
 		"IDEMPOTENCY_KEY_TTL", "ALLOWED_PURPOSES", "SERVICE_NAME", "HERALD_HMAC_KEYS",
 		"RATE_LIMIT_PER_USER", "RATE_LIMIT_PER_IP", "RATE_LIMIT_PER_DESTINATION",
 		"HERALD_DINGTALK_IMAGE", "HERALD_DINGTALK_API_URL", "HERALD_DINGTALK_API_KEY",
-		"DINGTALK_APP_KEY", "DINGTALK_APP_SECRET", "DINGTALK_AGENT_ID", "HERALD_DINGTALK_IDEMPOTENCY_TTL",
+		"DINGTALK_APP_KEY", "DINGTALK_APP_SECRET", "DINGTALK_AGENT_ID", "DINGTALK_LOOKUP_MODE", "HERALD_DINGTALK_IDEMPOTENCY_TTL",
 	}
 	seen := make(map[string]bool)
 	var lines []string
@@ -358,6 +359,7 @@ WARDEN_REDIS_PASSWORD=
 # DINGTALK_APP_KEY=
 # DINGTALK_APP_SECRET=
 # DINGTALK_AGENT_ID=
+# DINGTALK_LOOKUP_MODE=none
 `
 }
 

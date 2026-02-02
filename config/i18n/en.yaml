@@ -203,6 +203,8 @@ en:
   dingtalkAppSecretDesc: "DingTalk app secret used by herald-dingtalk."
   dingtalkAgentIdLabel: "DingTalk Agent ID"
   dingtalkAgentIdDesc: "Agent ID for DingTalk work notification in herald-dingtalk."
+  dingtalkLookupModeLabel: "Lookup mode"
+  dingtalkLookupModeDesc: "none = to is userid only; mobile = to can be userid or 11-digit mobile (requires Contact.User.mobile)."
   heraldDingtalkIdempotencyTtlLabel: "Idempotency TTL (sec)"
   heraldDingtalkIdempotencyTtlDesc: "herald-dingtalk idempotency cache TTL; default 300."
   btnGenerate: "Generate"

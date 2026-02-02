@@ -290,7 +290,7 @@ Whitelist user service: user info (email/phone/user_id/status/scope/role), activ
 
 ### Herald (herald)
 
-OTP/verification: create challenge, verify, revoke; rate limits; audit; SMS/Email providers.
+OTP/verification: create challenge, verify, revoke; rate limits; audit; SMS/Email providers. Optional DingTalk channel (herald-dingtalk): Herald calls it over HTTP; DingTalk credentials live only in herald-dingtalk.
 
 - `POST /v1/otp/challenges` — create and send
 - `POST /v1/otp/verifications` — verify

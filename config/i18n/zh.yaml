@@ -203,6 +203,8 @@ zh:
   dingtalkAppSecretDesc: "herald-dingtalk 使用的钉钉应用 Secret。"
   dingtalkAgentIdLabel: "钉钉 AgentId"
   dingtalkAgentIdDesc: "herald-dingtalk 工作通知使用的 Agent ID。"
+  dingtalkLookupModeLabel: "查 userid 模式"
+  dingtalkLookupModeDesc: "none=to 仅钉钉 userid；mobile=to 可为 userid 或 11 位手机号（需 Contact.User.mobile 权限）。"
   heraldDingtalkIdempotencyTtlLabel: "幂等缓存 TTL（秒）"
   heraldDingtalkIdempotencyTtlDesc: "herald-dingtalk 幂等缓存时长，默认 300。"
   btnGenerate: "生成"
