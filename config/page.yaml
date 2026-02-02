@@ -158,6 +158,18 @@ i18n:
     heraldApiKeyDesc: "Stargate 调用 Herald 时使用的 API Key，留空使用 compose 默认。"
     heraldHmacLabel: "HMAC 密钥"
     heraldHmacDesc: "Stargate 与 Herald 间请求签名的 HMAC 密钥，留空使用 compose 默认。"
+    imageVersionsSection: "镜像版本"
+    imageVersionsSectionDesc: "集中管理三个服务与 Redis 的镜像版本，将写入生成的 .env。"
+    heraldImageLabel: "Herald 镜像"
+    heraldImageDesc: "Herald（验证码/OTP）服务镜像。"
+    wardenImageLabel: "Warden 镜像"
+    wardenImageDesc: "Warden（白名单用户）服务镜像。"
+    stargateImageLabel: "Stargate 镜像"
+    stargateImageDesc: "Stargate（Forward Auth）服务镜像。"
+    heraldRedisImageLabel: "Herald Redis 镜像"
+    heraldRedisImageDesc: "Herald 使用的 Redis 镜像。"
+    wardenRedisImageLabel: "Warden Redis 镜像"
+    wardenRedisImageDesc: "Warden 使用的 Redis 镜像。"
     btnGenerate: "生成"
     generating: "生成中..."
     resultSuccess: "生成成功。可下载以下文件："
@@ -314,6 +326,18 @@ i18n:
     heraldApiKeyDesc: "API key for Stargate to call Herald; empty = compose default."
     heraldHmacLabel: "HMAC secret"
     heraldHmacDesc: "HMAC secret for Stargate–Herald request signing; empty = compose default."
+    imageVersionsSection: "Image versions"
+    imageVersionsSectionDesc: "Centralized image versions for the three services and Redis; written to generated .env."
+    heraldImageLabel: "Herald image"
+    heraldImageDesc: "Herald (OTP/verification) service image."
+    wardenImageLabel: "Warden image"
+    wardenImageDesc: "Warden (allowlist) service image."
+    stargateImageLabel: "Stargate image"
+    stargateImageDesc: "Stargate (Forward Auth) service image."
+    heraldRedisImageLabel: "Herald Redis image"
+    heraldRedisImageDesc: "Redis image used by Herald."
+    wardenRedisImageLabel: "Warden Redis image"
+    wardenRedisImageDesc: "Redis image used by Warden."
     btnGenerate: "Generate"
     generating: "Generating..."
     resultSuccess: "Done. Download:"
@@ -335,6 +359,38 @@ modes:
     descKey: modeStargateOnlyDesc
 
 configSections:
+  - titleKey: imageVersionsSection
+    options:
+      - type: imageEnv
+        envName: HERALD_IMAGE
+        labelKey: heraldImageLabel
+        descKey: heraldImageDesc
+        default: "ghcr.io/soulteary/herald:v0.4.3"
+        placeholder: "ghcr.io/soulteary/herald:v0.4.3"
+      - type: imageEnv
+        envName: WARDEN_IMAGE
+        labelKey: wardenImageLabel
+        descKey: wardenImageDesc
+        default: "ghcr.io/soulteary/warden:v0.9.2"
+        placeholder: "ghcr.io/soulteary/warden:v0.9.2"
+      - type: imageEnv
+        envName: STARGATE_IMAGE
+        labelKey: stargateImageLabel
+        descKey: stargateImageDesc
+        default: "ghcr.io/soulteary/stargate:v0.8.2"
+        placeholder: "ghcr.io/soulteary/stargate:v0.8.2"
+      - type: imageEnv
+        envName: HERALD_REDIS_IMAGE
+        labelKey: heraldRedisImageLabel
+        descKey: heraldRedisImageDesc
+        default: "redis:7-alpine"
+        placeholder: "redis:7-alpine"
+      - type: imageEnv
+        envName: WARDEN_REDIS_IMAGE
+        labelKey: wardenRedisImageLabel
+        descKey: wardenRedisImageDesc
+        default: "redis:7-alpine"
+        placeholder: "redis:7-alpine"
   - titleKey: healthCheckSection
     options:
       - type: checkbox

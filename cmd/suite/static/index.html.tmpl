@@ -84,6 +84,12 @@
 							</div>
 							{{end}}
 						</div>
+						{{else if eq .Type "imageEnv"}}
+						<div class="config-item pure-control-group" data-env-name="{{.EnvName}}">
+							<label for="env_{{.EnvName}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.EnvName}}</span></label>
+							<input type="text" id="env_{{.EnvName}}" data-env="{{.EnvName}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}>
+							<p class="config-desc" data-i18n="{{.DescKey}}"></p>
+						</div>
 						{{end}}
 						{{end}}
 					</div>
