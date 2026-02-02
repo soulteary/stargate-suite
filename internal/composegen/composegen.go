@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Options 控制生成时的健康检查、Traefik 网络、端口暴露、容器名、环境变量及 Redis 数据存储方式等。
+// Options 控制生成时的健康检查、Traefik 网络、端口暴露、容器名、环境变量、可选通道及 Redis 数据存储方式等。
 // nil 表示全部使用默认（健康检查开、Traefik 开、暴露端口开、前缀 the-gate-、命名卷、无 env 覆盖）。
 type Options struct {
 	HealthCheck            bool   // 是否保留各服务的 healthcheck
@@ -19,6 +19,7 @@ type Options struct {
 	TraefikNetwork         bool   // 是否加入 Traefik 网络及相关 labels
 	TraefikNetworkName     string // Traefik 网络名称，默认 "traefik"
 	ExposePorts            bool   // true 保留 ports:，false 改为仅 expose
+	IncludeDingTalk        bool   // 全量 traefik 时是否包含 herald-dingtalk 服务
 	// 暴露端口时可选的主机端口，空表示使用 compose 默认
 	PortHerald          string            // Herald 主机端口，如 "8082"
 	PortWarden          string            // Warden 主机端口，如 "8081"
@@ -771,6 +772,13 @@ func GenerateOne(full map[string]interface{}, mode string, opts *Options) ([]byt
 		out["networks"] = outNet
 	}
 
+	// 全量 traefik 且未启用 DingTalk 时，从 compose 中移除 herald-dingtalk 服务
+	if mode == "traefik" && opts != nil && !opts.IncludeDingTalk {
+		if svcs, ok := out["services"].(map[string]interface{}); ok {
+			delete(svcs, "herald-dingtalk")
+		}
+	}
+
 	applyOptionsToCompose(out, opts)
 
 	// Redis 数据：命名卷 vs 绑定路径
@@ -836,6 +844,15 @@ func Generate(full map[string]interface{}, modes []string, envOverride string, o
 	if opts != nil && len(opts.EnvOverrides) > 0 {
 		for k, v := range opts.EnvOverrides {
 			vars[k] = v
+		}
+	}
+	if opts != nil && !opts.IncludeDingTalk {
+		for _, k := range []string{
+			"HERALD_DINGTALK_IMAGE", "HERALD_DINGTALK_API_URL", "HERALD_DINGTALK_API_KEY",
+			"DINGTALK_APP_KEY", "DINGTALK_APP_SECRET", "DINGTALK_AGENT_ID", "DINGTALK_LOOKUP_MODE",
+			"HERALD_DINGTALK_IDEMPOTENCY_TTL",
+		} {
+			delete(vars, k)
 		}
 	}
 	if envOverride != "" {

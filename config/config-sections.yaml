@@ -149,6 +149,15 @@ configSections:
         labelKey: containerNamePrefixLabel
         descKey: containerNamePrefixDesc
         placeholderKey: containerPrefixPlaceholder
+  - titleKey: optionalChannelsSection
+    options:
+      - type: checkbox
+        id: dingtalkEnabled
+        name: dingtalkEnabled
+        envName: dingtalkEnabled
+        labelKey: dingtalkEnabledLabel
+        descKey: dingtalkEnabledDesc
+        default: false
   - titleKey: redisStorage
     options:
       - type: radio

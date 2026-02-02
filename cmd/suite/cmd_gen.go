@@ -154,6 +154,7 @@ type composeGenOptionsJSON struct {
 	PortHeraldRedis        string            `json:"portHeraldRedis"`
 	PortHeraldTotp         string            `json:"portHeraldTotp"`
 	ContainerNamePrefix    string            `json:"containerNamePrefix"`
+	DingtalkEnabled        *bool             `json:"dingtalkEnabled"`
 	EnvOverrides           map[string]string `json:"envOverrides"`
 	UseNamedVolume         *bool             `json:"useNamedVolume"`
 	HeraldRedisDataPath    string            `json:"heraldRedisDataPath"`
@@ -205,6 +206,11 @@ func reqOptionsToComposegen(o *composeGenOptionsJSON) *composegen.Options {
 	}
 	if opts.WardenRedisDataPath == "" {
 		opts.WardenRedisDataPath = "./data/warden-redis"
+	}
+	if o.DingtalkEnabled != nil {
+		opts.IncludeDingTalk = *o.DingtalkEnabled
+	} else {
+		opts.IncludeDingTalk = false
 	}
 	return opts
 }
