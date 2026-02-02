@@ -114,6 +114,7 @@ var envComments = map[string]string{
 	"DINGTALK_APP_SECRET":             "herald-dingtalk：钉钉应用 Secret",
 	"DINGTALK_AGENT_ID":               "herald-dingtalk：钉钉应用 AgentId（工作通知）",
 	"HERALD_DINGTALK_IDEMPOTENCY_TTL": "herald-dingtalk 幂等缓存 TTL（秒）",
+	"PROTECTED_IMAGE":                 "受保护服务（whoami）镜像，E2E/演示用",
 	"DEBUG":                           "调试模式",
 }
 
@@ -340,6 +341,9 @@ WARDEN_REDIS_PASSWORD=
 # Redis data path (only used when UseNamedVolume=false / bind path)
 # HERALD_REDIS_DATA_PATH=./data/herald-redis
 # WARDEN_REDIS_DATA_PATH=./data/warden-redis
+
+# Protected service (whoami) - example service behind Stargate Forward Auth, used for E2E and demos
+# PROTECTED_IMAGE=ghcr.io/traefik/whoami:v1.11
 
 # Herald optional: idempotency TTL (0=use challenge expiry), allowed purposes, HMAC keys (JSON), service name
 # IDEMPOTENCY_KEY_TTL=0

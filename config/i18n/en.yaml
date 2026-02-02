@@ -186,6 +186,8 @@ en:
   heraldRedisImageDesc: "Redis image used by Herald."
   wardenRedisImageLabel: "Warden Redis image"
   wardenRedisImageDesc: "Redis image used by Warden."
+  protectedImageLabel: "Protected service image (whoami)"
+  protectedImageDesc: "Example service image behind Stargate Forward Auth; used for E2E and demos."
   providerEnv: "Provider (Herald channel)"
   providerEnvDesc: "Optional: Herald calls these via HTTP for OTP/notification; one row per provider."
   heraldDingtalkName: "herald-dingtalk (DingTalk)"

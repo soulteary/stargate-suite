@@ -26,6 +26,7 @@ e2e/
 ### Normal flow
 
 - **TestCompleteLoginFlow**: send code → get code (Herald test endpoint) → login → verify forwardAuth headers
+- **TestProtectedWhoamiAfterLogin**: after login, request protected whoami URL (set `PROTECTED_URL`, e.g. `https://whoami.test.localhost`); skipped when `PROTECTED_URL` is unset (e.g. when using `build/image` without Traefik)
 
 ### Error scenarios (error_scenarios_test.go)
 
@@ -52,9 +53,16 @@ Defined in `fixtures/warden/data.json`: admin (13800138000), user (13900139000),
 ```bash
 go test -v ./e2e/...
 go test -v ./e2e/... -run TestCompleteLoginFlow
+go test -v ./e2e/... -run TestProtectedWhoamiAfterLogin   # requires PROTECTED_URL
 go test -v ./e2e/... -run TestInvalid
 go test -v ./e2e/... -run TestHeraldUnavailable
 go test -v ./e2e/... -run TestWardenUnavailable
+```
+
+With Traefik compose, to verify protected whoami:
+```bash
+export PROTECTED_URL=https://whoami.test.localhost   # ensure whoami.test.localhost resolves to Traefik
+go test -v ./e2e/... -run TestProtectedWhoamiAfterLogin
 ```
 
 ## Notes
@@ -65,6 +73,7 @@ go test -v ./e2e/... -run TestWardenUnavailable
 4. **Service-down tests**: Need docker compose access; may be skipped without it.
 5. **Challenge expiry**: Default 5m; tune Herald `CHALLENGE_EXPIRY` to speed up expiry tests.
 6. **Concurrency**: Use different users when running tests in parallel.
+7. **Protected whoami**: `TestProtectedWhoamiAfterLogin` runs only when `PROTECTED_URL` is set; skipped with `build/image` (no Traefik).
 
 ## Helpers (test_helpers.go)
 

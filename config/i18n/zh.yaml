@@ -186,6 +186,8 @@ zh:
   heraldRedisImageDesc: "Herald 使用的 Redis 镜像。"
   wardenRedisImageLabel: "Warden Redis 镜像"
   wardenRedisImageDesc: "Warden 使用的 Redis 镜像。"
+  protectedImageLabel: "受保护服务镜像（whoami）"
+  protectedImageDesc: "经 Stargate Forward Auth 保护的示例服务镜像，用于 E2E 与演示。"
   providerEnv: "Provider（Herald 通道）"
   providerEnvDesc: "可选：Herald 通过 HTTP 调用的验证码/通知通道，单独一行展示。"
   heraldDingtalkName: "herald-dingtalk（钉钉）"

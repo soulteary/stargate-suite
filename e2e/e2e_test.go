@@ -1,10 +1,12 @@
 package e2e
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -135,4 +137,66 @@ func checkAuth(t *testing.T, sessionCookie string) (*AuthHeaders, error) {
 		return nil, fmt.Errorf("status %d: %s", errResp.StatusCode, errResp.Message)
 	}
 	return headers, nil
+}
+
+// TestProtectedWhoamiAfterLogin 验证登录后访问经 Stargate Forward Auth 保护的 whoami 服务：
+// 仅当设置环境变量 PROTECTED_URL（如 https://whoami.test.localhost）时执行；未设置则跳过。
+// 使用 Traefik 部署时需将 whoami.test.localhost 解析到 Traefik 入口并设置 PROTECTED_URL。
+func TestProtectedWhoamiAfterLogin(t *testing.T) {
+	url := protectedURL()
+	if url == "" {
+		t.Skip("PROTECTED_URL not set; skip protected whoami verification (set when using Traefik compose)")
+	}
+
+	ensureServicesReady(t)
+
+	testPhone := "13800138000"
+	expectedUserID := "test-admin-001"
+	expectedEmail := "admin@example.com"
+
+	time.Sleep(2 * time.Second)
+	challengeID, err := sendVerificationCode(t, testPhone)
+	testza.AssertNoError(t, err)
+	testza.AssertNotNil(t, challengeID)
+
+	verifyCode, err := getTestCode(t, challengeID)
+	testza.AssertNoError(t, err)
+	testza.AssertNotNil(t, verifyCode)
+
+	sessionCookie, err := login(t, testPhone, challengeID, verifyCode)
+	testza.AssertNoError(t, err)
+	testza.AssertNotNil(t, sessionCookie)
+
+	req, err := http.NewRequest("GET", url, nil)
+	testza.AssertNoError(t, err)
+	req.Header.Set("Cookie", sessionCookie)
+	req.Header.Set("Host", "whoami.test.localhost")
+	client := &http.Client{
+		Timeout: 15 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // 本地 Traefik 常用自签名证书
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 5 {
+				return fmt.Errorf("too many redirects")
+			}
+			return nil
+		},
+	}
+	resp, err := client.Do(req)
+	testza.AssertNoError(t, err)
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			t.Logf("Warning: failed to close response body: %v", closeErr)
+		}
+	}()
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	bodyStr := string(bodyBytes)
+
+	testza.AssertEqual(t, http.StatusOK, resp.StatusCode,
+		"protected whoami should return 200 when authenticated; got %d, body: %s", resp.StatusCode, bodyStr)
+	testza.AssertTrue(t, strings.Contains(bodyStr, expectedUserID) || strings.Contains(bodyStr, expectedEmail),
+		"whoami response should contain authenticated user (X-Forwarded-User / X-Auth-User); body: %s", bodyStr)
+	t.Log("✓ Protected whoami returned 200 with authenticated user in response")
 }

@@ -33,6 +33,12 @@ e2e/
   3. 使用验证码登录
   4. 验证 forwardAuth 检查返回正确的授权 Header
 
+#### TestProtectedWhoamiAfterLogin
+- **描述**: 验证登录后访问经 Stargate Forward Auth 保护的 whoami 服务
+- **条件**: 仅当设置环境变量 `PROTECTED_URL` 时执行（如 `https://whoami.test.localhost`）；未设置则跳过
+- **适用**: 使用 Traefik 部署（`build/traefik/docker-compose.yml`）时，需将 `whoami.test.localhost` 解析到 Traefik 入口（如 `/etc/hosts` 或 DNS），并设置 `export PROTECTED_URL=https://whoami.test.localhost` 后运行 e2e
+- **步骤**: 完成登录后请求 `PROTECTED_URL` 并带 session cookie，预期 200 且响应体包含已登录用户信息（whoami 回显 X-Forwarded-User 等）
+
 ### 异常场景测试
 
 #### 1. 验证码相关错误
@@ -143,8 +149,17 @@ go test -v ./e2e/...
 ### 运行特定测试
 ```bash
 go test -v ./e2e/... -run TestCompleteLoginFlow
+go test -v ./e2e/... -run TestProtectedWhoamiAfterLogin  # 需设置 PROTECTED_URL
 go test -v ./e2e/... -run TestInvalid
 go test -v ./e2e/... -run TestInvalidVerificationCode
+```
+
+### 运行受保护 whoami 验证（Traefik 部署）
+使用 Traefik 全量 compose 时，可验证登录后访问 whoami：
+```bash
+# 确保 whoami.test.localhost 解析到 Traefik（如 127.0.0.1），并启动 build/traefik
+export PROTECTED_URL=https://whoami.test.localhost
+go test -v ./e2e/... -run TestProtectedWhoamiAfterLogin
 ```
 
 ### 运行服务不可用测试
@@ -161,6 +176,7 @@ go test -v ./e2e/... -run TestWardenUnavailable
 4. **服务不可用测试**: 需要 docker compose 访问权限，如果无权限会跳过测试
 5. **验证码过期测试**: 默认需要等待 5 分钟，可以通过调整 Herald 的 `CHALLENGE_EXPIRY` 配置加速
 6. **并发安全**: 多个测试并行运行时，确保使用不同的测试用户
+7. **受保护 whoami 测试**: `TestProtectedWhoamiAfterLogin` 仅在设置 `PROTECTED_URL` 时执行；使用 `build/image` 预设（无 Traefik）时默认跳过
 
 ## 测试辅助函数
 

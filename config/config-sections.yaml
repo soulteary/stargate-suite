@@ -32,6 +32,12 @@ configSections:
         descKey: wardenRedisImageDesc
         default: "redis:8.4-alpine"
         placeholder: "redis:8.4-alpine"
+      - type: imageEnv
+        envName: PROTECTED_IMAGE
+        labelKey: protectedImageLabel
+        descKey: protectedImageDesc
+        default: "ghcr.io/traefik/whoami:v1.11"
+        placeholder: "ghcr.io/traefik/whoami:v1.11"
   - titleKey: healthCheckSection
     options:
       - type: checkbox
