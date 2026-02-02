@@ -1,0 +1,157 @@
+# 配置选项：镜像版本、健康检查、Traefik 网络、暴露端口、容器前缀、Redis 存储
+configSections:
+  - titleKey: imageVersionsSection
+    options:
+      - type: imageEnv
+        envName: HERALD_IMAGE
+        labelKey: heraldImageLabel
+        descKey: heraldImageDesc
+        default: "ghcr.io/soulteary/herald:v0.5.0"
+        placeholder: "ghcr.io/soulteary/herald:v0.5.0"
+      - type: imageEnv
+        envName: WARDEN_IMAGE
+        labelKey: wardenImageLabel
+        descKey: wardenImageDesc
+        default: "ghcr.io/soulteary/warden:v0.9.3"
+        placeholder: "ghcr.io/soulteary/warden:v0.9.3"
+      - type: imageEnv
+        envName: STARGATE_IMAGE
+        labelKey: stargateImageLabel
+        descKey: stargateImageDesc
+        default: "ghcr.io/soulteary/stargate:v0.8.4"
+        placeholder: "ghcr.io/soulteary/stargate:v0.8.4"
+      - type: imageEnv
+        envName: HERALD_REDIS_IMAGE
+        labelKey: heraldRedisImageLabel
+        descKey: heraldRedisImageDesc
+        default: "redis:8.4-alpine"
+        placeholder: "redis:8.4-alpine"
+      - type: imageEnv
+        envName: WARDEN_REDIS_IMAGE
+        labelKey: wardenRedisImageLabel
+        descKey: wardenRedisImageDesc
+        default: "redis:8.4-alpine"
+        placeholder: "redis:8.4-alpine"
+  - titleKey: healthCheckSection
+    options:
+      - type: checkbox
+        id: healthCheck
+        name: healthCheck
+        envName: healthCheck
+        labelKey: healthCheck
+        descKey: healthCheckDesc
+        default: true
+      - type: text
+        id: healthCheckInterval
+        name: healthCheckInterval
+        envName: healthCheckInterval
+        labelKey: healthCheckIntervalLabel
+        descKey: healthCheckIntervalDesc
+        placeholder: "10s"
+        showWhenOption: healthCheck
+      - type: text
+        id: healthCheckStartPeriod
+        name: healthCheckStartPeriod
+        envName: healthCheckStartPeriod
+        labelKey: healthCheckStartPeriodLabel
+        descKey: healthCheckStartPeriodDesc
+        placeholder: "10s"
+        showWhenOption: healthCheck
+  - titleKey: traefikNetworkSection
+    options:
+      - type: checkbox
+        id: traefikNetwork
+        name: traefikNetwork
+        envName: traefikNetwork
+        labelKey: traefikNetwork
+        descKey: traefikNetworkDesc
+        default: true
+      - type: text
+        id: traefikNetworkName
+        name: traefikNetworkName
+        envName: traefikNetworkName
+        labelKey: traefikNetworkNameLabel
+        descKey: traefikNetworkNameDesc
+        default: "traefik"
+        placeholder: "traefik"
+        showWhenOption: traefikNetwork
+  - titleKey: exposePortsSection
+    options:
+      - type: checkbox
+        id: exposePorts
+        name: exposePorts
+        envName: exposePorts
+        labelKey: exposePorts
+        descKey: exposePortsDesc
+        default: true
+      - type: number
+        id: portHerald
+        name: portHerald
+        envName: portHerald
+        labelKey: portHeraldLabel
+        descKey: portHeraldDesc
+        default: "8082"
+        placeholder: "8082"
+        min: 1
+        max: 65535
+        showWhenOption: exposePorts
+      - type: number
+        id: portWarden
+        name: portWarden
+        envName: portWarden
+        labelKey: portWardenLabel
+        descKey: portWardenDesc
+        default: "8081"
+        placeholder: "8081"
+        min: 1
+        max: 65535
+        showWhenOption: exposePorts
+      - type: number
+        id: portHeraldRedis
+        name: portHeraldRedis
+        envName: portHeraldRedis
+        labelKey: portHeraldRedisLabel
+        descKey: portHeraldRedisDesc
+        default: "6379"
+        placeholder: "6379"
+        min: 1
+        max: 65535
+        showWhenOption: exposePorts
+  - titleKey: containerPrefixSection
+    options:
+      - type: text
+        id: containerNamePrefix
+        name: containerNamePrefix
+        envName: containerNamePrefix
+        labelKey: containerNamePrefixLabel
+        descKey: containerNamePrefixDesc
+        placeholderKey: containerPrefixPlaceholder
+  - titleKey: redisStorage
+    options:
+      - type: radio
+        name: redisStorage
+        id: redisStorageVolume
+        value: volume
+        labelKey: redisVolume
+        descKey: redisVolumeDesc
+        default: true
+      - type: radio
+        name: redisStorage
+        id: redisStoragePath
+        value: path
+        labelKey: redisPath
+        descKey: redisPathDesc
+      - type: redisPaths
+        paths:
+          - env: HERALD_REDIS_DATA_PATH
+            id: heraldRedisDataPath
+            labelKey: heraldRedisPathLabel
+            descKey: heraldRedisPathDesc
+            default: "./data/herald-redis"
+            placeholder: "./data/herald-redis"
+          - env: WARDEN_REDIS_DATA_PATH
+            id: wardenRedisDataPath
+            labelKey: wardenRedisPathLabel
+            descKey: wardenRedisPathDesc
+            default: "./data/warden-redis"
+            placeholder: "./data/warden-redis"

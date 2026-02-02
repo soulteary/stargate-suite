@@ -1,0 +1,47 @@
+# Provider（Herald 通道）：每类 provider 单独一行展示，配置写入 .env / compose
+providers:
+  - id: herald-dingtalk
+    name: herald-dingtalk
+    nameKey: heraldDingtalkName
+    open: false
+    sections:
+      - envVars:
+          - env: HERALD_DINGTALK_IMAGE
+            type: text
+            labelKey: heraldDingtalkImageLabel
+            descKey: heraldDingtalkImageDesc
+            default: "ghcr.io/soulteary/herald-dingtalk:latest"
+            placeholder: "ghcr.io/soulteary/herald-dingtalk:latest"
+          - env: HERALD_DINGTALK_API_URL
+            type: text
+            labelKey: heraldDingtalkApiUrlLabel
+            descKey: heraldDingtalkApiUrlDesc
+            default: "http://herald-dingtalk:8083"
+            placeholder: "http://herald-dingtalk:8083"
+          - env: HERALD_DINGTALK_API_KEY
+            type: text
+            labelKey: heraldDingtalkApiKeyLabel
+            descKey: heraldDingtalkApiKeyDesc
+            placeholder: ""
+          - env: DINGTALK_APP_KEY
+            type: text
+            labelKey: dingtalkAppKeyLabel
+            descKey: dingtalkAppKeyDesc
+            placeholder: ""
+          - env: DINGTALK_APP_SECRET
+            type: text
+            labelKey: dingtalkAppSecretLabel
+            descKey: dingtalkAppSecretDesc
+            placeholder: ""
+          - env: DINGTALK_AGENT_ID
+            type: text
+            labelKey: dingtalkAgentIdLabel
+            descKey: dingtalkAgentIdDesc
+            placeholder: ""
+          - env: HERALD_DINGTALK_IDEMPOTENCY_TTL
+            type: number
+            labelKey: heraldDingtalkIdempotencyTtlLabel
+            descKey: heraldDingtalkIdempotencyTtlDesc
+            default: "300"
+            placeholder: "300"
+            min: 1

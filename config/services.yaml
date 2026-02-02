@@ -1,0 +1,356 @@
+# 服务环境变量：Stargate、Warden、Herald
+services:
+  - id: stargate
+    name: Stargate
+    open: true
+    sections:
+      - titleKey: stargateDomainRouting
+        envVars:
+          - env: AUTH_HOST
+            type: text
+            labelKey: authHostLabel
+            descKey: authHostDesc
+            default: "auth.test.localhost"
+            placeholder: "auth.test.localhost"
+          - env: STARGATE_DOMAIN
+            type: text
+            labelKey: stargateDomainLabel
+            descKey: stargateDomainDesc
+            default: "auth.test.localhost"
+            placeholder: "auth.test.localhost"
+          - env: PROTECTED_DOMAIN
+            type: text
+            labelKey: protectedDomainLabel
+            descKey: protectedDomainDesc
+            default: "whoami.test.localhost"
+            placeholder: "whoami.test.localhost"
+          - env: STARGATE_PREFIX
+            type: text
+            labelKey: stargatePrefixLabel
+            descKey: stargatePrefixDesc
+            default: "stargate"
+            placeholder: "stargate"
+          - env: PROTECTED_PREFIX
+            type: text
+            labelKey: protectedPrefixLabel
+            descKey: protectedPrefixDesc
+            default: "protected"
+            placeholder: "protected"
+          - env: USER_HEADER_NAME
+            type: text
+            labelKey: userHeaderLabel
+            descKey: userHeaderDesc
+            default: "X-Forwarded-User"
+            placeholder: "X-Forwarded-User"
+      - titleKey: stargateUi
+        envVars:
+          - env: LANGUAGE
+            type: select
+            labelKey: languageLabel
+            descKey: languageDesc
+            default: zh
+            options:
+              - value: zh
+                labelKey: languageZh
+              - value: en
+                labelKey: languageEn
+              - value: fr
+                labelKey: languageFr
+              - value: it
+                labelKey: languageIt
+              - value: ja
+                labelKey: languageJa
+              - value: de
+                labelKey: languageDe
+              - value: ko
+                labelKey: languageKo
+          - env: LOGIN_PAGE_TITLE
+            type: text
+            labelKey: loginPageTitleLabel
+            descKey: loginPageTitleDesc
+            placeholder: "Stargate - Login"
+          - env: LOGIN_PAGE_FOOTER_TEXT
+            type: text
+            labelKey: loginPageFooterLabel
+            descKey: loginPageFooterDesc
+            placeholder: "Copyright © 2024 - Stargate"
+          - env: COOKIE_DOMAIN
+            type: text
+            labelKey: cookieDomainLabel
+            descKey: cookieDomainDesc
+          - env: WARDEN_ENABLED
+            type: checkbox
+            labelKey: wardenEnabledLabel
+            descKey: wardenEnabledDesc
+            default: true
+          - env: HERALD_ENABLED
+            type: checkbox
+            labelKey: heraldEnabledLabel
+            descKey: heraldEnabledDesc
+            default: true
+          - env: WARDEN_CACHE_TTL
+            type: number
+            labelKey: wardenCacheTtlLabel
+            descKey: wardenCacheTtlDesc
+            default: "300"
+            placeholder: "300"
+            min: 1
+          - env: SESSION_STORAGE_ENABLED
+            type: checkbox
+            labelKey: sessionStorageEnabledLabel
+            descKey: sessionStorageDesc
+          - env: SESSION_STORAGE_REDIS_ADDR
+            type: text
+            labelKey: sessionStorageRedisAddrLabel
+            descKey: sessionStorageRedisAddrDesc
+            placeholder: "localhost:6379"
+            showWhenEnv: SESSION_STORAGE_ENABLED
+          - env: SESSION_STORAGE_REDIS_PASSWORD
+            type: text
+            labelKey: sessionStorageRedisPasswordLabel
+            descKey: sessionStorageRedisPasswordDesc
+            showWhenEnv: SESSION_STORAGE_ENABLED
+          - env: AUDIT_LOG_ENABLED
+            type: checkbox
+            labelKey: auditLogEnabledLabel
+            descKey: auditLogEnabledDesc
+            default: true
+          - env: AUDIT_LOG_FORMAT
+            type: select
+            labelKey: auditLogFormatLabel
+            descKey: auditLogFormatDesc
+            default: json
+            options:
+              - value: json
+                labelKey: auditLogFormatJson
+              - value: text
+                labelKey: auditLogFormatText
+          - env: DEBUG
+            type: checkbox
+            labelKey: debugLabel
+            descKey: debugDesc
+      - titleKey: optionalSensitive
+        envVars:
+          - env: PASSWORDS
+            type: text
+            labelKey: passwordsLabel
+            descKey: passwordsDesc
+            placeholder: "plaintext:pass1|pass2"
+  - id: warden
+    name: Warden
+    open: false
+    sections:
+      - envVars:
+          - env: LOG_LEVEL
+            type: select
+            labelKey: wardenLogLevelLabel
+            descKey: wardenLogLevelDesc
+            default: info
+            options:
+              - value: info
+                labelKey: logLevelInfo
+              - value: debug
+                labelKey: logLevelDebug
+              - value: warn
+                labelKey: logLevelWarn
+              - value: error
+                labelKey: logLevelError
+          - env: MODE
+            type: select
+            labelKey: modeLabel
+            descKey: modeDesc
+            default: ONLY_LOCAL
+            options:
+              - value: DEFAULT
+                labelKey: modeDefault
+              - value: REMOTE_FIRST
+                labelKey: modeRemoteFirst
+              - value: ONLY_REMOTE
+                labelKey: modeOnlyRemote
+              - value: ONLY_LOCAL
+                labelKey: modeOnlyLocal
+              - value: LOCAL_FIRST
+                labelKey: modeLocalFirst
+              - value: REMOTE_FIRST_ALLOW_REMOTE_FAILED
+                labelKey: modeRemoteFirstAllowFailed
+              - value: LOCAL_FIRST_ALLOW_REMOTE_FAILED
+                labelKey: modeLocalFirstAllowFailed
+          - env: WARDEN_API_KEY
+            type: text
+            labelKey: wardenApiKeyLabel
+            descKey: wardenApiKeyDesc
+            placeholder: "test-warden-api-key"
+          - env: INTERVAL
+            type: number
+            labelKey: intervalLabel
+            descKey: intervalDesc
+            default: "5"
+            placeholder: "5"
+            min: 1
+          - env: WARDEN_REDIS_PASSWORD
+            type: text
+            labelKey: wardenRedisPasswordLabel
+            descKey: wardenRedisPasswordDesc
+          - env: WARDEN_REDIS_PASSWORD_FILE
+            type: text
+            labelKey: wardenRedisPasswordFileLabel
+            descKey: wardenRedisPasswordFileDesc
+            placeholder: ""
+          - env: WARDEN_REDIS_ENABLED
+            type: checkbox
+            labelKey: wardenRedisEnabledLabel
+            descKey: wardenRedisEnabledDesc
+            default: true
+          - env: WARDEN_REMOTE_CONFIG
+            type: text
+            labelKey: wardenRemoteConfigLabel
+            descKey: wardenRemoteConfigDesc
+            placeholder: "http://example.com/data.json"
+          - env: WARDEN_REMOTE_KEY
+            type: text
+            labelKey: wardenRemoteKeyLabel
+            descKey: wardenRemoteKeyDesc
+            placeholder: "Bearer token"
+          - env: WARDEN_DATA_FILE
+            type: text
+            labelKey: wardenDataFileLabel
+            descKey: wardenDataFileDesc
+            default: "/app/data.json"
+            placeholder: "/app/data.json"
+          - env: WARDEN_HTTP_TIMEOUT
+            type: number
+            labelKey: wardenHttpTimeoutLabel
+            descKey: wardenHttpTimeoutDesc
+            default: "5"
+            placeholder: "5"
+            min: 1
+          - env: WARDEN_HTTP_MAX_IDLE_CONNS
+            type: number
+            labelKey: wardenHttpMaxIdleConnsLabel
+            descKey: wardenHttpMaxIdleConnsDesc
+            default: "100"
+            placeholder: "100"
+            min: 1
+          - env: WARDEN_HTTP_INSECURE_TLS
+            type: checkbox
+            labelKey: wardenHttpInsecureTlsLabel
+            descKey: wardenHttpInsecureTlsDesc
+  - id: herald
+    name: Herald
+    open: false
+    sections:
+      - envVars:
+          - env: HERALD_TEST_MODE
+            type: checkbox
+            labelKey: heraldTestModeLabel
+            descKey: heraldTestModeDesc
+          - env: HERALD_REDIS_PASSWORD
+            type: text
+            labelKey: heraldRedisPasswordLabel
+            descKey: heraldRedisPasswordDesc
+          - env: HERALD_REDIS_DB
+            type: number
+            labelKey: heraldRedisDbLabel
+            descKey: heraldRedisDbDesc
+            default: "0"
+            placeholder: "0"
+            min: 0
+          - env: CHALLENGE_EXPIRY
+            type: text
+            labelKey: challengeExpiryLabel
+            descKey: challengeExpiryDesc
+            default: "5m"
+            placeholder: "5m"
+          - env: CODE_LENGTH
+            type: number
+            labelKey: codeLengthLabel
+            descKey: codeLengthDesc
+            default: "6"
+            placeholder: "6"
+            min: 4
+            max: 8
+          - env: MAX_ATTEMPTS
+            type: number
+            labelKey: maxAttemptsLabel
+            descKey: maxAttemptsDesc
+            default: "5"
+            placeholder: "5"
+            min: 1
+          - env: PROVIDER_FAILURE_POLICY
+            type: select
+            labelKey: providerFailurePolicyLabel
+            descKey: providerFailurePolicyDesc
+            default: soft
+            options:
+              - value: soft
+                labelKey: providerSoft
+              - value: strict
+                labelKey: providerStrict
+          - env: RESEND_COOLDOWN
+            type: text
+            labelKey: resendCooldownLabel
+            descKey: resendCooldownDesc
+            default: "60s"
+            placeholder: "60s"
+          - env: LOCKOUT_DURATION
+            type: text
+            labelKey: lockoutDurationLabel
+            descKey: lockoutDurationDesc
+            default: "10m"
+            placeholder: "10m"
+          - env: IDEMPOTENCY_KEY_TTL
+            type: text
+            labelKey: idempotencyKeyTtlLabel
+            descKey: idempotencyKeyTtlDesc
+            default: "0"
+            placeholder: "0 or 5m"
+          - env: ALLOWED_PURPOSES
+            type: text
+            labelKey: allowedPurposesLabel
+            descKey: allowedPurposesDesc
+            default: "login"
+            placeholder: "login,reset,bind,stepup"
+          - env: RATE_LIMIT_PER_USER
+            type: number
+            labelKey: rateLimitPerUserLabel
+            descKey: rateLimitPerUserDesc
+            default: "10"
+            placeholder: "10"
+            min: 1
+          - env: RATE_LIMIT_PER_IP
+            type: number
+            labelKey: rateLimitPerIpLabel
+            descKey: rateLimitPerIpDesc
+            default: "5"
+            placeholder: "5"
+            min: 1
+          - env: RATE_LIMIT_PER_DESTINATION
+            type: number
+            labelKey: rateLimitPerDestLabel
+            descKey: rateLimitPerDestDesc
+            default: "10"
+            placeholder: "10"
+            min: 1
+      - titleKey: optionalSensitive
+        envVars:
+          - env: HERALD_API_KEY
+            type: text
+            labelKey: heraldApiKeyLabel
+            descKey: heraldApiKeyDesc
+            placeholder: "test-herald-api-key"
+          - env: HERALD_HMAC_SECRET
+            type: text
+            labelKey: heraldHmacLabel
+            descKey: heraldHmacDesc
+            placeholder: "test-hmac-secret"
+          - env: HERALD_HMAC_KEYS
+            type: text
+            labelKey: heraldHmacKeysLabel
+            descKey: heraldHmacKeysDesc
+            placeholder: '{"key-id":"secret"}'
+          - env: SERVICE_NAME
+            type: text
+            labelKey: serviceNameLabel
+            descKey: serviceNameDesc
+            default: "herald"
+            placeholder: "herald"

@@ -26,6 +26,22 @@ func cacheControlHandler(value string, h http.Handler) http.Handler {
 	})
 }
 
+// loadI18nFragment 加载单语言文案，如 config/i18n/zh.yaml，返回 map[string]string（顶层 key 为 zh/en）。
+func loadI18nFragment(path string) (lang string, entries map[string]string, err error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", nil, err
+	}
+	var out map[string]map[string]string
+	if err := yaml.Unmarshal(data, &out); err != nil {
+		return "", nil, err
+	}
+	for k, v := range out {
+		return k, v, nil
+	}
+	return "", nil, fmt.Errorf("empty i18n file: %s", path)
+}
+
 func loadPageData(yamlPath string) (*pageData, error) {
 	data, err := os.ReadFile(yamlPath)
 	if err != nil {
@@ -35,13 +51,62 @@ func loadPageData(yamlPath string) (*pageData, error) {
 	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return nil, err
 	}
+	configDir := filepath.Dir(yamlPath)
+
+	// 拆分布局：从独立文件合并 configSections / i18n / services / providers
+	if len(raw.ConfigSections) == 0 {
+		path := filepath.Join(configDir, "config-sections.yaml")
+		if b, err := os.ReadFile(path); err == nil {
+			var frag struct {
+				ConfigSections []configOptionSection `yaml:"configSections"`
+			}
+			if err := yaml.Unmarshal(b, &frag); err == nil && len(frag.ConfigSections) > 0 {
+				raw.ConfigSections = frag.ConfigSections
+			}
+		}
+	}
+	if len(raw.I18N) == 0 {
+		raw.I18N = make(map[string]map[string]string)
+		for _, name := range []string{"zh", "en"} {
+			path := filepath.Join(configDir, "i18n", name+".yaml")
+			lang, entries, err := loadI18nFragment(path)
+			if err == nil && lang != "" {
+				raw.I18N[lang] = entries
+			}
+		}
+	}
+	if len(raw.Services) == 0 {
+		path := filepath.Join(configDir, "services.yaml")
+		if b, err := os.ReadFile(path); err == nil {
+			var frag struct {
+				Services []pageService `yaml:"services"`
+			}
+			if err := yaml.Unmarshal(b, &frag); err == nil && len(frag.Services) > 0 {
+				raw.Services = frag.Services
+			}
+		}
+	}
+	if len(raw.Providers) == 0 {
+		path := filepath.Join(configDir, "providers.yaml")
+		if b, err := os.ReadFile(path); err == nil {
+			var frag struct {
+				Providers []pageService `yaml:"providers"`
+			}
+			if err := yaml.Unmarshal(b, &frag); err == nil {
+				raw.Providers = frag.Providers
+			}
+		}
+	}
+
 	jsonI18N, err := json.Marshal(raw.I18N)
 	if err != nil {
 		return nil, err
 	}
 	title := "Stargate Suite - Compose 生成"
-	if t, ok := raw.I18N["zh"]["title"]; ok && t != "" {
-		title = t
+	if raw.I18N != nil {
+		if t, ok := raw.I18N["zh"]["title"]; ok && t != "" {
+			title = t
+		}
 	}
 	return &pageData{
 		I18N:           template.JS(jsonI18N),

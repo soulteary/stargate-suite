@@ -2,7 +2,22 @@ English | [中文](README.zh-CN.md)
 
 # Config directory
 
-This directory holds CLI preset config (`presets.json`) used to resolve the default compose file and `--preset` names. Project overview: [README.md](../README.md).
+This directory holds CLI preset config (`presets.json`) and Web UI page config. Project overview: [README.md](../README.md).
+
+## Page config (Web UI)
+
+The compose generator page is driven by YAML under `config/`. It is split by concern for easier maintenance:
+
+| File | Purpose |
+|------|--------|
+| `page.yaml` | Entry: compose types (modes) and this index. |
+| `config-sections.yaml` | Options: image versions, health check, Traefik network, ports, Redis storage. |
+| `i18n/zh.yaml` | Chinese copy. |
+| `i18n/en.yaml` | English copy. |
+| `services.yaml` | Stargate / Warden / Herald env vars. |
+| `providers.yaml` | Herald channels (e.g. herald-dingtalk). |
+
+`serve` loads `page.yaml` first, then merges the above fragments when present. A single monolithic `page.yaml` (with all keys) still works for backward compatibility.
 
 ## Preset vs compose path
 
