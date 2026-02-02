@@ -152,6 +152,17 @@ configSections:
         min: 1
         max: 65535
         showWhenOption: exposePorts
+      - type: number
+        id: portOwlmail
+        name: portOwlmail
+        envName: portOwlmail
+        labelKey: portOwlmailLabel
+        descKey: portOwlmailDesc
+        default: "1080"
+        placeholder: "1080"
+        min: 1
+        max: 65535
+        showWhenOption: smtpUseOwlmail
   - titleKey: containerPrefixSection
     options:
       - type: text
@@ -177,6 +188,14 @@ configSections:
         labelKey: smtpEnabledLabel
         descKey: smtpEnabledDesc
         default: false
+      - type: checkbox
+        id: smtpUseOwlmail
+        name: smtpUseOwlmail
+        envName: smtpUseOwlmail
+        labelKey: smtpUseOwlmailLabel
+        descKey: smtpUseOwlmailDesc
+        default: false
+        showWhenOption: smtpEnabled
       - type: checkbox
         id: totpEnabled
         name: totpEnabled

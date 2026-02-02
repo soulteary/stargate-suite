@@ -21,6 +21,7 @@ type Options struct {
 	ExposePorts            bool   // true 保留 ports:，false 改为仅 expose
 	IncludeDingTalk        bool   // 全量 traefik 时是否包含 herald-dingtalk 服务
 	IncludeSmtp            bool   // 全量 traefik / traefik-herald 时是否包含 herald-smtp 服务
+	UseOwlmailForSmtp      bool   // 启用 SMTP 时是否搭配 OwlMail 进行测试（注入 owlmail 服务并让 herald-smtp 指向其 SMTP）
 	IncludeTotp            bool   // 全量 traefik / traefik-herald 时是否包含 herald-totp 服务
 	// 暴露端口时可选的主机端口，空表示使用 compose 默认
 	PortHerald          string            // Herald 主机端口，如 "8082"
@@ -28,6 +29,7 @@ type Options struct {
 	PortHeraldRedis     string            // Herald Redis 主机端口，如 "6379"
 	PortHeraldTotp      string            // herald-totp 主机端口，如 "8084"
 	PortHeraldSmtp      string            // herald-smtp 主机端口，如 "8085"
+	PortOwlmail         string            // OwlMail Web 主机端口，如 "1080"（仅搭配 SMTP 时有效）
 	ContainerNamePrefix string            // 容器名前缀，如 "the-gate-"
 	EnvOverrides        map[string]string // 环境变量覆盖，合并进各服务 environment
 	// Redis 数据：true 使用 Docker 命名卷，false 使用主机绑定路径
@@ -38,7 +40,7 @@ type Options struct {
 
 // serviceNameToContainerSuffix 逻辑服务名 -> container_name 后缀（前缀由 Options 提供）
 var serviceNameToContainerSuffix = map[string]string{
-	"herald": "herald", "herald-redis": "herald-redis", "herald-totp": "herald-totp", "herald-dingtalk": "herald-dingtalk", "herald-smtp": "herald-smtp",
+	"herald": "herald", "herald-redis": "herald-redis", "herald-totp": "herald-totp", "herald-dingtalk": "herald-dingtalk", "herald-smtp": "herald-smtp", "owlmail": "owlmail",
 	"warden": "warden", "warden-redis": "warden-redis",
 	"stargate": "stargate", "protected-service": "whoami",
 }
@@ -552,6 +554,11 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 				if hostPort != "" {
 					ports[0] = hostPort + ":8085"
 				}
+			case "owlmail":
+				hostPort = strings.TrimSpace(opts.PortOwlmail)
+				if hostPort != "" && len(ports) > 1 {
+					ports[1] = hostPort + ":1080"
+				}
 			}
 		}
 	}
@@ -736,6 +743,88 @@ func stripStargateTotpEnvAndDependsOn(svcs map[string]interface{}) {
 	}
 }
 
+// injectOwlmailService 向 compose 的 services 中注入 owlmail 服务（本地 SMTP + Web 收件箱，用于测试时捕获邮件）。
+func injectOwlmailService(svcs map[string]interface{}, opts *Options) {
+	prefix := opts.ContainerNamePrefix
+	if prefix == "" {
+		prefix = "the-gate-"
+	}
+	webPort := "1080"
+	if p := strings.TrimSpace(opts.PortOwlmail); p != "" {
+		webPort = p
+	}
+	owlmail := map[string]interface{}{
+		"image":          "ghcr.io/soulteary/owlmail:latest",
+		"container_name": prefix + "owlmail",
+		"ports":          []interface{}{"1025:1025", webPort + ":1080"},
+		"environment": []interface{}{
+			"MAILDEV_SMTP_PORT=1025",
+			"MAILDEV_WEB_PORT=1080",
+			"MAILDEV_WEB_IP=0.0.0.0",
+		},
+		"networks": []interface{}{"the-gate-network"},
+		"healthcheck": map[string]interface{}{
+			"test":         []interface{}{"CMD-SHELL", "wget -q --spider http://localhost:1080/healthz || exit 1"},
+			"interval":     "10s",
+			"timeout":      "3s",
+			"retries":      3,
+			"start_period": "5s",
+		},
+		"restart": "unless-stopped",
+	}
+	svcs["owlmail"] = owlmail
+}
+
+// patchHeraldSmtpForOwlmail 将 herald-smtp 的 SMTP 配置改为指向 owlmail，并增加 depends_on: owlmail。
+func patchHeraldSmtpForOwlmail(svcs map[string]interface{}) {
+	heraldSmtp, ok := svcs["herald-smtp"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	owlmailEnv := map[string]string{
+		"SMTP_HOST":         "owlmail",
+		"SMTP_PORT":         "1025",
+		"SMTP_USE_STARTTLS": "false",
+		"SMTP_USER":         "",
+		"SMTP_PASSWORD":     "",
+		"SMTP_FROM":         "noreply@test.local",
+	}
+	if envList, ok := heraldSmtp["environment"].([]interface{}); ok {
+		used := make(map[string]bool)
+		var newList []interface{}
+		for _, e := range envList {
+			s, _ := e.(string)
+			if idx := strings.Index(s, "="); idx >= 0 {
+				key := strings.TrimSpace(s[:idx])
+				if v, ok := owlmailEnv[key]; ok {
+					newList = append(newList, key+"="+v)
+					used[key] = true
+				} else {
+					newList = append(newList, s)
+				}
+			} else {
+				newList = append(newList, e)
+			}
+		}
+		for k, v := range owlmailEnv {
+			if !used[k] {
+				newList = append(newList, k+"="+v)
+			}
+		}
+		heraldSmtp["environment"] = newList
+	}
+	if dep, ok := heraldSmtp["depends_on"]; ok {
+		switch d := dep.(type) {
+		case []interface{}:
+			heraldSmtp["depends_on"] = append(d, "owlmail")
+		default:
+			heraldSmtp["depends_on"] = []interface{}{dep, "owlmail"}
+		}
+	} else {
+		heraldSmtp["depends_on"] = []interface{}{"owlmail"}
+	}
+}
+
 func applyStargateSplitOverrides(svc map[string]interface{}, containerNamePrefix string) {
 	prefix := containerNamePrefix
 	if prefix == "" {
@@ -853,6 +942,13 @@ func GenerateOne(full map[string]interface{}, mode string, opts *Options) ([]byt
 			delete(svcs, "herald-smtp")
 		}
 	}
+	// 启用 SMTP 且搭配 OwlMail 测试时：注入 owlmail 服务，并让 herald-smtp 指向其 SMTP（本地测试，无需真实邮件服务器）
+	if (mode == "traefik" || mode == "traefik-herald") && opts != nil && opts.IncludeSmtp && opts.UseOwlmailForSmtp {
+		if svcs, ok := out["services"].(map[string]interface{}); ok {
+			injectOwlmailService(svcs, opts)
+			patchHeraldSmtpForOwlmail(svcs)
+		}
+	}
 	// 全量 traefik 或 traefik-herald 且未启用 TOTP 时，从 compose 中移除 herald-totp 服务，并从 stargate 环境变量与 depends_on 中移除相关项
 	if (mode == "traefik" || mode == "traefik-herald") && (opts == nil || !opts.IncludeTotp) {
 		if svcs, ok := out["services"].(map[string]interface{}); ok {
@@ -951,6 +1047,14 @@ func Generate(full map[string]interface{}, modes []string, envOverride string, o
 		} {
 			delete(vars, k)
 		}
+	}
+	if opts != nil && opts.IncludeSmtp && opts.UseOwlmailForSmtp {
+		vars["SMTP_HOST"] = "owlmail"
+		vars["SMTP_PORT"] = "1025"
+		vars["SMTP_USE_STARTTLS"] = "false"
+		vars["SMTP_USER"] = ""
+		vars["SMTP_PASSWORD"] = ""
+		vars["SMTP_FROM"] = "noreply@test.local"
 	}
 	if opts == nil || !opts.IncludeTotp {
 		for _, k := range []string{

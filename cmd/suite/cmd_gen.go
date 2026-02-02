@@ -93,6 +93,22 @@ func genOptionsFromEnv() *composegen.Options {
 	if opts.WardenRedisDataPath == "" {
 		opts.WardenRedisDataPath = "./data/warden-redis"
 	}
+	// 可选通道：从环境变量读取（与 Web UI 选项一致，便于 CLI 生成）
+	if v := os.Getenv("DINGTALK_ENABLED"); v == "1" || strings.EqualFold(v, "true") {
+		opts.IncludeDingTalk = true
+	}
+	if v := os.Getenv("SMTP_ENABLED"); v == "1" || strings.EqualFold(v, "true") {
+		opts.IncludeSmtp = true
+	}
+	if v := os.Getenv("SMTP_USE_OWLMAIL"); v == "1" || strings.EqualFold(v, "true") {
+		opts.UseOwlmailForSmtp = true
+	}
+	if v := os.Getenv("TOTP_ENABLED"); v == "1" || strings.EqualFold(v, "true") {
+		opts.IncludeTotp = true
+	}
+	if p := strings.TrimSpace(os.Getenv("PORT_OWLMAIL")); p != "" {
+		opts.PortOwlmail = p
+	}
 	return opts
 }
 
@@ -154,9 +170,11 @@ type composeGenOptionsJSON struct {
 	PortHeraldRedis        string            `json:"portHeraldRedis"`
 	PortHeraldTotp         string            `json:"portHeraldTotp"`
 	PortHeraldSmtp         string            `json:"portHeraldSmtp"`
+	PortOwlmail            string            `json:"portOwlmail"`
 	ContainerNamePrefix    string            `json:"containerNamePrefix"`
 	DingtalkEnabled        *bool             `json:"dingtalkEnabled"`
 	SmtpEnabled            *bool             `json:"smtpEnabled"`
+	SmtpUseOwlmail         *bool             `json:"smtpUseOwlmail"`
 	TotpEnabled            *bool             `json:"totpEnabled"`
 	EnvOverrides           map[string]string `json:"envOverrides"`
 	UseNamedVolume         *bool             `json:"useNamedVolume"`
@@ -195,6 +213,7 @@ func reqOptionsToComposegen(o *composeGenOptionsJSON) *composegen.Options {
 	opts.PortHeraldRedis = strings.TrimSpace(o.PortHeraldRedis)
 	opts.PortHeraldTotp = strings.TrimSpace(o.PortHeraldTotp)
 	opts.PortHeraldSmtp = strings.TrimSpace(o.PortHeraldSmtp)
+	opts.PortOwlmail = strings.TrimSpace(o.PortOwlmail)
 	if opts.TraefikNetworkName == "" {
 		opts.TraefikNetworkName = "traefik"
 	}
@@ -220,6 +239,11 @@ func reqOptionsToComposegen(o *composeGenOptionsJSON) *composegen.Options {
 		opts.IncludeSmtp = *o.SmtpEnabled
 	} else {
 		opts.IncludeSmtp = false
+	}
+	if o.SmtpUseOwlmail != nil {
+		opts.UseOwlmailForSmtp = *o.SmtpUseOwlmail
+	} else {
+		opts.UseOwlmailForSmtp = false
 	}
 	if o.TotpEnabled != nil {
 		opts.IncludeTotp = *o.TotpEnabled

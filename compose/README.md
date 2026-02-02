@@ -75,7 +75,9 @@ Generation writes root `.env` (if present) or variables inferred from canonical 
 - `HERALD_API_KEY`, `HERALD_HMAC_SECRET`, `WARDEN_API_KEY`
 - `*_IMAGE`: override default images
 - DingTalk channel (optional): `HERALD_DINGTALK_*`, `DINGTALK_*` (including `DINGTALK_LOOKUP_MODE`)
-- Email channel (optional): when "Enable SMTP channel" is checked, generated compose includes **herald-smtp**; Herald calls it via `HERALD_SMTP_API_URL` to send email verification codes. Configure `SMTP_HOST`, `SMTP_FROM`, and other SMTP vars in .env or the Web UI. See [herald-smtp](https://github.com/soulteary/herald-smtp) for details.
+- Email channel (optional): when "Enable SMTP channel" is checked, generated compose includes **herald-smtp**; Herald calls it via `HERALD_SMTP_API_URL` to send email verification codes. Configure `SMTP_HOST`, `SMTP_FROM`, and other SMTP vars in .env or the Web UI. See [herald-smtp](https://github.com/soulteary/herald-smtp) for details. When "Use OwlMail for testing" is also checked, the compose includes **OwlMail** and herald-smtp uses its SMTP; view test emails at http://localhost:1080 (or the port set by **OwlMail Web host port** / `PORT_OWLMAIL`).
+
+CLI generation respects env vars: `SMTP_ENABLED`, `SMTP_USE_OWLMAIL`, `PORT_OWLMAIL`, `DINGTALK_ENABLED`, `TOTP_ENABLED` (e.g. `SMTP_ENABLED=1 SMTP_USE_OWLMAIL=1 go run ./cmd/suite gen traefik`).
 
 ## See also
 

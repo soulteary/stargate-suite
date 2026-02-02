@@ -75,7 +75,9 @@ docker compose -f build/build/docker-compose.yml up -d --build
 - `HERALD_API_KEY`、`HERALD_HMAC_SECRET`、`WARDEN_API_KEY`
 - `*_IMAGE`：覆盖默认镜像
 - 钉钉通道（可选）：`HERALD_DINGTALK_*`、`DINGTALK_*`（含 `DINGTALK_LOOKUP_MODE`）
-- 邮件通道（可选）：勾选「启用 SMTP 通道」后，生成的 compose 将包含 **herald-smtp**，Herald 通过 `HERALD_SMTP_API_URL` 调用其发送邮件验证码。需在 .env 或 Web UI 中配置 `SMTP_HOST`、`SMTP_FROM` 等 SMTP 变量，详见 [herald-smtp](https://github.com/soulteary/herald-smtp)。
+- 邮件通道（可选）：勾选「启用 SMTP 通道」后，生成的 compose 将包含 **herald-smtp**，Herald 通过 `HERALD_SMTP_API_URL` 调用其发送邮件验证码。需在 .env 或 Web UI 中配置 `SMTP_HOST`、`SMTP_FROM` 等 SMTP 变量，详见 [herald-smtp](https://github.com/soulteary/herald-smtp)。勾选「搭配 OwlMail 进行测试」时，compose 会加入 **OwlMail** 服务，herald-smtp 将使用其 SMTP，可在 http://localhost:1080 查看测试邮件（端口可由「OwlMail Web 主机端口」或 `PORT_OWLMAIL` 修改）。
+
+CLI 生成时支持环境变量：`SMTP_ENABLED`、`SMTP_USE_OWLMAIL`、`PORT_OWLMAIL`、`DINGTALK_ENABLED`、`TOTP_ENABLED`（例如 `SMTP_ENABLED=1 SMTP_USE_OWLMAIL=1 go run ./cmd/suite gen traefik`）。
 
 ## 相关文档
 
