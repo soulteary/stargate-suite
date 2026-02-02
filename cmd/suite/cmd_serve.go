@@ -50,6 +50,7 @@ func loadPageData(yamlPath string) (*pageData, error) {
 		Modes:          raw.Modes,
 		ConfigSections: raw.ConfigSections,
 		Services:       raw.Services,
+		Providers:      raw.Providers,
 	}, nil
 }
 

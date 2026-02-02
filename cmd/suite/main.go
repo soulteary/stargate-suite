@@ -36,6 +36,7 @@ type pageData struct {
 	Modes          []pageMode            `yaml:"modes"`
 	ConfigSections []configOptionSection `yaml:"configSections"`
 	Services       []pageService         `yaml:"services"`
+	Providers      []pageService         `yaml:"providers"`
 }
 
 type configOptionSection struct {
@@ -79,6 +80,7 @@ type redisPath struct {
 type pageService struct {
 	Id       string        `yaml:"id"`
 	Name     string        `yaml:"name"`
+	NameKey  string        `yaml:"nameKey"` // 可选，用于 i18n 显示名称（如 providers）
 	Open     bool          `yaml:"open"`
 	Sections []pageSection `yaml:"sections"`
 }
@@ -111,6 +113,7 @@ type pageYAML struct {
 	Modes          []pageMode                   `yaml:"modes"`
 	ConfigSections []configOptionSection        `yaml:"configSections"`
 	Services       []pageService                `yaml:"services"`
+	Providers      []pageService                `yaml:"providers"`
 }
 
 var resolvedComposeFile string

@@ -25,9 +25,13 @@ services:
       - MAX_ATTEMPTS=${MAX_ATTEMPTS:-5}
       - RESEND_COOLDOWN=${RESEND_COOLDOWN:-60s}
       - LOCKOUT_DURATION=${LOCKOUT_DURATION:-10m}
+      - IDEMPOTENCY_KEY_TTL=${IDEMPOTENCY_KEY_TTL:-0}
+      - ALLOWED_PURPOSES=${ALLOWED_PURPOSES:-login}
       - RATE_LIMIT_PER_USER=${RATE_LIMIT_PER_USER:-10}
       - RATE_LIMIT_PER_IP=${RATE_LIMIT_PER_IP:-5}
       - RATE_LIMIT_PER_DESTINATION=${RATE_LIMIT_PER_DESTINATION:-10}
+      - SERVICE_NAME=${SERVICE_NAME:-herald}
+      - HERALD_HMAC_KEYS=${HERALD_HMAC_KEYS:-}
       # DingTalk channel (optional): Herald calls herald-dingtalk via HTTP; set when using DingTalk for verification code push
       - HERALD_DINGTALK_API_URL=${HERALD_DINGTALK_API_URL:-}
       - HERALD_DINGTALK_API_KEY=${HERALD_DINGTALK_API_KEY:-}
@@ -94,11 +98,17 @@ services:
       - PORT=8081
       - REDIS=${WARDEN_REDIS_ADDR:-warden-redis:6379}
       - REDIS_PASSWORD=${WARDEN_REDIS_PASSWORD:-}
+      - REDIS_PASSWORD_FILE=${WARDEN_REDIS_PASSWORD_FILE:-}
+      - REDIS_ENABLED=${WARDEN_REDIS_ENABLED:-true}
       - DATA_FILE=${WARDEN_DATA_FILE:-/app/data.json}
       - MODE=${MODE:-ONLY_LOCAL}
       - API_KEY=${WARDEN_API_KEY:-test-warden-api-key}
       - INTERVAL=${INTERVAL:-5}
+      - CONFIG=${WARDEN_REMOTE_CONFIG:-}
+      - KEY=${WARDEN_REMOTE_KEY:-}
       - HTTP_TIMEOUT=${WARDEN_HTTP_TIMEOUT:-5}
+      - HTTP_MAX_IDLE_CONNS=${WARDEN_HTTP_MAX_IDLE_CONNS:-100}
+      - HTTP_INSECURE_TLS=${WARDEN_HTTP_INSECURE_TLS:-false}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ../../fixtures/warden/data.json:/app/data.json:ro

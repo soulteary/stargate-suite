@@ -244,6 +244,44 @@
 	overflow-wrap: break-word;
 	word-break: break-word;
 }
+
+/* Provider（Herald 通道）：每类 provider 单独一行展示 */
+.providers-fieldset {
+	margin-top: 1rem;
+}
+.providers-desc {
+	margin: 0 0 0.75rem 0;
+}
+.providers-rows {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	width: 100%;
+}
+.provider-row {
+	width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+}
+.provider-row .pure-details {
+	margin: 0;
+}
+.provider-row .env-group {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 0.75rem 1rem;
+	min-width: 0;
+	margin-bottom: 1rem;
+}
+@media (min-width: 560px) {
+	.provider-row .env-group {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+.provider-row .config-item {
+	min-width: 0;
+}
+
 .pure-details {
 	margin: 0 0.5rem 1rem 0;
 	border: 1px solid #ddd;

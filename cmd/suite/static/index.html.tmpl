@@ -142,6 +142,52 @@
 					{{end}}
 					</div>
 				</fieldset>
+				<!-- Provider（Herald 通道）：每类 provider 单独一行展示 -->
+				{{if .Providers}}
+				<fieldset class="pure-group providers-fieldset">
+					<legend data-i18n="providerEnv">Provider (Herald channel)</legend>
+					<p class="config-desc providers-desc" data-i18n="providerEnvDesc"></p>
+					<div class="providers-rows">
+					{{range .Providers}}
+					<div class="provider-row">
+						<details class="pure-details"{{if .Open}} open{{end}}>
+							<summary class="pure-details-summary"><strong>{{if .NameKey}}<span data-i18n="{{.NameKey}}"></span>{{else}}{{.Name}}{{end}}</strong></summary>
+							{{range .Sections}}
+							<div class="env-group">
+								{{if .TitleKey}}<h2 class="section-title" data-i18n="{{.TitleKey}}"></h2>{{end}}
+								{{range .EnvVars}}
+								<div class="config-item pure-control-group" data-env-name="{{.Env}}"{{if .ShowWhenEnv}} data-depends-on-env="{{.ShowWhenEnv}}"{{end}}>
+									{{if eq .Type "checkbox"}}
+									<label>
+										<input type="checkbox" name="envBool" id="env_{{.Env}}" data-env="{{.Env}}" class="pure-checkbox"{{if .Default}} checked{{end}}>
+										<span class="config-label" data-i18n="{{.LabelKey}}"></span>
+										<span class="config-env">{{.Env}}</span>
+									</label>
+									{{else}}
+									<label for="env_{{.Env}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.Env}}</span></label>
+									{{if eq .Type "text"}}
+									<input type="text" id="env_{{.Env}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}>
+									{{else if eq .Type "number"}}
+									<input type="number" id="env_{{.Env}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}{{if .Min}} min="{{.Min}}"{{end}}{{if .Max}} max="{{.Max}}"{{end}}>
+									{{else if eq .Type "select"}}
+									<select id="env_{{.Env}}" data-env="{{.Env}}" class="pure-input-1">
+										{{$def := .Default}}{{range .Options}}
+										<option value="{{.Value}}"{{if eq (printf "%v" $def) .Value}} selected{{end}}>{{.Value}}</option>
+										{{end}}
+									</select>
+									{{end}}
+									{{end}}
+									<p class="config-desc" data-i18n="{{.DescKey}}"></p>
+								</div>
+								{{end}}
+							</div>
+							{{end}}
+						</details>
+					</div>
+					{{end}}
+					</div>
+				</fieldset>
+				{{end}}
 				<div class="form-actions">
 					<button type="submit" id="btn-generate" class="pure-button pure-button-primary" data-i18n="btnGenerate">Generate</button>
 				</div>

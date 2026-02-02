@@ -68,10 +68,20 @@ var envComments = map[string]string{
 	"CODE_LENGTH":                     "验证码长度",
 	"MAX_ATTEMPTS":                    "单 challenge 最大验证次数",
 	"RESEND_COOLDOWN":                 "重发冷却时间",
+	"IDEMPOTENCY_KEY_TTL":             "Herald 幂等键 TTL（0 表示使用 CHALLENGE_EXPIRY）",
+	"ALLOWED_PURPOSES":                "Herald 允许的 purpose 列表，逗号分隔，如 login,reset,bind,stepup",
+	"SERVICE_NAME":                    "Herald 服务标识（HMAC 等）",
+	"HERALD_HMAC_KEYS":                "Herald 多密钥 HMAC JSON，如 {\"key-id\":\"secret\"}，可选",
 	"REDIS":                           "Warden Redis 地址 (host:port)，可通过 WARDEN_REDIS_ADDR 覆盖",
+	"REDIS_PASSWORD_FILE":             "Warden Redis 密码文件路径（可选，优先于 REDIS_PASSWORD）",
+	"REDIS_ENABLED":                   "Warden 是否启用 Redis（可选，默认 true）",
 	"DATA_FILE":                       "Warden 本地用户数据文件路径（容器内路径）",
-	"MODE":                            "Warden 模式 (ONLY_LOCAL/REMOTE/HYBRID)",
+	"MODE":                            "Warden 模式 (ONLY_LOCAL/REMOTE/HYBRID 等)",
 	"INTERVAL":                        "Warden 轮询间隔（秒）",
+	"CONFIG":                          "Warden 远程配置 URL（REMOTE 等模式）",
+	"KEY":                             "Warden 远程配置认证 Header（如 Bearer token）",
+	"HTTP_MAX_IDLE_CONNS":             "Warden HTTP 最大空闲连接数",
+	"HTTP_INSECURE_TLS":               "Warden 是否跳过 TLS 校验（仅开发）",
 	"AUTH_HOST":                       "认证页 Host / 域名",
 	"LOGIN_PAGE_TITLE":                "登录页标题",
 	"LOGIN_PAGE_FOOTER_TEXT":          "登录页页脚文案",
@@ -239,7 +249,7 @@ func EnvBodyFromVars(vars map[string]string, optionalOverride string) string {
 		"HERALD_IMAGE", "WARDEN_IMAGE", "STARGATE_IMAGE",
 		"HERALD_REDIS_IMAGE", "WARDEN_REDIS_IMAGE",
 		"HERALD_REDIS_ADDR", "HERALD_REDIS_PASSWORD", "HERALD_REDIS_DB",
-		"WARDEN_REDIS_ADDR", "WARDEN_REDIS_PASSWORD", "WARDEN_DATA_FILE",
+		"WARDEN_REDIS_ADDR", "WARDEN_REDIS_PASSWORD", "WARDEN_REDIS_PASSWORD_FILE", "WARDEN_REDIS_ENABLED", "WARDEN_DATA_FILE",
 		"HERALD_REDIS_DATA_PATH", "WARDEN_REDIS_DATA_PATH",
 		"PROTECTED_IMAGE",
 		"AUTH_HOST", "STARGATE_DOMAIN", "PROTECTED_DOMAIN",
@@ -250,22 +260,31 @@ func EnvBodyFromVars(vars map[string]string, optionalOverride string) string {
 		"WARDEN_ENABLED", "HERALD_ENABLED", "SESSION_STORAGE_ENABLED",
 		"SESSION_STORAGE_REDIS_ADDR", "SESSION_STORAGE_REDIS_PASSWORD",
 		"WARDEN_CACHE_TTL", "AUDIT_LOG_ENABLED", "AUDIT_LOG_FORMAT", "DEBUG",
-		"MODE", "LOG_LEVEL", "INTERVAL", "WARDEN_HTTP_TIMEOUT",
+		"MODE", "LOG_LEVEL", "INTERVAL", "WARDEN_REMOTE_CONFIG", "WARDEN_REMOTE_KEY",
+		"WARDEN_HTTP_TIMEOUT", "WARDEN_HTTP_MAX_IDLE_CONNS", "WARDEN_HTTP_INSECURE_TLS",
 		"HERALD_TEST_MODE", "CHALLENGE_EXPIRY", "CODE_LENGTH", "MAX_ATTEMPTS",
-		"PROVIDER_FAILURE_POLICY", "RESEND_COOLDOWN",
-		"LOCKOUT_DURATION", "RATE_LIMIT_PER_USER", "RATE_LIMIT_PER_IP", "RATE_LIMIT_PER_DESTINATION",
+		"PROVIDER_FAILURE_POLICY", "RESEND_COOLDOWN", "LOCKOUT_DURATION",
+		"IDEMPOTENCY_KEY_TTL", "ALLOWED_PURPOSES", "SERVICE_NAME", "HERALD_HMAC_KEYS",
+		"RATE_LIMIT_PER_USER", "RATE_LIMIT_PER_IP", "RATE_LIMIT_PER_DESTINATION",
+		"HERALD_DINGTALK_IMAGE", "HERALD_DINGTALK_API_URL", "HERALD_DINGTALK_API_KEY",
+		"DINGTALK_APP_KEY", "DINGTALK_APP_SECRET", "DINGTALK_AGENT_ID", "HERALD_DINGTALK_IDEMPOTENCY_TTL",
 	}
 	seen := make(map[string]bool)
 	var lines []string
 	lines = append(lines, "# Container Image / Env - generated from compose")
 	lines = append(lines, "")
 	redisCommentAdded := false
+	dingtalkCommentAdded := false
 	for _, k := range order {
 		if v, ok := vars[k]; ok {
 			seen[k] = true
 			if (k == "HERALD_REDIS_ADDR" || k == "WARDEN_REDIS_ADDR") && !redisCommentAdded {
 				lines = append(lines, "# Redis connection (override for external Redis)")
 				redisCommentAdded = true
+			}
+			if k == "HERALD_DINGTALK_IMAGE" && !dingtalkCommentAdded {
+				lines = append(lines, "# DingTalk channel (optional): Herald calls herald-dingtalk via HTTP")
+				dingtalkCommentAdded = true
 			}
 			lines = append(lines, k+"="+v)
 		}
@@ -307,10 +326,26 @@ HERALD_REDIS_DB=0
 # Warden Redis connection
 WARDEN_REDIS_ADDR=warden-redis:6379
 WARDEN_REDIS_PASSWORD=
+# WARDEN_REDIS_PASSWORD_FILE=
+# WARDEN_REDIS_ENABLED=true
+
+# Warden remote config (when MODE is REMOTE / HYBRID etc.)
+# WARDEN_REMOTE_CONFIG=http://example.com/data.json
+# WARDEN_REMOTE_KEY=
+
+# Warden HTTP client (optional)
+# WARDEN_HTTP_MAX_IDLE_CONNS=100
+# WARDEN_HTTP_INSECURE_TLS=false
 
 # Redis data path (only used when UseNamedVolume=false / bind path)
 # HERALD_REDIS_DATA_PATH=./data/herald-redis
 # WARDEN_REDIS_DATA_PATH=./data/warden-redis
+
+# Herald optional: idempotency TTL (0=use challenge expiry), allowed purposes, HMAC keys (JSON), service name
+# IDEMPOTENCY_KEY_TTL=0
+# ALLOWED_PURPOSES=login
+# SERVICE_NAME=herald
+# HERALD_HMAC_KEYS=
 
 # DingTalk channel (optional): Herald calls herald-dingtalk via HTTP for verification code push
 # HERALD_DINGTALK_IMAGE=ghcr.io/soulteary/herald-dingtalk:latest
