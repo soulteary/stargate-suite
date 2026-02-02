@@ -2,9 +2,11 @@
 
 # 配置目录
 
-本目录存放 CLI 预设配置（`presets.json`），用于解析默认 compose 文件与 `--preset` 名称。项目总览见 [README.zh-CN.md](../README.zh-CN.md)。
+本目录存放 Web UI 与生成器配置（`page.yaml`、`presets.json` 等）。项目总览见 [README.zh-CN.md](../README.zh-CN.md)。
 
-## 与 compose 的对应关系
+## 与 compose 的对应关系（Makefile / docker compose）
+
+Makefile 与 `scripts/run-e2e.sh` 使用 `COMPOSE_FILE`（默认 `build/image/docker-compose.yml`）。`presets.json` 中的预设名与 compose 路径对应，可通过 `COMPOSE_FILE` 或 `make up-*` 使用：
 
 | 预设名 | compose 文件路径 | 说明 |
 |--------|------------------|------|
@@ -12,37 +14,11 @@
 | `image` | `build/image/docker-compose.yml` | 生成后：预构建镜像（需先执行 gen） |
 | `build` | `build/build/docker-compose.yml` | 生成后：从源码构建 |
 | `traefik` | `build/traefik/docker-compose.yml` | 生成后：接入 Traefik（三合一） |
-| `traefik-herald` | `build/traefik-herald/docker-compose.yml` | 生成后：三分开，仅 Herald + herald-totp + Redis |
+| `traefik-herald` | `build/traefik-herald/docker-compose.yml` | 生成后：三分开，仅 Herald |
 | `traefik-warden` | `build/traefik-warden/docker-compose.yml` | 生成后：三分开，仅 Warden |
 | `traefik-stargate` | `build/traefik-stargate/docker-compose.yml` | 生成后：三分开，Stargate + 受保护服务 |
 
-更多说明见项目根目录 [compose/README.zh-CN.md](../compose/README.zh-CN.md)。
-
-## 使用方式
-
-- **默认**：不指定时使用 `presets.json` 中的 `default`，即 `compose/example/image/docker-compose.yml`（静态示例，无需先执行 gen）。执行 gen 后请用 `--preset image` 或 `-f build/image/docker-compose.yml` 使用生成目录；CLI 默认不会自动切换到 `build/`。
-- **环境变量**：`COMPOSE_FILE=<路径>` 可覆盖默认（优先级高于默认，低于命令行）。
-- **命令行**：
-  - `-f <路径>` / `--file <路径>`：直接指定 compose 文件路径。
-  - `--preset <名称>`：使用 `presets.json` 中的预设名（如 `traefik`、`build`）。
-
-优先级：**命令行 -f / --preset > 环境变量 COMPOSE_FILE > 默认（presets.default）**。
-
-示例：
-
-```bash
-# 使用默认 compose（示例或生成后的 build/image）
-./suite up
-
-# 使用环境变量
-COMPOSE_FILE=build/traefik/docker-compose.yml ./suite up
-
-# 使用 -f
-./suite -f build/traefik/docker-compose.yml up
-
-# 使用预设名
-./suite --preset traefik up
-```
+示例：`make up`、`COMPOSE_FILE=build/traefik/docker-compose.yml make up`，或 `docker compose -f build/image/docker-compose.yml up -d`。详见 [compose/README.zh-CN.md](../compose/README.zh-CN.md)。
 
 ## 生成 build 目录（gen 命令）
 

@@ -19,7 +19,9 @@ The compose generator page is driven by YAML under `config/`. It is split by con
 
 `serve` loads `page.yaml` first, then merges the above fragments when present. A single monolithic `page.yaml` (with all keys) still works for backward compatibility.
 
-## Preset vs compose path
+## Preset vs compose path (Makefile / docker compose)
+
+The Makefile and `scripts/run-e2e.sh` use `COMPOSE_FILE` (default `build/image/docker-compose.yml`). Presets in `presets.json` map preset names to compose paths; use them with `COMPOSE_FILE` or `make up-*`:
 
 | Preset | Compose path | Description |
 |--------|--------------|-------------|
@@ -27,33 +29,11 @@ The compose generator page is driven by YAML under `config/`. It is split by con
 | `image` | `build/image/docker-compose.yml` | After gen: pre-built (run gen first) |
 | `build` | `build/build/docker-compose.yml` | After gen: build from source |
 | `traefik` | `build/traefik/docker-compose.yml` | After gen: Traefik all-in-one |
-| `traefik-herald` | `build/traefik-herald/docker-compose.yml` | After gen: split, Herald + herald-totp + Redis only |
+| `traefik-herald` | `build/traefik-herald/docker-compose.yml` | After gen: split, Herald only |
 | `traefik-warden` | `build/traefik-warden/docker-compose.yml` | After gen: split, Warden only |
 | `traefik-stargate` | `build/traefik-stargate/docker-compose.yml` | After gen: split, Stargate + protected service |
 
-See [compose/README.md](../compose/README.md) for more.
-
-## Usage
-
-- **Default**: When unspecified, the path from `presets.json` key `default` is used. That is `compose/example/image/docker-compose.yml` (static example, no `gen` required). After you run `gen`, use `--preset image` or `-f build/image/docker-compose.yml` to use the generated build dir; the CLI default does not switch to `build/` automatically.
-- **Environment**: `COMPOSE_FILE=<path>` overrides default (higher than default, lower than CLI).
-- **CLI**:
-  - `-f <path>` / `--file <path>`: explicit compose file path.
-  - `--preset <name>`: use a preset from `presets.json` (e.g. `image`, `traefik`, `build`).
-
-Priority: **CLI -f / --preset > COMPOSE_FILE > default (presets.default)**.
-
-Examples:
-
-```bash
-./suite up
-
-COMPOSE_FILE=build/traefik/docker-compose.yml ./suite up
-
-./suite -f build/traefik/docker-compose.yml up
-
-./suite --preset traefik up
-```
+Examples: `make up`, `COMPOSE_FILE=build/traefik/docker-compose.yml make up`, or `docker compose -f build/image/docker-compose.yml up -d`. See [compose/README.md](../compose/README.md).
 
 ## Generate build dir (gen)
 

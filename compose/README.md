@@ -82,5 +82,5 @@ CLI generation respects env vars: `SMTP_ENABLED`, `SMTP_USE_OWLMAIL`, `PORT_OWLM
 ## See also
 
 - [README.md](../README.md) — Project overview and quick start
-- [config/README.md](../config/README.md) — CLI presets and compose path
+- [config/README.md](../config/README.md) — Web UI and gen config
 - [traefik/README.md](./traefik/README.md) — Traefik all-in-one / split details

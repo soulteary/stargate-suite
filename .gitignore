@@ -4,3 +4,4 @@ suite
 .env
 !cmd/suite
 !compose/example/build
+coverage.*

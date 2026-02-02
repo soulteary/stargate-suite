@@ -71,8 +71,8 @@ ps: ## View service status
 test: ## Run end-to-end tests
 	go test -v ./e2e/...
 
-test-wait: ## Wait for services to be ready then run tests (recommended)
-	@go run ./cmd/suite test-wait
+test-wait: ## Wait for services to be ready then run tests (recommended; runs scripts/run-e2e.sh)
+	@./scripts/run-e2e.sh
 
 clean: ## Clean services and data volumes
 	docker compose -f $(COMPOSE_FILE) down -v

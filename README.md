@@ -12,7 +12,7 @@ The Go module is `github.com/soulteary/the-gate`; the repo and product name is *
 |----------|-------------|
 | [README.md](./README.md) (this file) | Overview, quick start, services, troubleshooting |
 | [compose/README.md](./compose/README.md) | Compose usage (build / image / traefik); Chinese: [README.zh-CN.md](./compose/README.zh-CN.md) |
-| [config/README.md](./config/README.md) | CLI presets and `-f` / `--preset`; Chinese: [README.zh-CN.md](./config/README.zh-CN.md) |
+| [config/README.md](./config/README.md) | Web UI and gen config (page.yaml, presets); Chinese: [README.zh-CN.md](./config/README.zh-CN.md) |
 | [compose/traefik/README.md](./compose/traefik/README.md) | Traefik all-in-one and split deployment; Chinese: [README.zh-CN.md](./compose/traefik/README.zh-CN.md) |
 | [e2e/README.md](./e2e/README.md) | E2E test cases and how to run; Chinese: [README.zh-CN.md](./e2e/README.zh-CN.md) |
 | [MANUAL_TESTING.md](./MANUAL_TESTING.md) | Browser manual verification and health checks; Chinese: [MANUAL_TESTING.zh-CN.md](./MANUAL_TESTING.zh-CN.md) |
@@ -79,12 +79,10 @@ Root docs: `README.md` (this file), `README.zh-CN.md` (Chinese). Same pattern in
 - Go 1.25+ (see `go.mod`; use this version or newer for builds)
 - ~1GB disk (Docker images and volumes)
 
-### Default compose and presets
+### Compose and build output
 
-- **Before running `gen`**: The default compose path is `compose/example/image/docker-compose.yml` (or use `--preset default`). You can start services from this static example.
-- **After running `make gen` or `go run ./cmd/suite gen all`**: Prefer `build/image/docker-compose.yml` for day-to-day use. Use `--preset image` or `-f build/image/docker-compose.yml` to select it. Do not assume the default is `build/` until you have run `gen` at least once.
-
-See [config/README.md](./config/README.md) for the full preset list and override order.
+- Generate config into `build/` with `make gen` or `go run ./cmd/suite gen all`. The Makefile defaults to `COMPOSE_FILE=build/image/docker-compose.yml`; override with `COMPOSE_FILE` or use other `make up-*` targets.
+- See [config/README.md](./config/README.md) for config options.
 
 ### Start services
 
@@ -120,21 +118,12 @@ docker compose -f build/image/docker-compose.yml ps
 docker compose -f build/image/docker-compose.yml logs -f
 ```
 
-**Option 3: Go CLI (same as Makefile, cross-platform)**
+**Suite CLI** (Web UI and compose generation only: `help`, `gen`, `gen-split`, `serve`). Service lifecycle and E2E: use Makefile (`make up`, `make down`, `make test-wait`) or `./scripts/run-e2e.sh`.
 
 ```bash
 go run ./cmd/suite help
 make suite-build && ./bin/suite help
-
-make suite ARGS="up"
-make suite ARGS="health"
-
-go run ./cmd/suite up
-go run ./cmd/suite test-wait
-go run ./cmd/suite health
 ```
-
-Use `COMPOSE_FILE` to override the default compose file.
 
 **Generate build dir (compose + .env)**
 
@@ -159,14 +148,14 @@ From project root: `go run ./cmd/suite serve` (default http://localhost:8085). U
 
 ### Run tests
 
-After services are ready (~30s or use `make test-wait`):
+Use `scripts/run-e2e.sh` (starts services if needed, waits for health, then runs E2E) or run tests after services are ready:
 
 ```bash
+./scripts/run-e2e.sh
+# or
 make test-wait
 
 go test -v ./e2e/...
-
-./scripts/run-e2e.sh
 
 go test -v ./e2e/... -run TestCompleteLoginFlow
 ```
@@ -266,7 +255,7 @@ make restart-warden
 make restart-herald
 make restart-stargate
 make health
-make suite ARGS="..."     # Run CLI (e.g. make suite ARGS="up")
+make suite ARGS="..."     # Run CLI (e.g. make suite ARGS="gen all" or ARGS="serve")
 make suite-build          # Build bin/suite
 make serve                # Web UI (default :8085)
 ```

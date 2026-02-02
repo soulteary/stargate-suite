@@ -82,5 +82,5 @@ CLI 生成时支持环境变量：`SMTP_ENABLED`、`SMTP_USE_OWLMAIL`、`PORT_OW
 ## 相关文档
 
 - [README.zh-CN.md](../README.zh-CN.md) — 项目总览与快速开始
-- [config/README.zh-CN.md](../config/README.zh-CN.md) — CLI 预设与 compose 路径
+- [config/README.zh-CN.md](../config/README.zh-CN.md) — Web UI 与 gen 配置
 - [traefik/README.zh-CN.md](./traefik/README.zh-CN.md) — Traefik 三合一/三分开详细说明

@@ -1,19 +1,16 @@
-// Package main 提供与 Makefile 等效的 CLI，用于 the-gate 集成测试项目的编排与测试。
+// Package main 提供 Web UI 与 compose 生成 CLI（help、gen、gen-split、serve）。
 package main
 
 import (
 	"embed"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/soulteary/cli-kit/configutil"
-	"github.com/soulteary/cli-kit/flagutil"
 )
 
 //go:embed static
@@ -21,8 +18,6 @@ var staticFS embed.FS
 
 const (
 	pageYAMLPath         = "config/page.yaml"
-	presetsPath          = "config/presets.json"
-	fallbackCompose      = "compose/example/image/docker-compose.yml"
 	canonicalCompose     = "compose/canonical/docker-compose.yml"
 	buildDirRelative     = "build"
 	maxGenerateBodyBytes = 1 << 20 // 1MB for /api/generate request body
@@ -117,33 +112,8 @@ type pageYAML struct {
 	Providers      []pageService                `yaml:"providers"`
 }
 
-var resolvedComposeFile string
 var genOutDir, genModeArg string
 var servePort string
-
-func loadPresets(path string) (map[string]string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var out map[string]string
-	if err := json.Unmarshal(data, &out); err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func composeFile() string {
-	return resolvedComposeFile
-}
-
-func run(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
 
 type command struct {
 	name, desc string
@@ -156,31 +126,6 @@ func getCommands() []command {
 	if len(commands) == 0 {
 		commands = []command{
 			{"help", "Show help information", cmdHelp},
-			{"up", "Start all services（默认 compose/image）", cmdUp},
-			{"up-build", "Start all services（从源码构建，compose/build）", cmdUpBuild},
-			{"up-image", "Start all services（预构建镜像，compose/image）", cmdUpImage},
-			{"up-traefik", "Start all services（接入 Traefik，三合一 compose）", cmdUpTraefik},
-			{"net-traefik-split", "Create networks for split Traefik compose（三分开前执行一次）", cmdNetTraefikSplit},
-			{"up-traefik-herald", "Start Herald only（三分开）", cmdUpTraefikHerald},
-			{"up-traefik-warden", "Start Warden only（三分开）", cmdUpTraefikWarden},
-			{"up-traefik-stargate", "Start Stargate + protected-service only（三分开，依赖 Herald/Warden 已启动）", cmdUpTraefikStargate},
-			{"down", "Stop all services（默认与 up 一致，使用 COMPOSE_FILE）", cmdDown},
-			{"down-build", "Stop compose/build 启动的服务", cmdDownBuild},
-			{"down-image", "Stop compose/image 启动的服务", cmdDownImage},
-			{"down-traefik", "Stop compose/traefik 三合一启动的服务", cmdDownTraefik},
-			{"down-traefik-herald", "Stop Herald（三分开）", cmdDownTraefikHerald},
-			{"down-traefik-warden", "Stop Warden（三分开）", cmdDownTraefikWarden},
-			{"down-traefik-stargate", "Stop Stargate（三分开）", cmdDownTraefikStargate},
-			{"logs", "View service logs", cmdLogs},
-			{"ps", "View service status", cmdPs},
-			{"test", "Run end-to-end tests", cmdTest},
-			{"test-wait", "Wait for services to be ready then run tests (recommended)", cmdTestWait},
-			{"clean", "Clean services and data volumes", cmdClean},
-			{"restart", "Restart all services", cmdRestart},
-			{"restart-warden", "Restart Warden service", cmdRestartWarden},
-			{"restart-herald", "Restart Herald service", cmdRestartHerald},
-			{"restart-stargate", "Restart Stargate service", cmdRestartStargate},
-			{"health", "Check service health status", cmdHealth},
 			{"gen", "Generate docker-compose.yml and .env for mode(s) into build dir (use -o to set output dir)", cmdGen},
 			{"gen-split", "从 canonical 生成三分开 compose 到 build/（traefik-herald/warden/stargate）", cmdGenSplit},
 			{"serve", "Start web UI for compose generation (default :8085)", cmdServe},
@@ -190,15 +135,14 @@ func getCommands() []command {
 }
 
 func cmdHelp() error {
-	fmt.Println("the-gate End-to-End Integration Test Project")
-	fmt.Println()
-	fmt.Printf("Compose 示例见 compose/ 目录，默认使用: %s\n", composeFile())
-	fmt.Println("  可通过 -f/--file、COMPOSE_FILE、--preset 覆盖，详见 config/README.md")
+	fmt.Println("stargate-suite — Web UI and compose generation")
 	fmt.Println()
 	fmt.Println("Available commands:")
 	for _, c := range getCommands() {
 		fmt.Printf("  %-22s %s\n", c.name, c.desc)
 	}
+	fmt.Println()
+	fmt.Println("E2E tests: use scripts/run-e2e.sh. Service lifecycle: use Makefile (make up, make down) or docker compose directly.")
 	return nil
 }
 
@@ -236,8 +180,6 @@ func findCommand(name string) *command {
 func main() {
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	_ = fs.String("f", "", "compose file path")
-	_ = fs.String("preset", "", "preset name from config/presets.json")
 	_ = fs.String("o", "build", "output directory for gen command (default: build)")
 	_ = fs.String("port", "8085", "port for serve command (default: 8085)")
 
@@ -252,35 +194,6 @@ func main() {
 	cmdName := "help"
 	if len(args) > 0 {
 		cmdName = strings.TrimSpace(args[0])
-	}
-
-	presetPath := filepath.Join(projectRoot(), presetsPath)
-	presets, _ := loadPresets(presetPath)
-	defaultPath := fallbackCompose
-	if presets != nil {
-		if p := strings.TrimSpace(presets["default"]); p != "" {
-			defaultPath = p
-		}
-	}
-
-	resolvedComposeFile = configutil.ResolveString(fs, "f", "COMPOSE_FILE", defaultPath, true)
-	if !flagutil.HasFlag(fs, "f") && flagutil.HasFlag(fs, "preset") {
-		pname := strings.TrimSpace(flagutil.GetString(fs, "preset", ""))
-		if pname != "" {
-			if presets == nil {
-				fmt.Fprintf(os.Stderr, "Failed to load presets from %s\n", presetPath)
-				os.Exit(1)
-			}
-			if p, ok := presets[pname]; ok && strings.TrimSpace(p) != "" {
-				resolvedComposeFile = strings.TrimSpace(p)
-			} else {
-				fmt.Fprintf(os.Stderr, "Unknown preset: %q\n", pname)
-				os.Exit(1)
-			}
-		}
-	}
-	if resolvedComposeFile == "" {
-		resolvedComposeFile = defaultPath
 	}
 
 	if cmdName == "gen" || cmdName == "gen-split" {

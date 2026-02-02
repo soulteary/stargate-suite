@@ -12,7 +12,7 @@ Go 模块名为 `github.com/soulteary/the-gate`，仓库与产品名为 **starga
 |------|------|
 | [README.zh-CN.md](./README.zh-CN.md)（本文） | 项目总览、快速开始、服务说明、故障排查 |
 | [compose/README.zh-CN.md](./compose/README.zh-CN.md) | Compose 各子目录用法（build / image / traefik 等） |
-| [config/README.zh-CN.md](./config/README.zh-CN.md) | CLI 预设与 `-f` / `--preset` 使用方式 |
+| [config/README.zh-CN.md](./config/README.zh-CN.md) | Web UI 与 gen 配置（page.yaml、presets） |
 | [compose/traefik/README.zh-CN.md](./compose/traefik/README.zh-CN.md) | Traefik 三合一与三分开部署说明 |
 | [e2e/README.zh-CN.md](./e2e/README.zh-CN.md) | 端到端测试用例与运行说明 |
 | [MANUAL_TESTING.zh-CN.md](./MANUAL_TESTING.zh-CN.md) | 浏览器手动验证与健康检查 |
@@ -79,12 +79,10 @@ stargate-suite/
 - Go 1.25+（见 `go.mod`，构建请使用该版本或更高）
 - 约 1GB 可用磁盘空间（用于 Docker 镜像和数据卷）
 
-### 默认 compose 与预设
+### compose 与 build 输出
 
-- **未执行 `gen` 前**：默认 compose 路径为 `compose/example/image/docker-compose.yml`（或使用 `--preset default`），可直接用该静态示例启动。
-- **执行 `make gen` 或 `go run ./cmd/suite gen all` 后**：日常推荐使用 `build/image/docker-compose.yml`，可用 `--preset image` 或 `-f build/image/docker-compose.yml` 指定；默认不会自动切换到 `build/`，需显式指定。
-
-详见 [config/README.zh-CN.md](./config/README.zh-CN.md) 的预设列表与覆盖顺序。
+- 使用 `make gen` 或 `go run ./cmd/suite gen all` 将配置生成到 `build/`。Makefile 默认使用 `COMPOSE_FILE=build/image/docker-compose.yml`，可通过 `COMPOSE_FILE` 或其它 `make up-*` 目标覆盖。
+- 详见 [config/README.zh-CN.md](./config/README.zh-CN.md)。
 
 ### 启动服务
 
@@ -123,25 +121,12 @@ make logs
 docker compose -f build/image/docker-compose.yml logs -f
 ```
 
-**方式 3：使用 Go CLI（与 Makefile 等效，跨平台）**
+**Suite CLI** 仅提供界面与生成：`help`、`gen`、`gen-split`、`serve`。服务生命周期与 E2E 请使用 Makefile（`make up`、`make down`、`make test-wait`）或 `./scripts/run-e2e.sh`。
 
 ```bash
-# 查看所有命令
 go run ./cmd/suite help
-# 或先构建再使用
 make suite-build && ./bin/suite help
-
-# 通过 Makefile 调用 CLI（ARGS 为子命令及参数）
-make suite ARGS="up"
-make suite ARGS="health"
-
-# 直接运行
-go run ./cmd/suite up
-go run ./cmd/suite test-wait
-go run ./cmd/suite health
 ```
-
-支持通过环境变量 `COMPOSE_FILE` 指定默认 compose 文件，与 Makefile 一致。
 
 **生成 build 目录（输出不同使用方式的 compose 与 .env）**
 
@@ -170,19 +155,15 @@ GEN_OUT_DIR=dist go run ./cmd/suite gen all
 
 ### 运行测试
 
-等待所有服务就绪后（约 30 秒），运行端到端测试：
+使用 `scripts/run-e2e.sh`（会按需启动服务、等待健康后执行 E2E）或在服务就绪后直接跑测试：
 
 ```bash
-# 方式 1: 使用 Makefile（推荐，自动等待服务就绪）
+./scripts/run-e2e.sh
+# 或
 make test-wait
 
-# 方式 2: 直接运行 Go 测试
 go test -v ./e2e/...
 
-# 方式 3: 使用脚本
-./scripts/run-e2e.sh
-
-# 运行特定测试
 go test -v ./e2e/... -run TestCompleteLoginFlow
 ```
 
@@ -380,7 +361,7 @@ make restart-warden        # 重启 Warden 服务
 make restart-herald        # 重启 Herald 服务
 make restart-stargate      # 重启 Stargate 服务
 make health                # 检查服务健康状态
-make suite ARGS="..."      # 运行 CLI（如 make suite ARGS="up"）
+make suite ARGS="..."      # 运行 CLI（如 make suite ARGS="gen all" 或 ARGS="serve"）
 make suite-build           # 构建 bin/suite
 make serve                 # 启动 Web UI（默认 :8085）
 ```

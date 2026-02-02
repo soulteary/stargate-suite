@@ -32,8 +32,33 @@ if ! docker compose -f "$COMPOSE_FILE" ps 2>/dev/null | grep -q "Up"; then
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "Starting services..."
         docker compose -f "$COMPOSE_FILE" up -d --build
-        echo "Waiting for services to be ready (uses TEST_WAIT_TIMEOUT, default 60s), then running tests..."
-        go run ./cmd/suite test-wait
+        TEST_WAIT_TIMEOUT="${TEST_WAIT_TIMEOUT:-60}"
+        echo "Waiting for services to be ready (timeout ${TEST_WAIT_TIMEOUT}s)..."
+        start=$(date +%s)
+        while true; do
+            all_ok=true
+            for service in "stargate:8080/_auth" "warden:8081/health" "herald:8082/healthz"; do
+                port=$(echo "$service" | cut -d: -f2 | cut -d/ -f1)
+                path=$(echo "$service" | cut -d/ -f2-)
+                if ! curl -sf "http://localhost:$port/$path" > /dev/null 2>&1; then
+                    all_ok=false
+                    break
+                fi
+            done
+            if [ "$all_ok" = true ]; then
+                echo "All services ready."
+                break
+            fi
+            now=$(date +%s)
+            if [ $(( now - start )) -ge "$TEST_WAIT_TIMEOUT" ]; then
+                echo "Services did not become ready within ${TEST_WAIT_TIMEOUT}s. Run: docker compose -f $COMPOSE_FILE logs"
+                exit 1
+            fi
+            sleep 1
+        done
+        echo "Running End-to-End Tests..."
+        echo ""
+        go test -v ./e2e/...
         exit $?
     else
         echo "Please start services first: make up  or  docker compose -f $COMPOSE_FILE up -d"
