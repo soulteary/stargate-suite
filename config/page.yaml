@@ -6,7 +6,7 @@
 #   config/i18n/en.yaml        - 英文文案
 #   config/services.yaml       - Stargate / Warden / Herald 环境变量
 #   config/providers.yaml      - Herald 通道（如 herald-dingtalk）
-# 互斥与联动见 config/README.md 或项目 CLAUDE.md。
+# 互斥与联动见 config/README.md。
 
 modes:
   - value: traefik
