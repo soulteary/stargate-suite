@@ -2,7 +2,7 @@
 
 # stargate-suite - 三服务端到端集成测试套件
 
-本仓库为 **Stargate + Warden + Herald** 三服务的端到端集成测试环境，提供多种 Compose 用法、CLI 编排与自动化测试，覆盖正常流程、异常场景、服务间鉴权、幂等、审计与监控等。Web UI 与 canonical compose 还支持可选服务 **herald-totp**（TOTP 2FA）与 **herald-dingtalk**（钉钉通道）。
+本仓库为 **Stargate + Warden + Herald** 三服务的端到端集成测试环境，提供多种 Compose 用法、CLI 编排与自动化测试，覆盖正常流程、异常场景、服务间鉴权、幂等、审计与监控等。Web UI 与 canonical compose 还支持可选服务 **herald-totp**（TOTP 2FA）、**herald-dingtalk**（钉钉通道）与 **herald-smtp**（邮件 SMTP 通道）。
 
 Go 模块名为 `github.com/soulteary/the-gate`，仓库与产品名为 **stargate-suite**。
 

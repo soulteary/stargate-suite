@@ -35,6 +35,9 @@ services:
       # DingTalk channel (optional): Herald calls herald-dingtalk via HTTP; set when using DingTalk for verification code push
       - HERALD_DINGTALK_API_URL=${HERALD_DINGTALK_API_URL:-}
       - HERALD_DINGTALK_API_KEY=${HERALD_DINGTALK_API_KEY:-}
+      # Email channel (optional): Herald calls herald-smtp via HTTP; set when using SMTP for email verification codes
+      - HERALD_SMTP_API_URL=${HERALD_SMTP_API_URL:-}
+      - HERALD_SMTP_API_KEY=${HERALD_SMTP_API_KEY:-}
     depends_on:
       herald-redis:
         condition: service_healthy
@@ -109,6 +112,33 @@ services:
       - the-gate-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8083/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  # herald-smtp - 邮件验证码发送（可选）：Herald 通过 HTTP 调用，SMTP 凭证仅在此服务
+  herald-smtp:
+    image: ${HERALD_SMTP_IMAGE:-ghcr.io/soulteary/herald-smtp:latest}
+    container_name: the-gate-herald-smtp
+    ports:
+      - "8085:8085"
+    environment:
+      - PORT=:8085
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - API_KEY=${HERALD_SMTP_API_KEY:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - SMTP_USE_STARTTLS=${SMTP_USE_STARTTLS:-true}
+      - IDEMPOTENCY_TTL_SECONDS=${HERALD_SMTP_IDEMPOTENCY_TTL:-300}
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8085/healthz || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 3

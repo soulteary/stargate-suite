@@ -2,7 +2,7 @@ English | [中文](README.zh-CN.md)
 
 # stargate-suite — Three-Service End-to-End Integration Test Suite
 
-This repository provides an end-to-end integration test environment for **Stargate + Warden + Herald**: multiple Compose setups, CLI orchestration, and automated tests covering normal flows, error scenarios, service-to-service auth, idempotency, audit, and metrics. The Web UI and canonical compose also support **herald-totp** (TOTP 2FA) and **herald-dingtalk** (DingTalk channel) as optional services.
+This repository provides an end-to-end integration test environment for **Stargate + Warden + Herald**: multiple Compose setups, CLI orchestration, and automated tests covering normal flows, error scenarios, service-to-service auth, idempotency, audit, and metrics. The Web UI and canonical compose also support **herald-totp** (TOTP 2FA), **herald-dingtalk** (DingTalk channel), and **herald-smtp** (email/SMTP channel) as optional services.
 
 The Go module is `github.com/soulteary/the-gate`; the repo and product name is **stargate-suite**.
 

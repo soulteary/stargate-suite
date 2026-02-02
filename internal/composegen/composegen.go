@@ -20,11 +20,13 @@ type Options struct {
 	TraefikNetworkName     string // Traefik 网络名称，默认 "traefik"
 	ExposePorts            bool   // true 保留 ports:，false 改为仅 expose
 	IncludeDingTalk        bool   // 全量 traefik 时是否包含 herald-dingtalk 服务
+	IncludeSmtp            bool   // 全量 traefik / traefik-herald 时是否包含 herald-smtp 服务
 	// 暴露端口时可选的主机端口，空表示使用 compose 默认
 	PortHerald          string            // Herald 主机端口，如 "8082"
 	PortWarden          string            // Warden 主机端口，如 "8081"
 	PortHeraldRedis     string            // Herald Redis 主机端口，如 "6379"
 	PortHeraldTotp      string            // herald-totp 主机端口，如 "8084"
+	PortHeraldSmtp      string            // herald-smtp 主机端口，如 "8085"
 	ContainerNamePrefix string            // 容器名前缀，如 "the-gate-"
 	EnvOverrides        map[string]string // 环境变量覆盖，合并进各服务 environment
 	// Redis 数据：true 使用 Docker 命名卷，false 使用主机绑定路径
@@ -35,7 +37,7 @@ type Options struct {
 
 // serviceNameToContainerSuffix 逻辑服务名 -> container_name 后缀（前缀由 Options 提供）
 var serviceNameToContainerSuffix = map[string]string{
-	"herald": "herald", "herald-redis": "herald-redis", "herald-totp": "herald-totp", "herald-dingtalk": "herald-dingtalk",
+	"herald": "herald", "herald-redis": "herald-redis", "herald-totp": "herald-totp", "herald-dingtalk": "herald-dingtalk", "herald-smtp": "herald-smtp",
 	"warden": "warden", "warden-redis": "warden-redis",
 	"stargate": "stargate", "protected-service": "whoami",
 }
@@ -50,7 +52,7 @@ type splitDef struct {
 
 var traefikSplitDefs = []splitDef{
 	{"traefik", nil, nil, false}, // 全量，services/volumes 为 nil 表示全部保留
-	{"traefik-herald", []string{"herald", "herald-redis", "herald-totp"}, []string{"herald-redis-data"}, false},
+	{"traefik-herald", []string{"herald", "herald-redis", "herald-totp", "herald-smtp"}, []string{"herald-redis-data"}, false},
 	{"traefik-warden", []string{"warden", "warden-redis"}, []string{"warden-redis-data"}, false},
 	{"traefik-stargate", []string{"stargate", "protected-service"}, nil, true},
 }
@@ -125,6 +127,16 @@ var envComments = map[string]string{
 	"HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL": "herald-totp enroll/start 是否返回 secret_base32",
 	"HERALD_TOTP_REDIS_ADDR":              "herald-totp 使用的 Redis 地址",
 	"HERALD_TOTP_PORT":                    "herald-totp 监听端口",
+	"HERALD_SMTP_IMAGE":                   "herald-smtp 服务镜像（可选）",
+	"HERALD_SMTP_API_URL":                 "Herald 邮件通道：herald-smtp 服务地址（可选）",
+	"HERALD_SMTP_API_KEY":                 "Herald 邮件通道：herald-smtp API 密钥（可选）",
+	"SMTP_HOST":                           "herald-smtp：SMTP 服务器主机",
+	"SMTP_PORT":                           "herald-smtp：SMTP 端口",
+	"SMTP_USER":                           "herald-smtp：SMTP 用户名",
+	"SMTP_PASSWORD":                       "herald-smtp：SMTP 密码",
+	"SMTP_FROM":                           "herald-smtp：发件人邮箱",
+	"SMTP_USE_STARTTLS":                   "herald-smtp：是否使用 STARTTLS",
+	"HERALD_SMTP_IDEMPOTENCY_TTL":         "herald-smtp 幂等缓存 TTL（秒）",
 	"PROTECTED_IMAGE":                     "受保护服务（whoami）镜像，E2E/演示用",
 	"DEBUG":                               "调试模式",
 }
@@ -280,6 +292,8 @@ func EnvBodyFromVars(vars map[string]string, optionalOverride string) string {
 		"RATE_LIMIT_PER_USER", "RATE_LIMIT_PER_IP", "RATE_LIMIT_PER_DESTINATION",
 		"HERALD_DINGTALK_IMAGE", "HERALD_DINGTALK_API_URL", "HERALD_DINGTALK_API_KEY",
 		"DINGTALK_APP_KEY", "DINGTALK_APP_SECRET", "DINGTALK_AGENT_ID", "DINGTALK_LOOKUP_MODE", "HERALD_DINGTALK_IDEMPOTENCY_TTL",
+		"HERALD_SMTP_IMAGE", "HERALD_SMTP_API_URL", "HERALD_SMTP_API_KEY",
+		"SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "SMTP_USE_STARTTLS", "HERALD_SMTP_IDEMPOTENCY_TTL",
 		"HERALD_TOTP_ENABLED", "HERALD_TOTP_BASE_URL", "HERALD_TOTP_API_KEY",
 		"HERALD_TOTP_IMAGE", "HERALD_TOTP_ENCRYPTION_KEY", "HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL", "HERALD_TOTP_REDIS_ADDR", "HERALD_TOTP_PORT",
 	}
@@ -289,6 +303,7 @@ func EnvBodyFromVars(vars map[string]string, optionalOverride string) string {
 	lines = append(lines, "")
 	redisCommentAdded := false
 	dingtalkCommentAdded := false
+	smtpCommentAdded := false
 	for _, k := range order {
 		if v, ok := vars[k]; ok {
 			seen[k] = true
@@ -299,6 +314,10 @@ func EnvBodyFromVars(vars map[string]string, optionalOverride string) string {
 			if k == "HERALD_DINGTALK_IMAGE" && !dingtalkCommentAdded {
 				lines = append(lines, "# DingTalk channel (optional): Herald calls herald-dingtalk via HTTP")
 				dingtalkCommentAdded = true
+			}
+			if k == "HERALD_SMTP_IMAGE" && !smtpCommentAdded {
+				lines = append(lines, "# Email channel (optional): Herald calls herald-smtp via HTTP for email verification codes")
+				smtpCommentAdded = true
 			}
 			if k == "HERALD_TOTP_IMAGE" {
 				lines = append(lines, "# TOTP 2FA (optional): Stargate calls herald-totp for enroll/verify")
@@ -375,6 +394,18 @@ WARDEN_REDIS_PASSWORD=
 # DINGTALK_APP_SECRET=
 # DINGTALK_AGENT_ID=
 # DINGTALK_LOOKUP_MODE=none
+
+# Email channel (optional): Herald calls herald-smtp via HTTP for email verification codes
+# HERALD_SMTP_IMAGE=ghcr.io/soulteary/herald-smtp:latest
+# HERALD_SMTP_API_URL=http://herald-smtp:8085
+# HERALD_SMTP_API_KEY=
+# SMTP_HOST=
+# SMTP_PORT=587
+# SMTP_USER=
+# SMTP_PASSWORD=
+# SMTP_FROM=
+# SMTP_USE_STARTTLS=true
+# HERALD_SMTP_IDEMPOTENCY_TTL=300
 
 # TOTP 2FA (optional): Stargate calls herald-totp for enroll/verify and backup codes
 # HERALD_TOTP_ENABLED=false
@@ -514,6 +545,11 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 				hostPort = strings.TrimSpace(opts.PortHeraldTotp)
 				if hostPort != "" {
 					ports[0] = hostPort + ":8084"
+				}
+			case "herald-smtp":
+				hostPort = strings.TrimSpace(opts.PortHeraldSmtp)
+				if hostPort != "" {
+					ports[0] = hostPort + ":8085"
 				}
 			}
 		}
@@ -778,6 +814,12 @@ func GenerateOne(full map[string]interface{}, mode string, opts *Options) ([]byt
 			delete(svcs, "herald-dingtalk")
 		}
 	}
+	// 全量 traefik 或 traefik-herald 且未启用 SMTP 时，从 compose 中移除 herald-smtp 服务（opts 为 nil 时视为未启用）
+	if (mode == "traefik" || mode == "traefik-herald") && (opts == nil || !opts.IncludeSmtp) {
+		if svcs, ok := out["services"].(map[string]interface{}); ok {
+			delete(svcs, "herald-smtp")
+		}
+	}
 
 	applyOptionsToCompose(out, opts)
 
@@ -851,6 +893,15 @@ func Generate(full map[string]interface{}, modes []string, envOverride string, o
 			"HERALD_DINGTALK_IMAGE", "HERALD_DINGTALK_API_URL", "HERALD_DINGTALK_API_KEY",
 			"DINGTALK_APP_KEY", "DINGTALK_APP_SECRET", "DINGTALK_AGENT_ID", "DINGTALK_LOOKUP_MODE",
 			"HERALD_DINGTALK_IDEMPOTENCY_TTL",
+		} {
+			delete(vars, k)
+		}
+	}
+	if opts == nil || !opts.IncludeSmtp {
+		for _, k := range []string{
+			"HERALD_SMTP_IMAGE", "HERALD_SMTP_API_URL", "HERALD_SMTP_API_KEY",
+			"SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "SMTP_USE_STARTTLS",
+			"HERALD_SMTP_IDEMPOTENCY_TTL",
 		} {
 			delete(vars, k)
 		}

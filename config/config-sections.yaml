@@ -140,6 +140,17 @@ configSections:
         min: 1
         max: 65535
         showWhenOption: exposePorts
+      - type: number
+        id: portHeraldSmtp
+        name: portHeraldSmtp
+        envName: portHeraldSmtp
+        labelKey: portHeraldSmtpLabel
+        descKey: portHeraldSmtpDesc
+        default: "8085"
+        placeholder: "8085"
+        min: 1
+        max: 65535
+        showWhenOption: exposePorts
   - titleKey: containerPrefixSection
     options:
       - type: text
@@ -157,6 +168,13 @@ configSections:
         envName: dingtalkEnabled
         labelKey: dingtalkEnabledLabel
         descKey: dingtalkEnabledDesc
+        default: false
+      - type: checkbox
+        id: smtpEnabled
+        name: smtpEnabled
+        envName: smtpEnabled
+        labelKey: smtpEnabledLabel
+        descKey: smtpEnabledDesc
         default: false
   - titleKey: redisStorage
     options:

@@ -19,8 +19,8 @@
 |----------|------|----------|
 | build/image/ | 来自 example/image + .env | `docker compose -f build/image/docker-compose.yml up -d` |
 | build/build/ | 来自 example/build + .env | `docker compose -f build/build/docker-compose.yml up -d --build` |
-| build/traefik/ | 三合一：接入 Traefik（含 Stargate、Warden、Herald、herald-totp、herald-dingtalk、Redis） | `docker compose -f build/traefik/docker-compose.yml up -d` |
-| build/traefik-herald/ | 三分开：仅 Herald + herald-totp + Redis | `docker compose -f build/traefik-herald/docker-compose.yml up -d` |
+| build/traefik/ | 三合一：接入 Traefik（含 Stargate、Warden、Herald、herald-totp、herald-dingtalk、herald-smtp、Redis） | `docker compose -f build/traefik/docker-compose.yml up -d` |
+| build/traefik-herald/ | 三分开：仅 Herald + herald-totp + herald-smtp + Redis | `docker compose -f build/traefik-herald/docker-compose.yml up -d` |
 | build/traefik-warden/ | 三分开：仅 Warden + Redis | `docker compose -f build/traefik-warden/docker-compose.yml up -d` |
 | build/traefik-stargate/ | 三分开：仅 Stargate + 受保护服务（若启用则依赖 Herald/Warden/herald-totp 已启动） | `docker compose -f build/traefik-stargate/docker-compose.yml up -d` |
 
@@ -75,6 +75,7 @@ docker compose -f build/build/docker-compose.yml up -d --build
 - `HERALD_API_KEY`、`HERALD_HMAC_SECRET`、`WARDEN_API_KEY`
 - `*_IMAGE`：覆盖默认镜像
 - 钉钉通道（可选）：`HERALD_DINGTALK_*`、`DINGTALK_*`（含 `DINGTALK_LOOKUP_MODE`）
+- 邮件通道（可选）：勾选「启用 SMTP 通道」后，生成的 compose 将包含 **herald-smtp**，Herald 通过 `HERALD_SMTP_API_URL` 调用其发送邮件验证码。需在 .env 或 Web UI 中配置 `SMTP_HOST`、`SMTP_FROM` 等 SMTP 变量，详见 [herald-smtp](https://github.com/soulteary/herald-smtp)。
 
 ## 相关文档
 

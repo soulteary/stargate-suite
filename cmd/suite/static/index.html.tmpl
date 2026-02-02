@@ -149,7 +149,7 @@
 					<p class="config-desc providers-desc" data-i18n="providerEnvDesc"></p>
 					<div class="providers-rows">
 					{{range .Providers}}
-					<div class="provider-row"{{if eq .Id "herald-dingtalk"}} data-depends-on-option="dingtalkEnabled"{{end}}>
+					<div class="provider-row"{{if eq .Id "herald-dingtalk"}} data-depends-on-option="dingtalkEnabled"{{else if eq .Id "herald-smtp"}} data-depends-on-option="smtpEnabled"{{end}}>
 						<details class="pure-details"{{if .Open}} open{{end}}>
 							<summary class="pure-details-summary"><strong>{{if .NameKey}}<span data-i18n="{{.NameKey}}"></span>{{else}}{{.Name}}{{end}}</strong></summary>
 							{{range .Sections}}

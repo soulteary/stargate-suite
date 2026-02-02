@@ -153,8 +153,10 @@ type composeGenOptionsJSON struct {
 	PortWarden             string            `json:"portWarden"`
 	PortHeraldRedis        string            `json:"portHeraldRedis"`
 	PortHeraldTotp         string            `json:"portHeraldTotp"`
+	PortHeraldSmtp         string            `json:"portHeraldSmtp"`
 	ContainerNamePrefix    string            `json:"containerNamePrefix"`
 	DingtalkEnabled        *bool             `json:"dingtalkEnabled"`
+	SmtpEnabled            *bool             `json:"smtpEnabled"`
 	EnvOverrides           map[string]string `json:"envOverrides"`
 	UseNamedVolume         *bool             `json:"useNamedVolume"`
 	HeraldRedisDataPath    string            `json:"heraldRedisDataPath"`
@@ -191,6 +193,7 @@ func reqOptionsToComposegen(o *composeGenOptionsJSON) *composegen.Options {
 	opts.PortWarden = strings.TrimSpace(o.PortWarden)
 	opts.PortHeraldRedis = strings.TrimSpace(o.PortHeraldRedis)
 	opts.PortHeraldTotp = strings.TrimSpace(o.PortHeraldTotp)
+	opts.PortHeraldSmtp = strings.TrimSpace(o.PortHeraldSmtp)
 	if opts.TraefikNetworkName == "" {
 		opts.TraefikNetworkName = "traefik"
 	}
@@ -211,6 +214,11 @@ func reqOptionsToComposegen(o *composeGenOptionsJSON) *composegen.Options {
 		opts.IncludeDingTalk = *o.DingtalkEnabled
 	} else {
 		opts.IncludeDingTalk = false
+	}
+	if o.SmtpEnabled != nil {
+		opts.IncludeSmtp = *o.SmtpEnabled
+	} else {
+		opts.IncludeSmtp = false
 	}
 	return opts
 }

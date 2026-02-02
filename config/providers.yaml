@@ -51,3 +51,66 @@ providers:
             default: "300"
             placeholder: "300"
             min: 1
+  - id: herald-smtp
+    name: herald-smtp
+    nameKey: heraldSmtpName
+    open: false
+    sections:
+      - envVars:
+          - env: HERALD_SMTP_IMAGE
+            type: text
+            labelKey: heraldSmtpImageLabel
+            descKey: heraldSmtpImageDesc
+            default: "ghcr.io/soulteary/herald-smtp:latest"
+            placeholder: "ghcr.io/soulteary/herald-smtp:latest"
+          - env: HERALD_SMTP_API_URL
+            type: text
+            labelKey: heraldSmtpApiUrlLabel
+            descKey: heraldSmtpApiUrlDesc
+            default: "http://herald-smtp:8085"
+            placeholder: "http://herald-smtp:8085"
+          - env: HERALD_SMTP_API_KEY
+            type: text
+            labelKey: heraldSmtpApiKeyLabel
+            descKey: heraldSmtpApiKeyDesc
+            placeholder: ""
+          - env: SMTP_HOST
+            type: text
+            labelKey: smtpHostLabel
+            descKey: smtpHostDesc
+            placeholder: "smtp.example.com"
+          - env: SMTP_PORT
+            type: number
+            labelKey: smtpPortLabel
+            descKey: smtpPortDesc
+            default: "587"
+            placeholder: "587"
+            min: 1
+          - env: SMTP_USER
+            type: text
+            labelKey: smtpUserLabel
+            descKey: smtpUserDesc
+            placeholder: ""
+          - env: SMTP_PASSWORD
+            type: text
+            labelKey: smtpPasswordLabel
+            descKey: smtpPasswordDesc
+            placeholder: ""
+          - env: SMTP_FROM
+            type: text
+            labelKey: smtpFromLabel
+            descKey: smtpFromDesc
+            placeholder: "noreply@example.com"
+          - env: SMTP_USE_STARTTLS
+            type: text
+            labelKey: smtpUseStarttlsLabel
+            descKey: smtpUseStarttlsDesc
+            default: "true"
+            placeholder: "true"
+          - env: HERALD_SMTP_IDEMPOTENCY_TTL
+            type: number
+            labelKey: heraldSmtpIdempotencyTtlLabel
+            descKey: heraldSmtpIdempotencyTtlDesc
+            default: "300"
+            placeholder: "300"
+            min: 1
