@@ -85,7 +85,7 @@
 							{{end}}
 						</div>
 						{{else if eq .Type "imageEnv"}}
-						<div class="config-item pure-control-group" data-env-name="{{.EnvName}}">
+						<div class="config-item pure-control-group" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
 							<label for="env_{{.EnvName}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.EnvName}}</span></label>
 							<input type="text" id="env_{{.EnvName}}" data-env="{{.EnvName}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}>
 							<p class="config-desc" data-i18n="{{.DescKey}}"></p>
@@ -104,13 +104,13 @@
 					{{range $i, $s := .Services}}
 					<div class="service-cell {{if eq $i 0}}service-cell-stargate{{else}}service-cell-other{{end}}">
 						<details class="pure-details"{{if $s.Open}} open{{end}}>
-							<summary class="pure-details-summary"><strong>{{$s.Name}}</strong></summary>
+							<summary class="pure-details-summary"><strong>{{if $s.NameKey}}<span data-i18n="{{$s.NameKey}}"></span>{{else}}{{$s.Name}}{{end}}</strong></summary>
 							{{if eq $i 0}}<div class="stargate-cols">{{end}}
 							{{range $s.Sections}}
 							<div class="env-group">
 								{{if .TitleKey}}<h2 class="section-title" data-i18n="{{.TitleKey}}"></h2>{{end}}
 								{{range .EnvVars}}
-								<div class="config-item pure-control-group" data-env-name="{{.Env}}"{{if .ShowWhenEnv}} data-depends-on-env="{{.ShowWhenEnv}}"{{end}}>
+								<div class="config-item pure-control-group" data-env-name="{{.Env}}"{{if .ShowWhenEnv}} data-depends-on-env="{{.ShowWhenEnv}}"{{end}}{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
 									{{if eq .Type "checkbox"}}
 									<label>
 										<input type="checkbox" name="envBool" id="env_{{.Env}}" data-env="{{.Env}}" class="pure-checkbox"{{if .Default}} checked{{end}}>
@@ -149,14 +149,14 @@
 					<p class="config-desc providers-desc" data-i18n="providerEnvDesc"></p>
 					<div class="providers-rows">
 					{{range .Providers}}
-					<div class="provider-row"{{if eq .Id "herald-dingtalk"}} data-depends-on-option="dingtalkEnabled"{{else if eq .Id "herald-smtp"}} data-depends-on-option="smtpEnabled"{{end}}>
+					<div class="provider-row"{{if eq .Id "herald-dingtalk"}} data-depends-on-option="dingtalkEnabled"{{else if eq .Id "herald-smtp"}} data-depends-on-option="smtpEnabled"{{else if eq .Id "herald-totp"}} data-depends-on-option="totpEnabled"{{end}}>
 						<details class="pure-details"{{if .Open}} open{{end}}>
 							<summary class="pure-details-summary"><strong>{{if .NameKey}}<span data-i18n="{{.NameKey}}"></span>{{else}}{{.Name}}{{end}}</strong></summary>
 							{{range .Sections}}
 							<div class="env-group">
 								{{if .TitleKey}}<h2 class="section-title" data-i18n="{{.TitleKey}}"></h2>{{end}}
 								{{range .EnvVars}}
-								<div class="config-item pure-control-group" data-env-name="{{.Env}}"{{if .ShowWhenEnv}} data-depends-on-env="{{.ShowWhenEnv}}"{{end}}>
+								<div class="config-item pure-control-group" data-env-name="{{.Env}}"{{if .ShowWhenEnv}} data-depends-on-env="{{.ShowWhenEnv}}"{{end}}{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
 									{{if eq .Type "checkbox"}}
 									<label>
 										<input type="checkbox" name="envBool" id="env_{{.Env}}" data-env="{{.Env}}" class="pure-checkbox"{{if .Default}} checked{{end}}>

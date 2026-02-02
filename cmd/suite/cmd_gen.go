@@ -157,6 +157,7 @@ type composeGenOptionsJSON struct {
 	ContainerNamePrefix    string            `json:"containerNamePrefix"`
 	DingtalkEnabled        *bool             `json:"dingtalkEnabled"`
 	SmtpEnabled            *bool             `json:"smtpEnabled"`
+	TotpEnabled            *bool             `json:"totpEnabled"`
 	EnvOverrides           map[string]string `json:"envOverrides"`
 	UseNamedVolume         *bool             `json:"useNamedVolume"`
 	HeraldRedisDataPath    string            `json:"heraldRedisDataPath"`
@@ -219,6 +220,21 @@ func reqOptionsToComposegen(o *composeGenOptionsJSON) *composegen.Options {
 		opts.IncludeSmtp = *o.SmtpEnabled
 	} else {
 		opts.IncludeSmtp = false
+	}
+	if o.TotpEnabled != nil {
+		opts.IncludeTotp = *o.TotpEnabled
+	} else {
+		opts.IncludeTotp = false
+	}
+	if opts.EnvOverrides == nil {
+		opts.EnvOverrides = make(map[string]string)
+	}
+	if o.TotpEnabled != nil {
+		if *o.TotpEnabled {
+			opts.EnvOverrides["HERALD_TOTP_ENABLED"] = "true"
+		} else {
+			opts.EnvOverrides["HERALD_TOTP_ENABLED"] = "false"
+		}
 	}
 	return opts
 }

@@ -88,11 +88,6 @@ services:
             labelKey: heraldEnabledLabel
             descKey: heraldEnabledDesc
             default: true
-          - env: HERALD_TOTP_ENABLED
-            type: checkbox
-            labelKey: heraldTotpEnabledLabel
-            descKey: heraldTotpEnabledDesc
-            default: false
           - env: WARDEN_CACHE_TTL
             type: number
             labelKey: wardenCacheTtlLabel
@@ -358,13 +353,13 @@ services:
             labelKey: heraldTotpBaseUrlLabel
             descKey: heraldTotpBaseUrlDesc
             placeholder: "http://herald-totp:8084"
-            showWhenEnv: HERALD_TOTP_ENABLED
+            showWhenOption: totpEnabled
           - env: HERALD_TOTP_API_KEY
             type: text
             labelKey: heraldTotpApiKeyLabel
             descKey: heraldTotpApiKeyDesc
             placeholder: ""
-            showWhenEnv: HERALD_TOTP_ENABLED
+            showWhenOption: totpEnabled
           - env: SERVICE_NAME
             type: text
             labelKey: serviceNameLabel
@@ -373,6 +368,7 @@ services:
             placeholder: "herald"
   - id: herald-totp
     name: herald-totp
+    nameKey: heraldTotpName
     open: false
     sections:
       - titleKey: heraldTotpSection

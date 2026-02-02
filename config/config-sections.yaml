@@ -14,6 +14,7 @@ configSections:
         descKey: heraldTotpImageDesc
         default: "ghcr.io/soulteary/herald-totp:latest"
         placeholder: "ghcr.io/soulteary/herald-totp:latest"
+        showWhenOption: totpEnabled
       - type: imageEnv
         envName: WARDEN_IMAGE
         labelKey: wardenImageLabel
@@ -139,7 +140,7 @@ configSections:
         placeholder: "8084"
         min: 1
         max: 65535
-        showWhenOption: exposePorts
+        showWhenOption: totpEnabled
       - type: number
         id: portHeraldSmtp
         name: portHeraldSmtp
@@ -175,6 +176,13 @@ configSections:
         envName: smtpEnabled
         labelKey: smtpEnabledLabel
         descKey: smtpEnabledDesc
+        default: false
+      - type: checkbox
+        id: totpEnabled
+        name: totpEnabled
+        envName: totpEnabled
+        labelKey: heraldTotpEnabledLabel
+        descKey: heraldTotpEnabledDesc
         default: false
   - titleKey: redisStorage
     options:

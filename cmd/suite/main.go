@@ -91,16 +91,17 @@ type pageSection struct {
 }
 
 type envVar struct {
-	Env         string         `yaml:"env"`
-	Type        string         `yaml:"type"`
-	LabelKey    string         `yaml:"labelKey"`
-	DescKey     string         `yaml:"descKey"`
-	Default     interface{}    `yaml:"default"`
-	Placeholder string         `yaml:"placeholder"`
-	Min         int            `yaml:"min"`
-	Max         int            `yaml:"max"`
-	Options     []selectOption `yaml:"options"`
-	ShowWhenEnv string         `yaml:"showWhenEnv"`
+	Env            string         `yaml:"env"`
+	Type           string         `yaml:"type"`
+	LabelKey       string         `yaml:"labelKey"`
+	DescKey        string         `yaml:"descKey"`
+	Default        interface{}    `yaml:"default"`
+	Placeholder    string         `yaml:"placeholder"`
+	Min            int            `yaml:"min"`
+	Max            int            `yaml:"max"`
+	Options        []selectOption `yaml:"options"`
+	ShowWhenEnv    string         `yaml:"showWhenEnv"`
+	ShowWhenOption string         `yaml:"showWhenOption"`
 }
 
 type selectOption struct {

@@ -21,6 +21,7 @@ type Options struct {
 	ExposePorts            bool   // true 保留 ports:，false 改为仅 expose
 	IncludeDingTalk        bool   // 全量 traefik 时是否包含 herald-dingtalk 服务
 	IncludeSmtp            bool   // 全量 traefik / traefik-herald 时是否包含 herald-smtp 服务
+	IncludeTotp            bool   // 全量 traefik / traefik-herald 时是否包含 herald-totp 服务
 	// 暴露端口时可选的主机端口，空表示使用 compose 默认
 	PortHerald          string            // Herald 主机端口，如 "8082"
 	PortWarden          string            // Warden 主机端口，如 "8081"
@@ -703,6 +704,38 @@ func applyOptionsToCompose(out map[string]interface{}, opts *Options) {
 	}
 }
 
+// stripStargateTotpEnvAndDependsOn 从 stargate 服务的 environment 与 depends_on 中移除 HERALD_TOTP_* 与 herald-totp 依赖。
+func stripStargateTotpEnvAndDependsOn(svcs map[string]interface{}) {
+	stargate, ok := svcs["stargate"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	if env, ok := stargate["environment"].([]interface{}); ok {
+		var kept []interface{}
+		for _, e := range env {
+			s, _ := e.(string)
+			if s != "" && !strings.HasPrefix(s, "HERALD_TOTP_ENABLED=") && !strings.HasPrefix(s, "HERALD_TOTP_BASE_URL=") && !strings.HasPrefix(s, "HERALD_TOTP_API_KEY=") {
+				kept = append(kept, e)
+			}
+		}
+		stargate["environment"] = kept
+	}
+	if dep, ok := stargate["depends_on"]; ok {
+		switch d := dep.(type) {
+		case []interface{}:
+			var kept []interface{}
+			for _, v := range d {
+				if s, _ := v.(string); s != "herald-totp" {
+					kept = append(kept, v)
+				}
+			}
+			stargate["depends_on"] = kept
+		case map[string]interface{}:
+			delete(d, "herald-totp")
+		}
+	}
+}
+
 func applyStargateSplitOverrides(svc map[string]interface{}, containerNamePrefix string) {
 	prefix := containerNamePrefix
 	if prefix == "" {
@@ -820,6 +853,19 @@ func GenerateOne(full map[string]interface{}, mode string, opts *Options) ([]byt
 			delete(svcs, "herald-smtp")
 		}
 	}
+	// 全量 traefik 或 traefik-herald 且未启用 TOTP 时，从 compose 中移除 herald-totp 服务，并从 stargate 环境变量与 depends_on 中移除相关项
+	if (mode == "traefik" || mode == "traefik-herald") && (opts == nil || !opts.IncludeTotp) {
+		if svcs, ok := out["services"].(map[string]interface{}); ok {
+			delete(svcs, "herald-totp")
+			stripStargateTotpEnvAndDependsOn(svcs)
+		}
+	}
+	// traefik-stargate 且未启用 TOTP 时，仅从 stargate 环境变量与 depends_on 中移除 TOTP 相关项（该 split 本身不含 herald-totp 服务）
+	if mode == "traefik-stargate" && (opts == nil || !opts.IncludeTotp) {
+		if svcs, ok := out["services"].(map[string]interface{}); ok {
+			stripStargateTotpEnvAndDependsOn(svcs)
+		}
+	}
 
 	applyOptionsToCompose(out, opts)
 
@@ -902,6 +948,15 @@ func Generate(full map[string]interface{}, modes []string, envOverride string, o
 			"HERALD_SMTP_IMAGE", "HERALD_SMTP_API_URL", "HERALD_SMTP_API_KEY",
 			"SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "SMTP_USE_STARTTLS",
 			"HERALD_SMTP_IDEMPOTENCY_TTL",
+		} {
+			delete(vars, k)
+		}
+	}
+	if opts == nil || !opts.IncludeTotp {
+		for _, k := range []string{
+			"HERALD_TOTP_ENABLED", "HERALD_TOTP_BASE_URL", "HERALD_TOTP_API_KEY",
+			"HERALD_TOTP_IMAGE", "HERALD_TOTP_ENCRYPTION_KEY", "HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL",
+			"HERALD_TOTP_REDIS_ADDR", "HERALD_TOTP_PORT",
 		} {
 			delete(vars, k)
 		}
