@@ -19,10 +19,10 @@
 |----------|------|----------|
 | build/image/ | 来自 example/image + .env | `docker compose -f build/image/docker-compose.yml up -d` |
 | build/build/ | 来自 example/build + .env | `docker compose -f build/build/docker-compose.yml up -d --build` |
-| build/traefik/ | 三合一：接入 Traefik | `docker compose -f build/traefik/docker-compose.yml up -d` |
-| build/traefik-herald/ | 三分开：仅 Herald + Redis | `docker compose -f build/traefik-herald/docker-compose.yml up -d` |
+| build/traefik/ | 三合一：接入 Traefik（含 Stargate、Warden、Herald、herald-totp、herald-dingtalk、Redis） | `docker compose -f build/traefik/docker-compose.yml up -d` |
+| build/traefik-herald/ | 三分开：仅 Herald + herald-totp + Redis | `docker compose -f build/traefik-herald/docker-compose.yml up -d` |
 | build/traefik-warden/ | 三分开：仅 Warden + Redis | `docker compose -f build/traefik-warden/docker-compose.yml up -d` |
-| build/traefik-stargate/ | 三分开：仅 Stargate + 受保护服务（依赖 Herald/Warden 已启动） | `docker compose -f build/traefik-stargate/docker-compose.yml up -d` |
+| build/traefik-stargate/ | 三分开：仅 Stargate + 受保护服务（若启用则依赖 Herald/Warden/herald-totp 已启动） | `docker compose -f build/traefik-stargate/docker-compose.yml up -d` |
 
 ## 使用方式
 

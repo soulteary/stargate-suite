@@ -12,7 +12,7 @@
 | `image` | `build/image/docker-compose.yml` | 生成后：预构建镜像（需先执行 gen） |
 | `build` | `build/build/docker-compose.yml` | 生成后：从源码构建 |
 | `traefik` | `build/traefik/docker-compose.yml` | 生成后：接入 Traefik（三合一） |
-| `traefik-herald` | `build/traefik-herald/docker-compose.yml` | 生成后：三分开，仅 Herald |
+| `traefik-herald` | `build/traefik-herald/docker-compose.yml` | 生成后：三分开，仅 Herald + herald-totp + Redis |
 | `traefik-warden` | `build/traefik-warden/docker-compose.yml` | 生成后：三分开，仅 Warden |
 | `traefik-stargate` | `build/traefik-stargate/docker-compose.yml` | 生成后：三分开，Stargate + 受保护服务 |
 

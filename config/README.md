@@ -14,7 +14,7 @@ The compose generator page is driven by YAML under `config/`. It is split by con
 | `config-sections.yaml` | Options: image versions, health check, Traefik network, ports, Redis storage. |
 | `i18n/zh.yaml` | Chinese copy. |
 | `i18n/en.yaml` | English copy. |
-| `services.yaml` | Stargate / Warden / Herald env vars. |
+| `services.yaml` | Stargate / Warden / Herald / herald-totp env vars. |
 | `providers.yaml` | Herald channels (e.g. herald-dingtalk). |
 
 `serve` loads `page.yaml` first, then merges the above fragments when present. A single monolithic `page.yaml` (with all keys) still works for backward compatibility.
@@ -27,7 +27,7 @@ The compose generator page is driven by YAML under `config/`. It is split by con
 | `image` | `build/image/docker-compose.yml` | After gen: pre-built (run gen first) |
 | `build` | `build/build/docker-compose.yml` | After gen: build from source |
 | `traefik` | `build/traefik/docker-compose.yml` | After gen: Traefik all-in-one |
-| `traefik-herald` | `build/traefik-herald/docker-compose.yml` | After gen: split, Herald only |
+| `traefik-herald` | `build/traefik-herald/docker-compose.yml` | After gen: split, Herald + herald-totp + Redis only |
 | `traefik-warden` | `build/traefik-warden/docker-compose.yml` | After gen: split, Warden only |
 | `traefik-stargate` | `build/traefik-stargate/docker-compose.yml` | After gen: split, Stargate + protected service |
 

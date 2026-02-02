@@ -2,7 +2,7 @@ English | [中文](README.zh-CN.md)
 
 # stargate-suite — Three-Service End-to-End Integration Test Suite
 
-This repository provides an end-to-end integration test environment for **Stargate + Warden + Herald**: multiple Compose setups, CLI orchestration, and automated tests covering normal flows, error scenarios, service-to-service auth, idempotency, audit, and metrics.
+This repository provides an end-to-end integration test environment for **Stargate + Warden + Herald**: multiple Compose setups, CLI orchestration, and automated tests covering normal flows, error scenarios, service-to-service auth, idempotency, audit, and metrics. The Web UI and canonical compose also support **herald-totp** (TOTP 2FA) and **herald-dingtalk** (DingTalk channel) as optional services.
 
 The Go module is `github.com/soulteary/the-gate`; the repo and product name is **stargate-suite**.
 
@@ -297,6 +297,17 @@ OTP/verification: create challenge, verify, revoke; rate limits; audit; SMS/Emai
 - `POST /v1/otp/challenges/{id}/revoke`
 - `GET /v1/test/code/{challenge_id}` — test-only, get code when `HERALD_TEST_MODE=true`
 - `GET /metrics`, `GET /healthz`
+
+### Herald TOTP (herald-totp, optional)
+
+TOTP 2FA: enroll (bind), verify, revoke; backup codes. Stargate calls herald-totp for per-user TOTP; users generate codes in an authenticator app (e.g. Google Authenticator). Enable via `HERALD_TOTP_ENABLED=true` and set `HERALD_TOTP_BASE_URL`, `HERALD_TOTP_API_KEY` in Stargate env.
+
+- `POST /v1/enroll/start` — start enrollment (returns QR / otpauth_uri)
+- `POST /v1/enroll/confirm` — confirm with one TOTP code
+- `POST /v1/verify` — verify TOTP or backup code
+- `POST /v1/revoke` — remove TOTP and backup codes
+- `GET /v1/status?subject=...` — check if TOTP enabled
+- `GET /healthz`
 
 ## Example: full login flow
 

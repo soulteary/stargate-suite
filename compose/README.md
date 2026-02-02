@@ -19,10 +19,10 @@ This directory keeps only **static examples** and a **single canonical source**.
 |--------|-------------|---------------|
 | build/image/ | From example/image + .env | `docker compose -f build/image/docker-compose.yml up -d` |
 | build/build/ | From example/build + .env | `docker compose -f build/build/docker-compose.yml up -d --build` |
-| build/traefik/ | All-in-one with Traefik | `docker compose -f build/traefik/docker-compose.yml up -d` |
-| build/traefik-herald/ | Split: Herald + Redis only | `docker compose -f build/traefik-herald/docker-compose.yml up -d` |
+| build/traefik/ | All-in-one with Traefik (Stargate, Warden, Herald, herald-totp, herald-dingtalk, Redis) | `docker compose -f build/traefik/docker-compose.yml up -d` |
+| build/traefik-herald/ | Split: Herald + herald-totp + Redis only | `docker compose -f build/traefik-herald/docker-compose.yml up -d` |
 | build/traefik-warden/ | Split: Warden + Redis only | `docker compose -f build/traefik-warden/docker-compose.yml up -d` |
-| build/traefik-stargate/ | Split: Stargate + protected service (Herald/Warden must be up) | `docker compose -f build/traefik-stargate/docker-compose.yml up -d` |
+| build/traefik-stargate/ | Split: Stargate + protected service (Herald/Warden/herald-totp must be up if enabled) | `docker compose -f build/traefik-stargate/docker-compose.yml up -d` |
 
 ## Usage
 

@@ -374,6 +374,16 @@ WARDEN_REDIS_PASSWORD=
 # DINGTALK_APP_SECRET=
 # DINGTALK_AGENT_ID=
 # DINGTALK_LOOKUP_MODE=none
+
+# TOTP 2FA (optional): Stargate calls herald-totp for enroll/verify and backup codes
+# HERALD_TOTP_ENABLED=false
+# HERALD_TOTP_BASE_URL=http://herald-totp:8084
+# HERALD_TOTP_API_KEY=
+# HERALD_TOTP_IMAGE=ghcr.io/soulteary/herald-totp:latest
+# HERALD_TOTP_ENCRYPTION_KEY=   # 32-byte AES-256 key, required when herald-totp runs
+# HERALD_TOTP_PORT=:8084
+# HERALD_TOTP_REDIS_ADDR=herald-redis:6379
+# HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL=true
 `
 }
 
@@ -408,7 +418,7 @@ func splitComposeComment(name string) string {
 #
 `
 	case "traefik-herald":
-		return `# Herald 独立 compose - 仅 OTP/验证码服务及其 Redis（由 canonical 生成）
+		return `# Herald 独立 compose - Herald + herald-totp（TOTP 2FA）+ Redis（由 canonical 生成）
 # 使用前先创建共享网络：docker network create the-gate-network
 # 启动：docker compose -f build/traefik-herald/docker-compose.yml up -d
 #

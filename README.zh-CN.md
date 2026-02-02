@@ -2,7 +2,7 @@
 
 # stargate-suite - 三服务端到端集成测试套件
 
-本仓库为 **Stargate + Warden + Herald** 三服务的端到端集成测试环境，提供多种 Compose 用法、CLI 编排与自动化测试，覆盖正常流程、异常场景、服务间鉴权、幂等、审计与监控等。
+本仓库为 **Stargate + Warden + Herald** 三服务的端到端集成测试环境，提供多种 Compose 用法、CLI 编排与自动化测试，覆盖正常流程、异常场景、服务间鉴权、幂等、审计与监控等。Web UI 与 canonical compose 还支持可选服务 **herald-totp**（TOTP 2FA）与 **herald-dingtalk**（钉钉通道）。
 
 Go 模块名为 `github.com/soulteary/the-gate`，仓库与产品名为 **stargate-suite**。
 
@@ -429,6 +429,17 @@ Traefik forwardAuth 鉴权服务，负责：
 - `GET /healthz`: 健康检查
 
 **注意**: 测试模式下，Herald 启用了 `HERALD_TEST_MODE=true`，可以通过 `/v1/test/code/:challenge_id` 端点获取验证码，仅用于集成测试。
+
+### Herald TOTP（herald-totp，可选）
+
+TOTP 双因素认证：绑定（enroll）、验证（verify）、解绑（revoke）；支持恢复码。Stargate 调用 herald-totp 实现按用户 TOTP；用户通过验证器应用（如 Google Authenticator）生成动态码。在 Stargate 环境变量中设置 `HERALD_TOTP_ENABLED=true`、`HERALD_TOTP_BASE_URL`、`HERALD_TOTP_API_KEY` 即可启用。
+
+- `POST /v1/enroll/start` — 开始绑定（返回二维码 / otpauth_uri）
+- `POST /v1/enroll/confirm` — 用一次 TOTP 码确认绑定
+- `POST /v1/verify` — 验证 TOTP 或恢复码
+- `POST /v1/revoke` — 解除 TOTP 与恢复码
+- `GET /v1/status?subject=...` — 查询是否已开启 TOTP
+- `GET /healthz`
 
 ## 测试流程示例
 
