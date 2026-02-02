@@ -152,6 +152,7 @@ type composeGenOptionsJSON struct {
 	PortHerald             string            `json:"portHerald"`
 	PortWarden             string            `json:"portWarden"`
 	PortHeraldRedis        string            `json:"portHeraldRedis"`
+	PortHeraldTotp         string            `json:"portHeraldTotp"`
 	ContainerNamePrefix    string            `json:"containerNamePrefix"`
 	EnvOverrides           map[string]string `json:"envOverrides"`
 	UseNamedVolume         *bool             `json:"useNamedVolume"`
@@ -188,6 +189,7 @@ func reqOptionsToComposegen(o *composeGenOptionsJSON) *composegen.Options {
 	opts.PortHerald = strings.TrimSpace(o.PortHerald)
 	opts.PortWarden = strings.TrimSpace(o.PortWarden)
 	opts.PortHeraldRedis = strings.TrimSpace(o.PortHeraldRedis)
+	opts.PortHeraldTotp = strings.TrimSpace(o.PortHeraldTotp)
 	if opts.TraefikNetworkName == "" {
 		opts.TraefikNetworkName = "traefik"
 	}

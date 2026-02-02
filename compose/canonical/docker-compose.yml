@@ -64,6 +64,32 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # herald-totp - TOTP 2FA（可选）：Stargate 调用，用于绑定/验证 TOTP 与恢复码
+  herald-totp:
+    image: ${HERALD_TOTP_IMAGE:-ghcr.io/soulteary/herald-totp:latest}
+    container_name: the-gate-herald-totp
+    ports:
+      - "8084:8084"
+    environment:
+      - PORT=${HERALD_TOTP_PORT:-:8084}
+      - REDIS_ADDR=${HERALD_TOTP_REDIS_ADDR:-herald-redis:6379}
+      - HERALD_TOTP_ENCRYPTION_KEY=${HERALD_TOTP_ENCRYPTION_KEY:-}
+      - EXPOSE_SECRET_IN_ENROLL=${HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL:-true}
+      - API_KEY=${HERALD_TOTP_API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    depends_on:
+      herald-redis:
+        condition: service_healthy
+    networks:
+      - the-gate-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8084/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
   # herald-dingtalk - 钉钉验证码推送（可选）：Herald 通过 HTTP 调用，钉钉凭证仅在此服务
   herald-dingtalk:
     image: ${HERALD_DINGTALK_IMAGE:-ghcr.io/soulteary/herald-dingtalk:latest}
@@ -164,6 +190,9 @@ services:
       - HERALD_ENABLED=${HERALD_ENABLED:-true}
       - HERALD_API_KEY=${HERALD_API_KEY:-test-herald-api-key}
       - HERALD_HMAC_SECRET=${HERALD_HMAC_SECRET:-test-hmac-secret}
+      - HERALD_TOTP_ENABLED=${HERALD_TOTP_ENABLED:-false}
+      - HERALD_TOTP_BASE_URL=${HERALD_TOTP_BASE_URL:-http://herald-totp:8084}
+      - HERALD_TOTP_API_KEY=${HERALD_TOTP_API_KEY:-}
       - SESSION_STORAGE_ENABLED=${SESSION_STORAGE_ENABLED:-false}
       - SESSION_STORAGE_REDIS_ADDR=${SESSION_STORAGE_REDIS_ADDR:-localhost:6379}
       - SESSION_STORAGE_REDIS_PASSWORD=${SESSION_STORAGE_REDIS_PASSWORD:-}
@@ -174,6 +203,8 @@ services:
       warden:
         condition: service_healthy
       herald:
+        condition: service_healthy
+      herald-totp:
         condition: service_healthy
     networks:
       - the-gate-network

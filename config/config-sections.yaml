@@ -9,6 +9,12 @@ configSections:
         default: "ghcr.io/soulteary/herald:v0.5.1"
         placeholder: "ghcr.io/soulteary/herald:v0.5.1"
       - type: imageEnv
+        envName: HERALD_TOTP_IMAGE
+        labelKey: heraldTotpImageLabel
+        descKey: heraldTotpImageDesc
+        default: "ghcr.io/soulteary/herald-totp:latest"
+        placeholder: "ghcr.io/soulteary/herald-totp:latest"
+      - type: imageEnv
         envName: WARDEN_IMAGE
         labelKey: wardenImageLabel
         descKey: wardenImageDesc
@@ -120,6 +126,17 @@ configSections:
         descKey: portHeraldRedisDesc
         default: "6379"
         placeholder: "6379"
+        min: 1
+        max: 65535
+        showWhenOption: exposePorts
+      - type: number
+        id: portHeraldTotp
+        name: portHeraldTotp
+        envName: portHeraldTotp
+        labelKey: portHeraldTotpLabel
+        descKey: portHeraldTotpDesc
+        default: "8084"
+        placeholder: "8084"
         min: 1
         max: 65535
         showWhenOption: exposePorts
