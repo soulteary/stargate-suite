@@ -60,6 +60,54 @@ var traefikSplitDefs = []splitDef{
 	{"traefik-stargate", []string{"stargate", "protected-service"}, nil, true},
 }
 
+// serviceAllowedEnvKeys 定义各服务允许接收的 EnvOverrides 键（与 canonical compose 中该服务 environment/labels 使用的 ${VAR:-default} 一致）。
+// 仅在此集合内的键会被合并进该服务的 environment；未列出的服务（如 herald-redis、warden-redis、protected-service）不注入任何 override。
+var serviceAllowedEnvKeys = func() map[string]map[string]bool {
+	allowed := func(keys ...string) map[string]bool {
+		m := make(map[string]bool, len(keys))
+		for _, k := range keys {
+			m[k] = true
+		}
+		return m
+	}
+	return map[string]map[string]bool{
+		"herald": allowed(
+			"HERALD_REDIS_ADDR", "HERALD_REDIS_PASSWORD", "HERALD_REDIS_DB", "LOG_LEVEL",
+			"HERALD_API_KEY", "HERALD_HMAC_SECRET", "HERALD_TEST_MODE", "PROVIDER_FAILURE_POLICY",
+			"CHALLENGE_EXPIRY", "CODE_LENGTH", "MAX_ATTEMPTS", "RESEND_COOLDOWN", "LOCKOUT_DURATION",
+			"IDEMPOTENCY_KEY_TTL", "ALLOWED_PURPOSES", "RATE_LIMIT_PER_USER", "RATE_LIMIT_PER_IP", "RATE_LIMIT_PER_DESTINATION",
+			"SERVICE_NAME", "HERALD_HMAC_KEYS",
+			"HERALD_DINGTALK_API_URL", "HERALD_DINGTALK_API_KEY", "HERALD_SMTP_API_URL", "HERALD_SMTP_API_KEY",
+		),
+		"herald-totp": allowed(
+			"HERALD_TOTP_PORT", "HERALD_TOTP_REDIS_ADDR", "HERALD_TOTP_ENCRYPTION_KEY",
+			"HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL", "HERALD_TOTP_API_KEY", "LOG_LEVEL",
+		),
+		"herald-dingtalk": allowed(
+			"LOG_LEVEL", "HERALD_DINGTALK_API_KEY", "DINGTALK_APP_KEY", "DINGTALK_APP_SECRET",
+			"DINGTALK_AGENT_ID", "DINGTALK_LOOKUP_MODE", "HERALD_DINGTALK_IDEMPOTENCY_TTL",
+		),
+		"herald-smtp": allowed(
+			"LOG_LEVEL", "HERALD_SMTP_API_KEY", "SMTP_HOST", "SMTP_PORT", "SMTP_USER",
+			"SMTP_PASSWORD", "SMTP_FROM", "SMTP_USE_STARTTLS", "HERALD_SMTP_IDEMPOTENCY_TTL",
+		),
+		"warden": allowed(
+			"WARDEN_REDIS_ADDR", "WARDEN_REDIS_PASSWORD", "WARDEN_REDIS_PASSWORD_FILE", "WARDEN_REDIS_ENABLED",
+			"WARDEN_DATA_FILE", "MODE", "WARDEN_API_KEY", "INTERVAL", "WARDEN_REMOTE_CONFIG", "WARDEN_REMOTE_KEY",
+			"WARDEN_HTTP_TIMEOUT", "WARDEN_HTTP_MAX_IDLE_CONNS", "WARDEN_HTTP_INSECURE_TLS", "LOG_LEVEL",
+		),
+		"stargate": allowed(
+			"AUTH_HOST", "LOGIN_PAGE_TITLE", "LOGIN_PAGE_FOOTER_TEXT", "COOKIE_DOMAIN", "PASSWORDS", "LANGUAGE",
+			"WARDEN_ENABLED", "WARDEN_API_KEY", "WARDEN_CACHE_TTL", "HERALD_ENABLED", "HERALD_API_KEY", "HERALD_HMAC_SECRET",
+			"HERALD_TOTP_ENABLED", "HERALD_TOTP_BASE_URL", "HERALD_TOTP_API_KEY",
+			"SESSION_STORAGE_ENABLED", "SESSION_STORAGE_REDIS_ADDR", "SESSION_STORAGE_REDIS_PASSWORD",
+			"AUDIT_LOG_ENABLED", "AUDIT_LOG_FORMAT", "DEBUG",
+			"STARGATE_DOMAIN", "PROTECTED_DOMAIN", "STARGATE_PREFIX", "PROTECTED_PREFIX", "USER_HEADER_NAME",
+		),
+		// herald-redis, warden-redis, protected-service: 无 environment 块，不注入任何 override（不在 map 中即视为允许集合为空）
+	}
+}()
+
 // envComments 环境变量名 -> 注释（用于在生成的 docker-compose 中插入注释，便于用户查看和修改）
 var envComments = map[string]string{
 	"PORT":                                "服务监听端口",
@@ -601,6 +649,10 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 		}
 	}
 	if len(opts.EnvOverrides) > 0 {
+		allowed := serviceAllowedEnvKeys[serviceName]
+		if len(allowed) == 0 {
+			return // 该服务不允许注入任何 EnvOverrides（如 herald-redis、warden-redis、protected-service）
+		}
 		envList, _ := svc["environment"].([]interface{})
 		overrides := opts.EnvOverrides
 		used := make(map[string]bool)
@@ -609,9 +661,13 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 			s, _ := e.(string)
 			if idx := strings.Index(s, "="); idx >= 0 {
 				key := strings.TrimSpace(s[:idx])
-				if v, ok := overrides[key]; ok {
-					newList = append(newList, key+"="+v)
-					used[key] = true
+				if allowed[key] {
+					if v, ok := overrides[key]; ok {
+						newList = append(newList, key+"="+v)
+						used[key] = true
+					} else {
+						newList = append(newList, s)
+					}
 				} else {
 					newList = append(newList, s)
 				}
@@ -620,7 +676,7 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 			}
 		}
 		for k, v := range overrides {
-			if !used[k] {
+			if allowed[k] && !used[k] {
 				newList = append(newList, k+"="+v)
 			}
 		}
