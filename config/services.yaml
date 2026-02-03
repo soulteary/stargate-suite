@@ -371,8 +371,13 @@ services:
     nameKey: heraldTotpName
     open: false
     sections:
-      - titleKey: heraldTotpSection
-        envVars:
+      - envVars:
+          - env: HERALD_TOTP_IMAGE
+            type: text
+            labelKey: heraldTotpImageLabel
+            descKey: heraldTotpImageDesc
+            default: "ghcr.io/soulteary/herald-totp:latest"
+            placeholder: "ghcr.io/soulteary/herald-totp:latest"
           - env: HERALD_TOTP_PORT
             type: text
             labelKey: heraldTotpPortLabel
