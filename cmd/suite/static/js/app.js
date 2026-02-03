@@ -127,6 +127,8 @@
 			resultEl.textContent = t.resultErrorNeedMode;
 			resultEl.className = 'error';
 			document.getElementById('downloads').innerHTML = '';
+			var pw = document.getElementById('config-preview-wrap');
+			if (pw) { pw.style.display = 'none'; pw.setAttribute('aria-hidden', 'true'); }
 			return;
 		}
 		var options = { envOverrides: {} };
@@ -165,9 +167,16 @@
 
 		var resultEl = document.getElementById('result');
 		var downloadsEl = document.getElementById('downloads');
+		var previewWrap = document.getElementById('config-preview-wrap');
+		var previewContent = document.getElementById('config-preview-content');
 		var submitBtn = document.getElementById('btn-generate');
 		resultEl.textContent = t.generating;
 		downloadsEl.innerHTML = '';
+		if (previewWrap) {
+			previewWrap.style.display = 'none';
+			previewWrap.setAttribute('aria-hidden', 'true');
+		}
+		if (previewContent) previewContent.innerHTML = '';
 		if (submitBtn) {
 			submitBtn.disabled = true;
 		}
@@ -199,10 +208,27 @@
 				envA.download = '.env';
 				envA.textContent = '.env';
 				downloadsEl.appendChild(envA);
+				// 预览区：仅生成成功后显示，默认折叠
+				if (previewWrap && previewContent) {
+					var composeLabel = t.previewComposeLabel || 'docker-compose.yml';
+					var envLabel = t.previewEnvLabel || '.env';
+					var html = '';
+					for (var m in data.composes) {
+						html += '<div class="config-preview-block"><h4 class="config-preview-heading">' + escapeHtml(m + '/' + composeLabel) + '</h4><pre class="config-preview-pre">' + escapeHtml(data.composes[m]) + '</pre></div>';
+					}
+					html += '<div class="config-preview-block"><h4 class="config-preview-heading">' + escapeHtml(envLabel) + '</h4><pre class="config-preview-pre">' + escapeHtml(data.env) + '</pre></div>';
+					previewContent.innerHTML = html;
+					previewWrap.style.display = '';
+					previewWrap.setAttribute('aria-hidden', 'false');
+				}
 			})
 			.catch(function (err) {
 				resultEl.textContent = t.requestFailed + (err && err.message ? err.message : String(err));
 				resultEl.className = 'error';
+				if (previewWrap) {
+					previewWrap.style.display = 'none';
+					previewWrap.setAttribute('aria-hidden', 'true');
+				}
 			})
 			.finally(function () {
 				if (submitBtn) submitBtn.disabled = false;

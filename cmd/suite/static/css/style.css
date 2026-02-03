@@ -412,6 +412,51 @@
 	text-decoration: underline;
 }
 
+/* 生成配置预览：默认折叠，未生成时隐藏 */
+.config-preview-wrap {
+	margin-top: 1rem;
+}
+.config-preview-details {
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	background: #fafafa;
+}
+.config-preview-details .pure-details-summary {
+	padding: 0.5rem 0.75rem;
+	cursor: pointer;
+}
+.config-preview-content {
+	padding: 0 0.75rem 0.75rem;
+}
+.config-preview-block {
+	margin-bottom: 1rem;
+}
+.config-preview-block:last-child {
+	margin-bottom: 0;
+}
+.config-preview-heading {
+	font-size: 0.875rem;
+	font-weight: 600;
+	margin: 0.75rem 0 0.25rem;
+}
+.config-preview-block:first-child .config-preview-heading {
+	margin-top: 0;
+}
+.config-preview-pre {
+	font-family: ui-monospace, monospace;
+	font-size: 0.8125rem;
+	line-height: 1.4;
+	margin: 0;
+	padding: 0.75rem;
+	background: #fff;
+	border: 1px solid #e0e4e8;
+	border-radius: 4px;
+	max-height: 20em;
+	overflow: auto;
+	white-space: pre;
+	word-break: normal;
+}
+
 button:focus-visible,
 .pure-link:focus-visible,
 .downloads a:focus-visible {
