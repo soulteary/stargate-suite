@@ -376,8 +376,8 @@ services:
             type: text
             labelKey: heraldTotpImageLabel
             descKey: heraldTotpImageDesc
-            default: "ghcr.io/soulteary/herald-totp:latest"
-            placeholder: "ghcr.io/soulteary/herald-totp:latest"
+            default: "ghcr.io/soulteary/herald-totp:v0.1.0"
+            placeholder: "ghcr.io/soulteary/herald-totp:v0.1.0"
           - env: HERALD_TOTP_PORT
             type: text
             labelKey: heraldTotpPortLabel

@@ -61,8 +61,8 @@ providers:
             type: text
             labelKey: heraldSmtpImageLabel
             descKey: heraldSmtpImageDesc
-            default: "ghcr.io/soulteary/herald-smtp:latest"
-            placeholder: "ghcr.io/soulteary/herald-smtp:latest"
+            default: "ghcr.io/soulteary/herald-smtp:v0.1.0"
+            placeholder: "ghcr.io/soulteary/herald-smtp:v0.1.0"
           - env: HERALD_SMTP_API_URL
             type: text
             labelKey: heraldSmtpApiUrlLabel

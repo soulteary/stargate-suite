@@ -6,8 +6,8 @@ configSections:
         envName: HERALD_IMAGE
         labelKey: heraldImageLabel
         descKey: heraldImageDesc
-        default: "ghcr.io/soulteary/herald:v0.5.1"
-        placeholder: "ghcr.io/soulteary/herald:v0.5.1"
+        default: "ghcr.io/soulteary/herald:v0.5.2"
+        placeholder: "ghcr.io/soulteary/herald:v0.5.2"
       - type: imageEnv
         envName: HERALD_TOTP_IMAGE
         labelKey: heraldTotpImageLabel
