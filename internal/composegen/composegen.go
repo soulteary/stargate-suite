@@ -2,6 +2,7 @@
 package composegen
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"regexp"
@@ -1034,9 +1035,16 @@ func GenerateOne(full map[string]interface{}, mode string, opts *Options) ([]byt
 		applyRedisBindPaths(out, opts)
 	}
 
-	outData, err := yaml.Marshal(out)
-	if err != nil {
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(out); err != nil {
 		return nil, err
+	}
+	outData := buf.Bytes()
+	// Encoder 会写入文档起始符 "---\n"，docker-compose 通常不需要，去掉以保持风格一致
+	if bytes.HasPrefix(outData, []byte("---\n")) {
+		outData = outData[4:]
 	}
 	outData = injectEnvComments(outData, envComments)
 	header := splitComposeComment(mode)
