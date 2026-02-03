@@ -13,7 +13,7 @@
 services:
   # Herald - OTP/验证码服务
   herald:
-    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.5.0}
+    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.5.2}
     container_name: the-gate-herald
     ports:
       - "8082:8082"
@@ -139,11 +139,13 @@ services:
       - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-http.entrypoints=http"
       - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-http.middlewares=redir-https"
       - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-http.rule=Host(`${STARGATE_DOMAIN:-auth.test.localhost}`) || PathPrefix(`/_session_exchange`)"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-http.priority=100"
       - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-http.service=noop@internal"
       - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.entrypoints=https"
       - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.tls=true"
       - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.middlewares=gzip"
       - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.rule=Host(`${STARGATE_DOMAIN:-auth.test.localhost}`) || PathPrefix(`/_session_exchange`)"
+      - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.priority=100"
       - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.service=${STARGATE_PREFIX:-stargate}-backend"
       - "traefik.http.services.${STARGATE_PREFIX:-stargate}-backend.loadbalancer.server.scheme=http"
       - "traefik.http.services.${STARGATE_PREFIX:-stargate}-backend.loadbalancer.server.port=80"

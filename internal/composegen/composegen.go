@@ -353,7 +353,7 @@ func DefaultEnvBody() string {
 	return `# Container Image Version Configuration
 
 # Herald Service Image
-HERALD_IMAGE=ghcr.io/soulteary/herald:v0.5.0
+HERALD_IMAGE=ghcr.io/soulteary/herald:v0.5.2
 
 # Warden Service Image
 WARDEN_IMAGE=ghcr.io/soulteary/warden:v0.9.3

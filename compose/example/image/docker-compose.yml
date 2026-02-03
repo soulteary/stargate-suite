@@ -6,7 +6,7 @@
 services:
   # Herald - OTP/Verification Code Service
   herald:
-    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.5.0}
+    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.5.2}
     container_name: the-gate-herald
     ports:
       - "8082:8082"
