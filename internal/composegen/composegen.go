@@ -150,9 +150,17 @@ func LoadCompose(path string) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read compose: %w", err)
 	}
+	return ParseCompose(data)
+}
+
+// ParseCompose 从内存解析 compose YAML 为 map，与 LoadCompose 结果形态一致，便于复用 ExtractEnvVars。
+func ParseCompose(data []byte) (map[string]interface{}, error) {
 	var out map[string]interface{}
 	if err := yaml.Unmarshal(data, &out); err != nil {
 		return nil, fmt.Errorf("parse compose: %w", err)
+	}
+	if out == nil {
+		return nil, fmt.Errorf("parse compose: empty or invalid structure")
 	}
 	return out, nil
 }

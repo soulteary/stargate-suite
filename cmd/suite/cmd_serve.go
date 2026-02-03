@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -18,6 +19,66 @@ import (
 	"github.com/soulteary/the-gate/internal/composegen"
 	"gopkg.in/yaml.v3"
 )
+
+// parseRequest 为 /api/parse 请求体。
+type parseRequest struct {
+	Compose string `json:"compose"`
+	Env     string `json:"env"`
+}
+
+// parseResponse 为 /api/parse 响应体。
+type parseResponse struct {
+	Services []string          `json:"services"`
+	EnvVars  map[string]string `json:"envVars"`
+	Errors   []string          `json:"errors"`
+}
+
+func handleParse(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxGenerateBodyBytes)
+	var req parseRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if strings.Contains(err.Error(), "request body too large") {
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.Compose) == "" {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(parseResponse{Errors: []string{"compose is required"}})
+		return
+	}
+	parsed, err := composegen.ParseCompose([]byte(req.Compose))
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(parseResponse{Errors: []string{err.Error()}})
+		return
+	}
+	services := extractServiceNames(parsed)
+	envVars := composegen.ExtractEnvVars(parsed)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(parseResponse{Services: services, EnvVars: envVars, Errors: []string{}})
+}
+
+func extractServiceNames(compose map[string]interface{}) []string {
+	svc, ok := compose["services"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	names := make([]string, 0, len(svc))
+	for k := range svc {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
+}
 
 func cacheControlHandler(value string, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -157,6 +218,7 @@ func cmdServe() error {
 		}
 	})
 	mux.Handle("/static/", http.StripPrefix("/static", staticHandler))
+	mux.HandleFunc("/api/parse", handleParse)
 	mux.HandleFunc("/api/generate", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

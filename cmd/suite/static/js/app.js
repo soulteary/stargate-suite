@@ -26,6 +26,10 @@
 			var key = el.getAttribute('data-i18n-placeholder');
 			if (key && I18N[lang][key] !== undefined) el.placeholder = I18N[lang][key];
 		});
+		document.querySelectorAll('[data-i18n-aria-label]').forEach(function (el) {
+			var key = el.getAttribute('data-i18n-aria-label');
+			if (key && I18N[lang][key] !== undefined) el.setAttribute('aria-label', I18N[lang][key]);
+		});
 		document.querySelectorAll('.lang-switch a').forEach(function (a) {
 			a.classList.toggle('active', a.getAttribute('data-lang') === lang);
 		});
@@ -38,6 +42,38 @@
 		});
 	});
 	applyLang(getLang());
+
+	// Tab switch
+	function showPanel(tabId) {
+		var panels = document.querySelectorAll('.tab-panel');
+		var triggers = document.querySelectorAll('.tab-trigger');
+		panels.forEach(function (p) {
+			var isTarget = p.id === 'panel-' + tabId;
+			p.style.display = isTarget ? 'block' : 'none';
+			p.setAttribute('aria-hidden', isTarget ? 'false' : 'true');
+		});
+		triggers.forEach(function (t) {
+			var isActive = t.getAttribute('data-tab') === tabId;
+			t.classList.toggle('active', isActive);
+			t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+		});
+	}
+	// 使用事件委托，避免 i18n 替换按钮文字后点击失效
+	var tabBar = document.querySelector('.tab-bar');
+	if (tabBar) {
+		tabBar.addEventListener('click', function (e) {
+			var t = e.target;
+			while (t && t !== tabBar) {
+				if (t.classList && t.classList.contains('tab-trigger')) {
+					e.preventDefault();
+					var tabId = t.getAttribute('data-tab');
+					if (tabId) showPanel(tabId);
+					return;
+				}
+				t = t.parentNode;
+			}
+		});
+	}
 
 	document.querySelectorAll('input[name="redisStorage"]').forEach(function (r) {
 		r.addEventListener('change', function () {
@@ -172,4 +208,76 @@
 				if (submitBtn) submitBtn.disabled = false;
 			});
 	};
+
+	// Parse (import-parse tab)
+	var btnParse = document.getElementById('btn-parse');
+	var parseResultEl = document.getElementById('parse-result');
+	if (btnParse && parseResultEl) {
+		btnParse.addEventListener('click', function () {
+			var I18N = window.I18N;
+			if (!I18N) return;
+			var lang = getLang();
+			var t = I18N[lang] || I18N.zh;
+			var composeEl = document.getElementById('input-compose');
+			var envEl = document.getElementById('input-env');
+			var compose = (composeEl && composeEl.value) ? composeEl.value.trim() : '';
+			var env = (envEl && envEl.value) ? envEl.value.trim() : '';
+			if (!compose) {
+				parseResultEl.innerHTML = '';
+				parseResultEl.textContent = t.importComposeRequired || '请粘贴 docker-compose 内容。';
+				parseResultEl.className = 'error';
+				return;
+			}
+			parseResultEl.textContent = t.parsing || '解析中…';
+			parseResultEl.className = '';
+			btnParse.disabled = true;
+			fetch('/api/parse', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ compose: compose, env: env })
+			})
+				.then(function (r) {
+					return r.json().then(function (data) {
+						return { ok: r.ok, data: data };
+					});
+				})
+				.then(function (res) {
+					if (res.ok && (!res.data.errors || res.data.errors.length === 0)) {
+						var html = '';
+						if (res.data.services && res.data.services.length > 0) {
+							html += '<h3 class="parse-result-heading">' + (t.parseServicesLabel || '服务') + '</h3><ul class="parse-services-list">';
+							res.data.services.forEach(function (s) {
+								html += '<li>' + escapeHtml(s) + '</li>';
+							});
+							html += '</ul>';
+						}
+						if (res.data.envVars && Object.keys(res.data.envVars).length > 0) {
+							html += '<h3 class="parse-result-heading">' + (t.parseEnvVarsLabel || '环境变量') + '</h3><table class="parse-env-table pure-table pure-table-bordered"><thead><tr><th>' + (t.parseEnvNameLabel || '变量名') + '</th><th>' + (t.parseEnvDefaultLabel || '默认值') + '</th></tr></thead><tbody>';
+							Object.keys(res.data.envVars).sort().forEach(function (k) {
+								html += '<tr><td><code>' + escapeHtml(k) + '</code></td><td><code>' + escapeHtml(String(res.data.envVars[k] || '')) + '</code></td></tr>';
+							});
+							html += '</tbody></table>';
+						}
+						parseResultEl.innerHTML = html || (t.parseSuccess || '解析成功，未识别到服务或环境变量。');
+						parseResultEl.className = '';
+					} else {
+						var errMsg = (res.data.errors && res.data.errors.length) ? res.data.errors.join('\n') : (t.parseError || '解析失败');
+						parseResultEl.textContent = errMsg;
+						parseResultEl.className = 'error';
+					}
+				})
+				.catch(function (err) {
+					parseResultEl.textContent = (t.requestFailed || '请求失败: ') + (err && err.message ? err.message : String(err));
+					parseResultEl.className = 'error';
+				})
+				.finally(function () {
+					btnParse.disabled = false;
+				});
+		});
+	}
+	function escapeHtml(s) {
+		var div = document.createElement('div');
+		div.textContent = s;
+		return div.innerHTML;
+	}
 })();

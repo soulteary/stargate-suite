@@ -43,6 +43,82 @@
 	font-size: 0.9375rem;
 }
 
+/* Tab 栏 */
+.tab-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem 1rem;
+	margin: 0 0 1rem;
+	padding: 0;
+	border-bottom: 1px solid #ddd;
+	list-style: none;
+}
+.tab-trigger {
+	appearance: none;
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	margin-bottom: -1px;
+	padding: 0.5rem 0.75rem;
+	font-size: 0.9375rem;
+	color: #555;
+	cursor: pointer;
+}
+.tab-trigger:hover {
+	color: #0078e7;
+}
+.tab-trigger.active {
+	font-weight: 600;
+	color: #0078e7;
+	border-bottom-color: #0078e7;
+}
+.tab-panel {
+	margin-top: 0;
+}
+
+/* 导入并解析 */
+.import-parse-desc {
+	margin-bottom: 1rem;
+}
+.parse-textarea {
+	font-family: ui-monospace, monospace;
+	font-size: 0.875rem;
+	resize: vertical;
+	min-height: 8em;
+}
+.import-env-details {
+	margin: 0.75rem 0;
+}
+.import-env-details summary {
+	cursor: pointer;
+	color: #0078e7;
+}
+.parse-result-area {
+	margin-top: 1.5rem;
+	padding: 0.5rem 0;
+}
+.parse-result-heading {
+	font-size: 1rem;
+	font-weight: 600;
+	margin: 1rem 0 0.5rem;
+}
+.parse-result-heading:first-child {
+	margin-top: 0;
+}
+.parse-services-list {
+	margin: 0 0 1rem;
+	padding-left: 1.5rem;
+}
+.parse-env-table {
+	width: 100%;
+	max-width: 640px;
+	margin-top: 0.5rem;
+	font-size: 0.875rem;
+}
+.parse-env-table code {
+	font-size: 0.8125rem;
+}
+
 /* 通用配置：单列，每项独占一行 */
 .config-single-column {
 	width: 100%;

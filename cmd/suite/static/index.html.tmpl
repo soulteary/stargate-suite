@@ -23,6 +23,12 @@
 			</header>
 			<p class="subtitle" data-i18n="subtitle">Select compose type(s) and options, then click Generate.</p>
 
+			<nav class="tab-bar" role="tablist" aria-label="Main tabs" data-i18n-aria-label="tablistAriaLabel">
+				<button type="button" class="tab-trigger active" role="tab" aria-selected="true" aria-controls="panel-generate" id="tab-generate" data-tab="generate" data-i18n="tabGenerate">生成部署配置</button>
+				<button type="button" class="tab-trigger" role="tab" aria-selected="false" aria-controls="panel-import-parse" id="tab-import-parse" data-tab="import-parse" data-i18n="tabImportParse">导入并解析配置</button>
+			</nav>
+
+			<div id="panel-generate" class="tab-panel" role="tabpanel" aria-labelledby="tab-generate">
 			<form id="form" class="pure-form pure-form-stacked">
 				<!-- 通用配置：单列布局，每项一行 -->
 				<div class="config-single-column pure-g">
@@ -195,6 +201,23 @@
 
 			<div id="result" class="result-area" role="status" aria-live="polite"></div>
 			<div id="downloads" class="downloads pure-menu pure-menu-list" aria-label="Download links"></div>
+			</div>
+
+			<div id="panel-import-parse" class="tab-panel" role="tabpanel" aria-labelledby="tab-import-parse" aria-hidden="true" style="display:none;">
+				<p class="import-parse-desc config-desc" data-i18n="importParseDesc">粘贴 docker-compose.yml 与可选的 .env 内容，点击解析即可查看服务列表与环境变量摘要。</p>
+				<div class="import-parse-form pure-form pure-form-stacked">
+					<label for="input-compose"><span data-i18n="importComposeLabel">docker-compose.yml</span></label>
+					<textarea id="input-compose" class="pure-input-1 parse-textarea" rows="14" data-i18n-placeholder="importComposePlaceholder" placeholder="粘贴 docker-compose 内容（YAML）…"></textarea>
+					<details class="import-env-details">
+						<summary data-i18n="importEnvSummary">可选：粘贴 .env 内容</summary>
+						<textarea id="input-env" class="pure-input-1 parse-textarea" rows="6" data-i18n-placeholder="importEnvPlaceholder" placeholder="KEY=VALUE 每行一条…"></textarea>
+					</details>
+					<div class="form-actions">
+						<button type="button" id="btn-parse" class="pure-button pure-button-primary" data-i18n="btnParse">解析</button>
+					</div>
+				</div>
+				<div id="parse-result" class="parse-result-area" role="status" aria-live="polite"></div>
+			</div>
 		</div>
 	</div>
 
