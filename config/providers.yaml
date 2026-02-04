@@ -39,11 +39,13 @@ providers:
             descKey: dingtalkAgentIdDesc
             placeholder: ""
           - env: DINGTALK_LOOKUP_MODE
-            type: text
+            type: select
             labelKey: dingtalkLookupModeLabel
             descKey: dingtalkLookupModeDesc
             default: "none"
-            placeholder: "none"
+            options:
+              - value: "none"
+              - value: "mobile"
           - env: HERALD_DINGTALK_IDEMPOTENCY_TTL
             type: number
             labelKey: heraldDingtalkIdempotencyTtlLabel

@@ -60,6 +60,16 @@
 							</label>
 							<p class="config-desc" data-i18n="{{.DescKey}}"></p>
 						</div>
+						{{else if eq .Type "select"}}
+						<div class="config-item pure-control-group" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
+							<label for="{{.Id}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.EnvName}}</span></label>
+							<select name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}" class="pure-input-1">
+								{{$def := .Default}}{{range .Options}}
+								<option value="{{.Value}}"{{if eq (printf "%v" $def) .Value}} selected{{end}}>{{.Value}}</option>
+								{{end}}
+							</select>
+							<p class="config-desc" data-i18n="{{.DescKey}}"></p>
+						</div>
 						{{else if eq .Type "text"}}
 						<div class="config-item pure-control-group" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
 							<label for="{{.Id}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.EnvName}}</span></label>

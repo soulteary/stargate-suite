@@ -46,21 +46,22 @@ type pageMode struct {
 }
 
 type configOption struct {
-	Type           string      `yaml:"type"`
-	Id             string      `yaml:"id"`
-	Name           string      `yaml:"name"`
-	EnvName        string      `yaml:"envName"`
-	LabelKey       string      `yaml:"labelKey"`
-	DescKey        string      `yaml:"descKey"`
-	PlaceholderKey string      `yaml:"placeholderKey"`
-	Placeholder    string      `yaml:"placeholder"`
-	Default        interface{} `yaml:"default"`
-	TitleKey       string      `yaml:"titleKey"`
-	Value          string      `yaml:"value"`
-	Paths          []redisPath `yaml:"paths"`
-	ShowWhenOption string      `yaml:"showWhenOption"`
-	Min            int         `yaml:"min"`
-	Max            int         `yaml:"max"`
+	Type           string         `yaml:"type"`
+	Id             string         `yaml:"id"`
+	Name           string         `yaml:"name"`
+	EnvName        string         `yaml:"envName"`
+	LabelKey       string         `yaml:"labelKey"`
+	DescKey        string         `yaml:"descKey"`
+	PlaceholderKey string         `yaml:"placeholderKey"`
+	Placeholder    string         `yaml:"placeholder"`
+	Default        interface{}    `yaml:"default"`
+	TitleKey       string         `yaml:"titleKey"`
+	Value          string         `yaml:"value"`
+	Options        []selectOption `yaml:"options"`
+	Paths          []redisPath    `yaml:"paths"`
+	ShowWhenOption string         `yaml:"showWhenOption"`
+	Min            int            `yaml:"min"`
+	Max            int            `yaml:"max"`
 }
 
 type redisPath struct {

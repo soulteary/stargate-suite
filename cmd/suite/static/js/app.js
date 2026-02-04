@@ -98,7 +98,8 @@
 		document.querySelectorAll('[data-depends-on-option]').forEach(function (el) {
 			var optionId = el.getAttribute('data-depends-on-option');
 			var cb = document.getElementById(optionId);
-			el.style.display = cb && cb.checked ? '' : 'none';
+			var on = cb && (cb.type === 'checkbox' ? cb.checked : (cb.tagName === 'SELECT' && cb.value === 'true'));
+			el.style.display = on ? '' : 'none';
 		});
 		document.querySelectorAll('[data-depends-on-env]').forEach(function (el) {
 			var envKey = el.getAttribute('data-depends-on-env');
@@ -148,6 +149,7 @@
 			var key = el.getAttribute('data-option');
 			if (!key) return;
 			if (el.type === 'checkbox') options[key] = el.checked;
+			else if (el.tagName === 'SELECT') options[key] = (el.value === 'true' || el.value === 'false') ? (el.value === 'true') : (el.value || '').trim();
 			else options[key] = (el.value || '').trim();
 		});
 		options.useNamedVolume = document.getElementById('redisStorageVolume').checked;
