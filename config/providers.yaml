@@ -10,8 +10,8 @@ providers:
             type: text
             labelKey: heraldDingtalkImageLabel
             descKey: heraldDingtalkImageDesc
-            default: "ghcr.io/soulteary/herald-dingtalk:v0.3.0"
-            placeholder: "ghcr.io/soulteary/herald-dingtalk:v0.3.0"
+            default: "ghcr.io/soulteary/herald-dingtalk:v0.4.0"
+            placeholder: "ghcr.io/soulteary/herald-dingtalk:v0.4.0"
           - env: HERALD_DINGTALK_API_URL
             type: text
             labelKey: heraldDingtalkApiUrlLabel
