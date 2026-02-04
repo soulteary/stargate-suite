@@ -78,7 +78,34 @@ if ! docker compose -f "$COMPOSE_FILE" ps 2>/dev/null | grep -q "Up"; then
     fi
 fi
 
-# Services already up: check health then run tests
+# 无论是否刚启动，在健康检查前都等待所有服务就绪（避免部分容器已 Up 但 Stargate 尚未监听）
+TEST_WAIT_TIMEOUT="${TEST_WAIT_TIMEOUT:-60}"
+echo "Waiting for services to be ready (timeout ${TEST_WAIT_TIMEOUT}s)..."
+start=$(date +%s)
+while true; do
+    all_ok=true
+    for service in "stargate:8080/_auth" "warden:8081/health" "herald:8082/healthz"; do
+        port=$(echo "$service" | cut -d: -f2 | cut -d/ -f1)
+        path=$(echo "$service" | cut -d/ -f2-)
+        if ! curl -sf "http://localhost:$port/$path" > /dev/null 2>&1; then
+            all_ok=false
+            break
+        fi
+    done
+    if [ "$all_ok" = true ]; then
+        echo "All services ready."
+        break
+    fi
+    now=$(date +%s)
+    if [ $(( now - start )) -ge "$TEST_WAIT_TIMEOUT" ]; then
+        echo "Services did not become ready within ${TEST_WAIT_TIMEOUT}s. Run: docker compose -f $COMPOSE_FILE logs"
+        docker compose -f "$COMPOSE_FILE" logs 2>/dev/null || true
+        exit 1
+    fi
+    sleep 1
+done
+
+# Services ready: check health then run tests
 echo "Checking service health status..."
 services=("stargate:8080/_auth" "warden:8081/health" "herald:8082/healthz")
 all_healthy=true
