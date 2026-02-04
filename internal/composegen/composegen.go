@@ -100,8 +100,11 @@ var serviceAllowedEnvKeys = func() map[string]map[string]bool {
 		"stargate": allowed(
 			"AUTH_HOST", "LOGIN_PAGE_TITLE", "LOGIN_PAGE_FOOTER_TEXT", "COOKIE_DOMAIN", "PASSWORDS", "LANGUAGE",
 			"WARDEN_ENABLED", "WARDEN_API_KEY", "WARDEN_CACHE_TTL", "HERALD_ENABLED", "HERALD_API_KEY", "HERALD_HMAC_SECRET",
-			"HERALD_TOTP_ENABLED", "HERALD_TOTP_BASE_URL", "HERALD_TOTP_API_KEY",
+			"LOGIN_SMS_ENABLED", "LOGIN_EMAIL_ENABLED",
+			"HERALD_TOTP_ENABLED", "HERALD_TOTP_BASE_URL", "HERALD_TOTP_API_KEY", "HERALD_TOTP_HMAC_SECRET",
 			"SESSION_STORAGE_ENABLED", "SESSION_STORAGE_REDIS_ADDR", "SESSION_STORAGE_REDIS_PASSWORD",
+			"SESSION_STORAGE_REDIS_DB", "SESSION_STORAGE_REDIS_KEY_PREFIX",
+			"STEP_UP_ENABLED", "STEP_UP_PATHS",
 			"AUDIT_LOG_ENABLED", "AUDIT_LOG_FORMAT", "DEBUG",
 			"STARGATE_DOMAIN", "PROTECTED_DOMAIN", "STARGATE_PREFIX", "PROTECTED_PREFIX", "USER_HEADER_NAME",
 		),
@@ -150,11 +153,18 @@ var envComments = map[string]string{
 	"WARDEN_CACHE_TTL":                    "Warden 缓存 TTL（秒）",
 	"HERALD_URL":                          "Stargate 调用 Herald 的地址",
 	"HERALD_ENABLED":                      "是否启用 Herald",
+	"LOGIN_SMS_ENABLED":                   "是否允许短信验证码登录（默认 true）",
+	"LOGIN_EMAIL_ENABLED":                 "是否允许邮箱验证码登录（默认 true）",
 	"HERALD_API_KEY":                      "Herald API 密钥",
 	"HERALD_HMAC_SECRET":                  "Herald HMAC 密钥",
 	"SESSION_STORAGE_ENABLED":             "是否启用会话存储",
 	"SESSION_STORAGE_REDIS_ADDR":          "会话存储 Redis 地址",
 	"SESSION_STORAGE_REDIS_PASSWORD":      "会话存储 Redis 密码",
+	"SESSION_STORAGE_REDIS_DB":            "会话存储 Redis 库号",
+	"SESSION_STORAGE_REDIS_KEY_PREFIX":    "会话存储 Redis 键前缀",
+	"STEP_UP_ENABLED":                     "是否启用敏感路径二次验证（step-up）",
+	"STEP_UP_PATHS":                       "需二次验证的路径模式，逗号分隔，如 /admin*,/api/secret*",
+	"HERALD_TOTP_HMAC_SECRET":             "Stargate 调用 herald-totp 的 HMAC 密钥（可选）",
 	"AUDIT_LOG_ENABLED":                   "是否启用审计日志",
 	"AUDIT_LOG_FORMAT":                    "审计日志格式 (json/text)",
 	"WARDEN_REDIS_PASSWORD":               "Warden Redis 密码",
@@ -341,8 +351,9 @@ func EnvBodyFromVars(vars map[string]string, optionalOverride string) string {
 		"LOGIN_PAGE_TITLE", "LOGIN_PAGE_FOOTER_TEXT", "COOKIE_DOMAIN",
 		"LANGUAGE", "PASSWORDS",
 		"HERALD_API_KEY", "HERALD_HMAC_SECRET", "WARDEN_API_KEY",
-		"WARDEN_ENABLED", "HERALD_ENABLED", "SESSION_STORAGE_ENABLED",
-		"SESSION_STORAGE_REDIS_ADDR", "SESSION_STORAGE_REDIS_PASSWORD",
+		"WARDEN_ENABLED", "HERALD_ENABLED", "LOGIN_SMS_ENABLED", "LOGIN_EMAIL_ENABLED", "SESSION_STORAGE_ENABLED",
+		"SESSION_STORAGE_REDIS_ADDR", "SESSION_STORAGE_REDIS_PASSWORD", "SESSION_STORAGE_REDIS_DB", "SESSION_STORAGE_REDIS_KEY_PREFIX",
+		"STEP_UP_ENABLED", "STEP_UP_PATHS", "HERALD_TOTP_HMAC_SECRET",
 		"WARDEN_CACHE_TTL", "AUDIT_LOG_ENABLED", "AUDIT_LOG_FORMAT", "DEBUG",
 		"MODE", "LOG_LEVEL", "INTERVAL", "WARDEN_REMOTE_CONFIG", "WARDEN_REMOTE_KEY",
 		"WARDEN_HTTP_TIMEOUT", "WARDEN_HTTP_MAX_IDLE_CONNS", "WARDEN_HTTP_INSECURE_TLS",
@@ -402,13 +413,13 @@ func DefaultEnvBody() string {
 	return `# Container Image Version Configuration
 
 # Herald Service Image
-HERALD_IMAGE=ghcr.io/soulteary/herald:v0.5.2
+HERALD_IMAGE=ghcr.io/soulteary/herald:v0.6.0
 
 # Warden Service Image
-WARDEN_IMAGE=ghcr.io/soulteary/warden:v0.9.3
+WARDEN_IMAGE=ghcr.io/soulteary/warden:v0.10.0
 
 # Stargate Service Image
-STARGATE_IMAGE=ghcr.io/soulteary/stargate:v0.8.4
+STARGATE_IMAGE=ghcr.io/soulteary/stargate:v0.9.0
 
 # Redis Image Version
 HERALD_REDIS_IMAGE=redis:8.4-alpine

@@ -6,7 +6,7 @@
 services:
   # Herald - OTP/Verification Code Service
   herald:
-    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.5.2}
+    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.6.0}
     container_name: the-gate-herald
     ports:
       - "8082:8082"
@@ -55,7 +55,7 @@ services:
 
   # Warden - Whitelist User Service
   warden:
-    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.9.3}
+    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.10.0}
     container_name: the-gate-warden
     ports:
       - "8081:8081"
@@ -104,7 +104,7 @@ services:
 
   # Stargate - Authentication/Authorization Service
   stargate:
-    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.8.4}
+    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.9.0}
     container_name: the-gate-stargate
     ports:
       - "8080:80"
@@ -121,6 +121,10 @@ services:
       - HERALD_API_KEY=${HERALD_API_KEY:-test-herald-api-key}
       - HERALD_HMAC_SECRET=${HERALD_HMAC_SECRET:-test-hmac-secret}
       - SESSION_STORAGE_ENABLED=${SESSION_STORAGE_ENABLED:-false}
+      - SESSION_STORAGE_REDIS_DB=${SESSION_STORAGE_REDIS_DB:-0}
+      - SESSION_STORAGE_REDIS_KEY_PREFIX=${SESSION_STORAGE_REDIS_KEY_PREFIX:-}
+      - STEP_UP_ENABLED=${STEP_UP_ENABLED:-false}
+      - STEP_UP_PATHS=${STEP_UP_PATHS:-}
       - DEBUG=false
     depends_on:
       warden:

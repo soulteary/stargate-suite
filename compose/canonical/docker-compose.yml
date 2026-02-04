@@ -6,7 +6,7 @@
 services:
   # Herald - OTP/验证码服务
   herald:
-    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.5.2}
+    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.6.0}
     container_name: the-gate-herald
     ports:
       - "8082:8082"
@@ -147,7 +147,7 @@ services:
 
   # Warden - 白名单用户服务
   warden:
-    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.9.3}
+    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.10.0}
     container_name: the-gate-warden
     ports:
       - "8081:8081"
@@ -202,7 +202,7 @@ services:
 
   # Stargate - Forward Auth，依赖 Warden/Herald（内网）
   stargate:
-    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.8.4}
+    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.9.0}
     container_name: the-gate-stargate
     ports: []
     environment:
@@ -223,9 +223,14 @@ services:
       - HERALD_TOTP_ENABLED=${HERALD_TOTP_ENABLED:-false}
       - HERALD_TOTP_BASE_URL=${HERALD_TOTP_BASE_URL:-http://herald-totp:8084}
       - HERALD_TOTP_API_KEY=${HERALD_TOTP_API_KEY:-}
+      - HERALD_TOTP_HMAC_SECRET=${HERALD_TOTP_HMAC_SECRET:-}
       - SESSION_STORAGE_ENABLED=${SESSION_STORAGE_ENABLED:-false}
       - SESSION_STORAGE_REDIS_ADDR=${SESSION_STORAGE_REDIS_ADDR:-localhost:6379}
       - SESSION_STORAGE_REDIS_PASSWORD=${SESSION_STORAGE_REDIS_PASSWORD:-}
+      - SESSION_STORAGE_REDIS_DB=${SESSION_STORAGE_REDIS_DB:-0}
+      - SESSION_STORAGE_REDIS_KEY_PREFIX=${SESSION_STORAGE_REDIS_KEY_PREFIX:-}
+      - STEP_UP_ENABLED=${STEP_UP_ENABLED:-false}
+      - STEP_UP_PATHS=${STEP_UP_PATHS:-}
       - AUDIT_LOG_ENABLED=${AUDIT_LOG_ENABLED:-true}
       - AUDIT_LOG_FORMAT=${AUDIT_LOG_FORMAT:-json}
       - DEBUG=false

@@ -95,6 +95,12 @@ services:
             default: "300"
             placeholder: "300"
             min: 1
+          - env: HERALD_TOTP_HMAC_SECRET
+            type: text
+            labelKey: heraldTotpHmacSecretLabel
+            descKey: heraldTotpHmacSecretDesc
+            placeholder: ""
+            showWhenOption: totpEnabled
           - env: SESSION_STORAGE_ENABLED
             type: checkbox
             labelKey: sessionStorageEnabledLabel
@@ -109,6 +115,20 @@ services:
             type: text
             labelKey: sessionStorageRedisPasswordLabel
             descKey: sessionStorageRedisPasswordDesc
+            showWhenEnv: SESSION_STORAGE_ENABLED
+          - env: SESSION_STORAGE_REDIS_DB
+            type: number
+            labelKey: sessionStorageRedisDbLabel
+            descKey: sessionStorageRedisDbDesc
+            default: "0"
+            placeholder: "0"
+            min: 0
+            showWhenEnv: SESSION_STORAGE_ENABLED
+          - env: SESSION_STORAGE_REDIS_KEY_PREFIX
+            type: text
+            labelKey: sessionStorageRedisKeyPrefixLabel
+            descKey: sessionStorageRedisKeyPrefixDesc
+            placeholder: ""
             showWhenEnv: SESSION_STORAGE_ENABLED
           - env: AUDIT_LOG_ENABLED
             type: checkbox
@@ -129,6 +149,18 @@ services:
             type: checkbox
             labelKey: debugLabel
             descKey: debugDesc
+      - titleKey: stepUpSection
+        envVars:
+          - env: STEP_UP_ENABLED
+            type: checkbox
+            labelKey: stepUpEnabledLabel
+            descKey: stepUpEnabledDesc
+            default: false
+          - env: STEP_UP_PATHS
+            type: text
+            labelKey: stepUpPathsLabel
+            descKey: stepUpPathsDesc
+            placeholder: "/admin*,/api/secret*"
       - titleKey: optionalSensitive
         envVars:
           - env: PASSWORDS

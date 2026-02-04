@@ -6,8 +6,8 @@ configSections:
         envName: HERALD_IMAGE
         labelKey: heraldImageLabel
         descKey: heraldImageDesc
-        default: "ghcr.io/soulteary/herald:v0.6.0"
-        placeholder: "ghcr.io/soulteary/herald:v0.6.0"
+        default: "ghcr.io/soulteary/herald:v0.6.1"
+        placeholder: "ghcr.io/soulteary/herald:v0.6.1"
       - type: imageEnv
         envName: HERALD_TOTP_IMAGE
         labelKey: heraldTotpImageLabel
@@ -25,8 +25,8 @@ configSections:
         envName: STARGATE_IMAGE
         labelKey: stargateImageLabel
         descKey: stargateImageDesc
-        default: "ghcr.io/soulteary/stargate:v0.9.0"
-        placeholder: "ghcr.io/soulteary/stargate:v0.9.0"
+        default: "ghcr.io/soulteary/stargate:v0.9.2"
+        placeholder: "ghcr.io/soulteary/stargate:v0.9.2"
       - type: imageEnv
         envName: HERALD_REDIS_IMAGE
         labelKey: heraldRedisImageLabel
