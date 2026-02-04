@@ -22,47 +22,59 @@ echo ""
 # Ensure compose config is applied (recreates services if env/volumes changed, e.g. Warden DATA_FILE)
 docker compose -f "$COMPOSE_FILE" up -d 2>/dev/null || true
 
+# CI 环境下无 TTY，自动启动服务并等待；本地可交互时提示
+AUTO_START=
+if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
+  AUTO_START=1
+fi
+
 # Check Docker Compose service status
 echo "Checking service status..."
 if ! docker compose -f "$COMPOSE_FILE" ps 2>/dev/null | grep -q "Up"; then
-    echo "Warning: Services may not be started. Please run first: make up  or  docker compose -f $COMPOSE_FILE up -d"
-    echo ""
-    read -p "Start services now? (y/n) " -n 1 -r
-    echo ""
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "Starting services..."
-        docker compose -f "$COMPOSE_FILE" up -d --build
-        TEST_WAIT_TIMEOUT="${TEST_WAIT_TIMEOUT:-60}"
-        echo "Waiting for services to be ready (timeout ${TEST_WAIT_TIMEOUT}s)..."
-        start=$(date +%s)
-        while true; do
-            all_ok=true
-            for service in "stargate:8080/_auth" "warden:8081/health" "herald:8082/healthz"; do
-                port=$(echo "$service" | cut -d: -f2 | cut -d/ -f1)
-                path=$(echo "$service" | cut -d/ -f2-)
-                if ! curl -sf "http://localhost:$port/$path" > /dev/null 2>&1; then
-                    all_ok=false
-                    break
-                fi
-            done
-            if [ "$all_ok" = true ]; then
-                echo "All services ready."
+    if [ -n "$AUTO_START" ]; then
+        echo "CI mode: starting services and waiting for readiness..."
+    else
+        echo "Warning: Services may not be started. Please run first: make up  or  docker compose -f $COMPOSE_FILE up -d"
+        echo ""
+        read -p "Start services now? (y/n) " -n 1 -r
+        echo ""
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Please start services first: make up  or  docker compose -f $COMPOSE_FILE up -d"
+            exit 1
+        fi
+    fi
+    echo "Starting services..."
+    docker compose -f "$COMPOSE_FILE" up -d --build
+    TEST_WAIT_TIMEOUT="${TEST_WAIT_TIMEOUT:-60}"
+    echo "Waiting for services to be ready (timeout ${TEST_WAIT_TIMEOUT}s)..."
+    start=$(date +%s)
+    while true; do
+        all_ok=true
+        for service in "stargate:8080/_auth" "warden:8081/health" "herald:8082/healthz"; do
+            port=$(echo "$service" | cut -d: -f2 | cut -d/ -f1)
+            path=$(echo "$service" | cut -d/ -f2-)
+            if ! curl -sf "http://localhost:$port/$path" > /dev/null 2>&1; then
+                all_ok=false
                 break
             fi
-            now=$(date +%s)
-            if [ $(( now - start )) -ge "$TEST_WAIT_TIMEOUT" ]; then
-                echo "Services did not become ready within ${TEST_WAIT_TIMEOUT}s. Run: docker compose -f $COMPOSE_FILE logs"
-                exit 1
-            fi
-            sleep 1
         done
+        if [ "$all_ok" = true ]; then
+            echo "All services ready."
+            break
+        fi
+        now=$(date +%s)
+        if [ $(( now - start )) -ge "$TEST_WAIT_TIMEOUT" ]; then
+            echo "Services did not become ready within ${TEST_WAIT_TIMEOUT}s. Run: docker compose -f $COMPOSE_FILE logs"
+            exit 1
+        fi
+        sleep 1
+    done
+    # CI 下直接跑测并退出；本地交互已启动后继续走下方统一健康检查与 go test
+    if [ -n "$AUTO_START" ]; then
         echo "Running End-to-End Tests..."
         echo ""
         go test -v ./e2e/...
         exit $?
-    else
-        echo "Please start services first: make up  or  docker compose -f $COMPOSE_FILE up -d"
-        exit 1
     fi
 fi
 

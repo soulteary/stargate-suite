@@ -11,9 +11,9 @@ env:
   DOCKER_BUILDKIT: 1
 
 jobs:
-  # Code testing
+  # 代码测试（Web UI / 非 e2e）：不包含 e2e，e2e 由下方 e2e job 通过 scripts/run-e2e.sh 执行
   test:
-    name: Code Testing
+    name: Code Testing (Web UI / unit)
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -40,11 +40,56 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run tests
-        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Run tests (exclude e2e)
+        run: |
+          pkgs=$(go list ./... | grep -v '/e2e$' || true)
+          if [ -n "$pkgs" ]; then
+            go test -v -race -coverprofile=coverage.out -covermode=atomic $pkgs
+          else
+            echo "No non-e2e packages to test (e2e runs in separate job)"
+            touch coverage.out
+          fi
 
       - name: Display coverage summary
-        run: go tool cover -func=coverage.out
+        if: success()
+        run: go tool cover -func=coverage.out 2>/dev/null || true
+
+  # E2E 测试：使用 scripts/run-e2e.sh，需先生成 compose 并启动服务
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [test]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go environment
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Generate compose (build/image)
+        run: make gen
+
+      - name: Start services and run E2E
+        run: ./scripts/run-e2e.sh
+        env:
+          CI: true
+          TEST_WAIT_TIMEOUT: 120
 
   # Docker build
   docker-build:
