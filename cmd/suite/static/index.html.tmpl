@@ -26,6 +26,7 @@
 			<nav class="tab-bar" role="tablist" aria-label="Main tabs" data-i18n-aria-label="tablistAriaLabel">
 				<button type="button" class="tab-trigger active" role="tab" aria-selected="true" aria-controls="panel-generate" id="tab-generate" data-tab="generate" data-i18n="tabGenerate">生成部署配置</button>
 				<button type="button" class="tab-trigger" role="tab" aria-selected="false" aria-controls="panel-import-parse" id="tab-import-parse" data-tab="import-parse" data-i18n="tabImportParse">导入并解析配置</button>
+				<button type="button" class="tab-trigger" role="tab" aria-selected="false" aria-controls="panel-keys" id="tab-keys" data-tab="keys" data-i18n="tabKeys">密钥生成</button>
 			</nav>
 
 			<div id="panel-generate" class="tab-panel" role="tabpanel" aria-labelledby="tab-generate">
@@ -217,6 +218,17 @@
 					<div id="config-preview-content" class="config-preview-content"></div>
 				</details>
 			</div>
+			</div>
+
+			<div id="panel-keys" class="tab-panel" role="tabpanel" aria-labelledby="tab-keys" aria-hidden="true" style="display:none;">
+				<p class="keys-desc config-desc" data-i18n="keysDesc">生成适用于「生成部署配置」的各类密钥与 API Key，可复制或一键填入生成配置表单。</p>
+				<div class="keys-tool pure-g">
+					<div class="pure-u-1 keys-grid" id="keys-grid"></div>
+					<div class="pure-u-1 form-actions keys-actions">
+						<button type="button" id="btn-generate-all-keys" class="pure-button pure-button-primary" data-i18n="btnGenerateAllKeys">全部重新生成</button>
+						<button type="button" id="btn-fill-keys-into-generate" class="pure-button" data-i18n="btnFillKeysIntoGenerate">填入生成配置</button>
+					</div>
+				</div>
 			</div>
 
 			<div id="panel-import-parse" class="tab-panel" role="tabpanel" aria-labelledby="tab-import-parse" aria-hidden="true" style="display:none;">

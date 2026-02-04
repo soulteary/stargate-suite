@@ -8,6 +8,148 @@
 	var LANG_STORAGE_KEY = 'stargate-suite-lang';
 	var APPLIED_STORAGE_PREFIX = 'stargate-suite-applied-';
 
+	// 密钥生成：与「生成部署配置」中环境变量对应，genType: apiKey(hex32) | hmacSecret | hmacKeys(JSON) | aes32(base64) | password(base64url)
+	var KEY_DEFINITIONS = [
+		{ env: 'WARDEN_API_KEY', labelKey: 'keyLabelWardenApiKey', descKey: 'keyDescWardenApiKey', genType: 'apiKey' },
+		{ env: 'HERALD_API_KEY', labelKey: 'keyLabelHeraldApiKey', descKey: 'keyDescHeraldApiKey', genType: 'apiKey' },
+		{ env: 'HERALD_HMAC_SECRET', labelKey: 'keyLabelHeraldHmacSecret', descKey: 'keyDescHeraldHmacSecret', genType: 'hmacSecret' },
+		{ env: 'HERALD_HMAC_KEYS', labelKey: 'keyLabelHeraldHmacKeys', descKey: 'keyDescHeraldHmacKeys', genType: 'hmacKeys' },
+		{ env: 'HERALD_TOTP_API_KEY', labelKey: 'keyLabelHeraldTotpApiKey', descKey: 'keyDescHeraldTotpApiKey', genType: 'apiKey' },
+		{ env: 'HERALD_TOTP_ENCRYPTION_KEY', labelKey: 'keyLabelHeraldTotpEncryptionKey', descKey: 'keyDescHeraldTotpEncryptionKey', genType: 'aes32' },
+		{ env: 'WARDEN_REDIS_PASSWORD', labelKey: 'keyLabelWardenRedisPassword', descKey: 'keyDescWardenRedisPassword', genType: 'password' },
+		{ env: 'HERALD_REDIS_PASSWORD', labelKey: 'keyLabelHeraldRedisPassword', descKey: 'keyDescHeraldRedisPassword', genType: 'password' },
+		{ env: 'SESSION_STORAGE_REDIS_PASSWORD', labelKey: 'keyLabelSessionRedisPassword', descKey: 'keyDescSessionRedisPassword', genType: 'password' }
+	];
+
+	function getRandomBytes(n) {
+		var arr = new Uint8Array(n);
+		if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+			crypto.getRandomValues(arr);
+		} else {
+			for (var i = 0; i < n; i++) arr[i] = Math.floor(Math.random() * 256);
+		}
+		return arr;
+	}
+	function bytesToHex(arr) {
+		return Array.prototype.map.call(arr, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+	}
+	function bytesToBase64(arr) {
+		var binary = '';
+		for (var i = 0; i < arr.length; i++) binary += String.fromCharCode(arr[i]);
+		return typeof btoa !== 'undefined' ? btoa(binary) : '';
+	}
+	function bytesToBase64Url(arr) {
+		return bytesToBase64(arr).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	}
+	function generateKeyValue(genType) {
+		switch (genType) {
+			case 'apiKey':
+			case 'hmacSecret':
+				return bytesToHex(getRandomBytes(32));
+			case 'aes32':
+				return bytesToBase64(getRandomBytes(32));
+			case 'password':
+				return bytesToBase64Url(getRandomBytes(24));
+			case 'hmacKeys': {
+				var keyId = 'key-' + bytesToHex(getRandomBytes(4));
+				var secret = bytesToHex(getRandomBytes(32));
+				return JSON.stringify({ keyId: keyId, secret: secret });
+			}
+			default:
+				return bytesToHex(getRandomBytes(32));
+		}
+	}
+	function generateHmacKeysJson() {
+		var keyId = 'stargate-' + bytesToHex(getRandomBytes(4));
+		var secret = bytesToHex(getRandomBytes(32));
+		var obj = {};
+		obj[keyId] = secret;
+		return JSON.stringify(obj);
+	}
+	// 修正 HERALD_HMAC_KEYS 的生成结果为 JSON 对象字符串
+	function generateKeyValueFixed(def) {
+		if (def.genType === 'hmacKeys') return generateHmacKeysJson();
+		return generateKeyValue(def.genType);
+	}
+
+	function renderKeysGrid() {
+		var grid = document.getElementById('keys-grid');
+		if (!grid) return;
+		var lang = getLang();
+		var t = window.I18N && window.I18N[lang] ? window.I18N[lang] : {};
+		grid.innerHTML = '';
+		KEY_DEFINITIONS.forEach(function (def) {
+			var row = document.createElement('div');
+			row.className = 'keys-row pure-g';
+			row.setAttribute('data-env', def.env);
+			var label = t[def.labelKey] || def.env;
+			var desc = t[def.descKey] || '';
+			var genLabel = t.keyBtnGenerate || '生成';
+			var copyLabel = t.keyBtnCopy || '复制';
+			row.innerHTML =
+				'<div class="pure-u-1 pure-u-md-2-5 keys-meta">' +
+					'<div class="keys-env"><code>' + escapeHtml(def.env) + '</code></div>' +
+					'<div class="keys-label" data-i18n="' + def.labelKey + '">' + escapeHtml(label) + '</div>' +
+					'<p class="keys-desc-line config-desc" data-i18n="' + def.descKey + '">' + escapeHtml(desc) + '</p>' +
+				'</div>' +
+				'<div class="pure-u-1 pure-u-md-3-5 keys-value-wrap">' +
+					'<input type="text" class="pure-input-1 keys-value" readonly data-env="' + escapeHtml(def.env) + '" placeholder="">' +
+					'<div class="keys-buttons">' +
+						'<button type="button" class="pure-button keys-gen" data-env="' + escapeHtml(def.env) + '" data-i18n="keyBtnGenerate">' + escapeHtml(genLabel) + '</button> ' +
+						'<button type="button" class="pure-button keys-copy" data-env="' + escapeHtml(def.env) + '" data-i18n="keyBtnCopy">' + escapeHtml(copyLabel) + '</button>' +
+					'</div>' +
+				'</div>';
+			grid.appendChild(row);
+		});
+		// 事件委托
+		grid.addEventListener('click', function (e) {
+			var genBtn = e.target.classList && e.target.classList.contains('keys-gen') ? e.target : null;
+			var copyBtn = e.target.classList && e.target.classList.contains('keys-copy') ? e.target : null;
+			if (genBtn) {
+				var env = genBtn.getAttribute('data-env');
+				var def = KEY_DEFINITIONS.filter(function (d) { return d.env === env; })[0];
+				if (def) {
+					var val = generateKeyValueFixed(def);
+					var input = grid.querySelector('input.keys-value[data-env="' + env + '"]');
+					if (input) input.value = val;
+				}
+			} else if (copyBtn) {
+				var env = copyBtn.getAttribute('data-env');
+				var input = grid.querySelector('input.keys-value[data-env="' + env + '"]');
+				if (input && input.value) {
+					var text = input.value;
+					if (navigator.clipboard && navigator.clipboard.writeText) {
+						navigator.clipboard.writeText(text).then(function () {
+							var orig = copyBtn.textContent;
+							copyBtn.textContent = (window.I18N && window.I18N[getLang()] && window.I18N[getLang()].keyCopied) || '已复制';
+							setTimeout(function () { copyBtn.textContent = orig; }, 800);
+						}).catch(function () {
+							input.select();
+							try { document.execCommand('copy'); } catch (err) {}
+						});
+					} else {
+						input.select();
+						try { document.execCommand('copy'); } catch (err) {}
+					}
+				}
+			}
+		});
+	}
+
+	function fillKeysIntoGenerate() {
+		var grid = document.getElementById('keys-grid');
+		if (!grid) return;
+		KEY_DEFINITIONS.forEach(function (def) {
+			var input = grid.querySelector('input.keys-value[data-env="' + def.env + '"]');
+			if (!input || !input.value) return;
+			var formEl = document.getElementById('env_' + def.env);
+			if (formEl) {
+				formEl.value = input.value;
+			}
+		});
+		showPanel('generate');
+	}
+
 	function randomUUID() {
 		if (typeof crypto !== 'undefined' && crypto.randomUUID) {
 			return crypto.randomUUID();
@@ -407,6 +549,22 @@
 			sel.removeAllRanges();
 			sel.addRange(range);
 		});
+	}
+
+	// 密钥生成 Tab：初始化网格、全部生成、填入生成配置
+	renderKeysGrid();
+	var btnGenerateAllKeys = document.getElementById('btn-generate-all-keys');
+	if (btnGenerateAllKeys) {
+		btnGenerateAllKeys.addEventListener('click', function () {
+			KEY_DEFINITIONS.forEach(function (def) {
+				var input = document.querySelector('#keys-grid input.keys-value[data-env="' + def.env + '"]');
+				if (input) input.value = generateKeyValueFixed(def);
+			});
+		});
+	}
+	var btnFillKeysIntoGenerate = document.getElementById('btn-fill-keys-into-generate');
+	if (btnFillKeysIntoGenerate) {
+		btnFillKeysIntoGenerate.addEventListener('click', fillKeysIntoGenerate);
 	}
 
 	// 若为解析后一键导入：从 URL 的 applied=UUID 读取 sessionStorage 并装填生成配置表单，并切到生成 Tab
