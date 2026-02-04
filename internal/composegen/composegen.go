@@ -664,7 +664,12 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 				key := strings.TrimSpace(s[:idx])
 				if allowed[key] {
 					if v, ok := overrides[key]; ok {
-						newList = append(newList, key+"="+v)
+						// 保留 DINGTALK_LOOKUP_MODE 为变量引用，便于用户通过 .env 修改
+						if key == "DINGTALK_LOOKUP_MODE" {
+							newList = append(newList, key+"=${DINGTALK_LOOKUP_MODE:-none}")
+						} else {
+							newList = append(newList, key+"="+v)
+						}
 						used[key] = true
 					} else {
 						newList = append(newList, s)
@@ -678,7 +683,11 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 		}
 		for k, v := range overrides {
 			if allowed[k] && !used[k] {
-				newList = append(newList, k+"="+v)
+				if k == "DINGTALK_LOOKUP_MODE" {
+					newList = append(newList, k+"=${DINGTALK_LOOKUP_MODE:-none}")
+				} else {
+					newList = append(newList, k+"="+v)
+				}
 			}
 		}
 		svc["environment"] = newList
