@@ -208,15 +208,16 @@
 				envA.download = '.env';
 				envA.textContent = '.env';
 				downloadsEl.appendChild(envA);
-				// 预览区：仅生成成功后显示，默认折叠
+				// 预览区：仅生成成功后显示，默认折叠；每个配置块独立全选按钮
 				if (previewWrap && previewContent) {
 					var composeLabel = t.previewComposeLabel || 'docker-compose.yml';
 					var envLabel = t.previewEnvLabel || '.env';
+					var selectAllLabel = t.previewSelectAll || '全选';
 					var html = '';
 					for (var m in data.composes) {
-						html += '<div class="config-preview-block"><h4 class="config-preview-heading">' + escapeHtml(m + '/' + composeLabel) + '</h4><pre class="config-preview-pre">' + escapeHtml(data.composes[m]) + '</pre></div>';
+						html += '<div class="config-preview-block"><div class="config-preview-heading-row"><h4 class="config-preview-heading">' + escapeHtml(m + '/' + composeLabel) + '</h4><button type="button" class="pure-button config-preview-block-select-all">' + escapeHtml(selectAllLabel) + '</button></div><pre class="config-preview-pre">' + escapeHtml(data.composes[m]) + '</pre></div>';
 					}
-					html += '<div class="config-preview-block"><h4 class="config-preview-heading">' + escapeHtml(envLabel) + '</h4><pre class="config-preview-pre">' + escapeHtml(data.env) + '</pre></div>';
+					html += '<div class="config-preview-block"><div class="config-preview-heading-row"><h4 class="config-preview-heading">' + escapeHtml(envLabel) + '</h4><button type="button" class="pure-button config-preview-block-select-all">' + escapeHtml(selectAllLabel) + '</button></div><pre class="config-preview-pre">' + escapeHtml(data.env) + '</pre></div>';
 					previewContent.innerHTML = html;
 					previewWrap.style.display = '';
 					previewWrap.setAttribute('aria-hidden', 'false');
@@ -305,5 +306,23 @@
 		var div = document.createElement('div');
 		div.textContent = s;
 		return div.innerHTML;
+	}
+
+	// 预览区：每个配置块独立全选（事件委托，因块为动态生成）
+	var previewContentEl = document.getElementById('config-preview-content');
+	if (previewContentEl) {
+		previewContentEl.addEventListener('click', function (e) {
+			var btn = e.target && e.target.classList && e.target.classList.contains('config-preview-block-select-all') ? e.target : null;
+			if (!btn) return;
+			var block = btn.closest('.config-preview-block');
+			var pre = block && block.querySelector('.config-preview-pre');
+			if (!pre || !pre.textContent) return;
+			e.preventDefault();
+			var range = document.createRange();
+			range.selectNodeContents(pre);
+			var sel = window.getSelection();
+			sel.removeAllRanges();
+			sel.addRange(range);
+		});
 	}
 })();

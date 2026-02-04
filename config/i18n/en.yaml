@@ -265,6 +265,7 @@ en:
   generating: "Generating..."
   resultSuccess: "Done. Download:"
   previewSummary: "Preview generated config"
+  previewSelectAll: "Select all"
   previewComposeLabel: "docker-compose.yml"
   previewEnvLabel: ".env"
   resultErrorNeedMode: "Please select at least one compose type."

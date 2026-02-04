@@ -434,13 +434,25 @@
 .config-preview-block:last-child {
 	margin-bottom: 0;
 }
+.config-preview-heading-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	margin: 0.75rem 0 0.25rem;
+}
+.config-preview-block:first-child .config-preview-heading-row {
+	margin-top: 0;
+}
 .config-preview-heading {
 	font-size: 0.875rem;
 	font-weight: 600;
-	margin: 0.75rem 0 0.25rem;
+	margin: 0;
 }
-.config-preview-block:first-child .config-preview-heading {
-	margin-top: 0;
+.config-preview-block-select-all {
+	font-size: 0.8125rem;
+	padding: 0.25rem 0.5rem;
+	flex-shrink: 0;
 }
 .config-preview-pre {
 	font-family: ui-monospace, monospace;
