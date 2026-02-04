@@ -99,7 +99,7 @@
 				'<div class="pure-u-1 pure-u-md-3-5 keys-value-wrap">' +
 					'<input type="text" class="pure-input-1 keys-value" readonly data-env="' + escapeHtml(def.env) + '" placeholder="">' +
 					'<div class="keys-buttons">' +
-						'<button type="button" class="pure-button keys-gen" data-env="' + escapeHtml(def.env) + '" data-i18n="keyBtnGenerate">' + escapeHtml(genLabel) + '</button> ' +
+						'<button type="button" class="pure-button pure-button-primary keys-gen" data-env="' + escapeHtml(def.env) + '" data-i18n="keyBtnGenerate">' + escapeHtml(genLabel) + '</button> ' +
 						'<button type="button" class="pure-button keys-copy" data-env="' + escapeHtml(def.env) + '" data-i18n="keyBtnCopy">' + escapeHtml(copyLabel) + '</button>' +
 					'</div>' +
 				'</div>';

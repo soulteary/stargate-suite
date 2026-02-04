@@ -143,19 +143,8 @@
 }
 
 /* 密钥生成 Tab */
-.keys-title {
-	font-size: 1.25rem;
-	font-weight: 600;
-	margin: 0 0 0.5rem;
-}
 .keys-desc {
-	margin-bottom: 0.5rem;
-}
-.keys-desc-fill-hint {
-	margin-top: 0;
 	margin-bottom: 1rem;
-	color: #666;
-	font-size: 0.8125rem;
 }
 .keys-tool {
 	margin-top: 0;
@@ -202,6 +191,10 @@
 	display: flex;
 	flex-wrap: wrap;
 	gap: 0.35rem 0.5rem;
+}
+.keys-buttons .pure-button {
+	font-size: 0.75rem;
+	padding: 0.25rem 0.5rem;
 }
 .keys-actions {
 	margin-top: 1.25rem;
