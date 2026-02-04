@@ -53,16 +53,14 @@ configSections:
         placeholder: "ghcr.io/traefik/whoami:v1.11"
   - titleKey: healthCheckSection
     options:
-      - type: select
+      - type: checkbox
         id: healthCheck
         name: healthCheck
         envName: healthCheck
         labelKey: healthCheck
         descKey: healthCheckDesc
         default: true
-        options:
-          - value: "true"
-          - value: "false"
+        fullRow: true
       - type: text
         id: healthCheckInterval
         name: healthCheckInterval
@@ -81,16 +79,13 @@ configSections:
         showWhenOption: healthCheck
   - titleKey: traefikNetworkSection
     options:
-      - type: select
+      - type: checkbox
         id: traefikNetwork
         name: traefikNetwork
         envName: traefikNetwork
         labelKey: traefikNetwork
         descKey: traefikNetworkDesc
         default: true
-        options:
-          - value: "true"
-          - value: "false"
       - type: text
         id: traefikNetworkName
         name: traefikNetworkName
@@ -102,16 +97,14 @@ configSections:
         showWhenOption: traefikNetwork
   - titleKey: exposePortsSection
     options:
-      - type: select
+      - type: checkbox
         id: exposePorts
         name: exposePorts
         envName: exposePorts
         labelKey: exposePorts
         descKey: exposePortsDesc
         default: true
-        options:
-          - value: "true"
-          - value: "false"
+        fullRow: true
       - type: number
         id: portHerald
         name: portHerald

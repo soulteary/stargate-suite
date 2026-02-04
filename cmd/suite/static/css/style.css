@@ -284,6 +284,9 @@
 .config-options-cols > .env-group > .redis-paths {
 	grid-column: 1 / -1;
 }
+.config-options-cols > .env-group > .config-item.config-item-full-row {
+	grid-column: 1 / -1;
+}
 
 .config-item {
 	margin-bottom: 1rem;

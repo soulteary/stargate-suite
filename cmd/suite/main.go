@@ -61,6 +61,7 @@ type configOption struct {
 	Paths          []redisPath    `yaml:"paths"`
 	ShowWhenOption string         `yaml:"showWhenOption"`
 	ShowWhenEnv    string         `yaml:"showWhenEnv"`
+	FullRow        bool           `yaml:"fullRow"`
 	Min            int            `yaml:"min"`
 	Max            int            `yaml:"max"`
 }

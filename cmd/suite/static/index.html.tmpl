@@ -53,7 +53,7 @@
 						{{if .TitleKey}}<h2 class="section-title" data-i18n="{{.TitleKey}}"></h2>{{end}}
 						{{range .Options}}
 						{{if eq .Type "checkbox"}}
-						<div class="config-item pure-control-group" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}{{if .ShowWhenEnv}} data-depends-on-env="{{.ShowWhenEnv}}"{{end}}>
+						<div class="config-item pure-control-group{{if .FullRow}} config-item-full-row{{end}}" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}{{if .ShowWhenEnv}} data-depends-on-env="{{.ShowWhenEnv}}"{{end}}>
 							<label>
 								<input type="checkbox" name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}" class="pure-checkbox"{{if .Default}} checked{{end}}>
 								<span class="config-label" data-i18n="{{.LabelKey}}"></span>
