@@ -115,6 +115,26 @@
 	margin-top: 0.5rem;
 	font-size: 0.875rem;
 }
+.parse-env-table-three {
+	max-width: 900px;
+}
+.parse-env-table-three .parse-env-name {
+	width: 1%;
+	white-space: nowrap;
+}
+.parse-env-table-three .parse-env-default {
+	max-width: 200px;
+	word-break: break-all;
+}
+.parse-env-table-three .parse-env-editable-cell {
+	min-width: 120px;
+}
+.parse-env-table-three .parse-env-editable {
+	width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+	font-size: 0.8125rem;
+}
 .parse-env-table code {
 	font-size: 0.8125rem;
 }

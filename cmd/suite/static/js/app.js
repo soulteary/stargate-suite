@@ -291,14 +291,27 @@
 							html += '</ul>';
 						}
 						if (res.data.envVars && Object.keys(res.data.envVars).length > 0) {
-							html += '<h3 class="parse-result-heading">' + (t.parseEnvVarsLabel || '环境变量') + '</h3><table class="parse-env-table pure-table pure-table-bordered"><thead><tr><th>' + (t.parseEnvNameLabel || '变量名') + '</th><th>' + (t.parseEnvDefaultLabel || '默认值') + '</th></tr></thead><tbody>';
+							var nameLabel = t.parseEnvNameLabel || '解析项目名称';
+							var defaultLabel = t.parseEnvDefaultLabel || '解析的默认数值';
+							var editableLabel = t.parseEnvEditableLabel || '可修改的数值';
+							html += '<h3 class="parse-result-heading">' + (t.parseEnvVarsLabel || '环境变量') + '</h3><table class="parse-env-table parse-env-table-three pure-table pure-table-bordered"><thead><tr><th>' + escapeHtml(nameLabel) + '</th><th>' + escapeHtml(defaultLabel) + '</th><th>' + escapeHtml(editableLabel) + '</th></tr></thead><tbody>';
 							Object.keys(res.data.envVars).sort().forEach(function (k) {
-								html += '<tr><td><code>' + escapeHtml(k) + '</code></td><td><code>' + escapeHtml(String(res.data.envVars[k] || '')) + '</code></td></tr>';
+								html += '<tr><td class="parse-env-name"><code>' + escapeHtml(k) + '</code></td><td class="parse-env-default"><code data-env-default-for="' + escapeHtml(k) + '"></code></td><td class="parse-env-editable-cell"><input type="text" class="parse-env-editable pure-input-1" data-env-key="' + escapeHtml(k) + '"></td></tr>';
 							});
 							html += '</tbody></table>';
 						}
 						parseResultEl.innerHTML = html || (t.parseSuccess || '解析成功，未识别到服务或环境变量。');
 						parseResultEl.className = '';
+						// 装填解析的默认数值与可编辑列默认值（在 innerHTML 之后执行，避免特殊字符问题）
+						if (res.ok && res.data.envVars && Object.keys(res.data.envVars).length > 0) {
+							Object.keys(res.data.envVars).sort().forEach(function (k) {
+								var defaultVal = String(res.data.envVars[k] || '');
+								var defaultCell = parseResultEl.querySelector('code[data-env-default-for="' + escapeHtml(k) + '"]');
+								var editableInput = parseResultEl.querySelector('input.parse-env-editable[data-env-key="' + escapeHtml(k) + '"]');
+								if (defaultCell) defaultCell.textContent = defaultVal;
+								if (editableInput) { editableInput.value = defaultVal; editableInput.placeholder = defaultVal; }
+							});
+						}
 						// 加载到生成配置按钮
 						var actionsDiv = document.createElement('div');
 						actionsDiv.className = 'parse-result-actions';
@@ -312,12 +325,21 @@
 						parseResultEl.appendChild(actionsDiv);
 						loadBtn.addEventListener('click', function () {
 							var compose = (composeEl && composeEl.value) ? composeEl.value.trim() : '';
-							var envText = (envEl && envEl.value) ? envEl.value.trim() : '';
 							if (!compose) {
 								parseResultEl.textContent = t.importComposeRequired || '请粘贴 docker-compose 内容。';
 								parseResultEl.className = 'error';
 								return;
 							}
+							// 从预览表格的可编辑列收集用户修正后的数值，构建 env 文本
+							var envLines = [];
+							parseResultEl.querySelectorAll('input.parse-env-editable').forEach(function (input) {
+								var key = input.getAttribute('data-env-key');
+								if (key) {
+									var val = (input.value || '').trim();
+									envLines.push(key + '=' + val);
+								}
+							});
+							var envText = envLines.length > 0 ? envLines.join('\n') : ((envEl && envEl.value) ? envEl.value.trim() : '');
 							loadBtn.disabled = true;
 							loadBtn.textContent = t.applying || '加载中…';
 							fetch('/api/apply', {
