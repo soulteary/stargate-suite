@@ -33,6 +33,15 @@ type parseResponse struct {
 	Errors   []string          `json:"errors"`
 }
 
+// applyResponse 为 /api/apply 响应体；用于解析后一键导入生成配置。
+type applyResponse struct {
+	OK             bool              `json:"ok"`
+	Services       []string          `json:"services"`
+	EnvVars        map[string]string `json:"envVars"`
+	SuggestedModes []string          `json:"suggestedModes"`
+	Errors         []string          `json:"errors,omitempty"`
+}
+
 func handleParse(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -78,6 +87,99 @@ func extractServiceNames(compose map[string]interface{}) []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// parseEnvText 将 .env 文本解析为 KEY=VALUE 映射（每行一条，空行与 # 开头忽略）。
+func parseEnvText(env string) map[string]string {
+	out := make(map[string]string)
+	for _, line := range strings.Split(env, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		idx := strings.Index(line, "=")
+		if idx <= 0 {
+			continue
+		}
+		key := strings.TrimSpace(line[:idx])
+		val := strings.TrimSpace(line[idx+1:])
+		// 去除可选的引号
+		if (strings.HasPrefix(val, `"`) && strings.HasSuffix(val, `"`)) || (strings.HasPrefix(val, "'") && strings.HasSuffix(val, "'")) {
+			val = val[1 : len(val)-1]
+		}
+		if key != "" {
+			out[key] = val
+		}
+	}
+	return out
+}
+
+// suggestModes 根据解析出的服务名推断建议勾选的 compose 类型（用于一键导入）。
+func suggestModes(services []string) []string {
+	set := make(map[string]bool)
+	for _, s := range services {
+		set[s] = true
+	}
+	hasHerald := set["herald"]
+	hasWarden := set["warden"]
+	hasStargate := set["stargate"]
+	if (hasHerald && hasWarden) || (hasHerald && hasStargate) || (hasWarden && hasStargate) {
+		return []string{"traefik"}
+	}
+	if hasHerald {
+		return []string{"traefik-herald"}
+	}
+	if hasWarden {
+		return []string{"traefik-warden"}
+	}
+	if hasStargate {
+		return []string{"traefik-stargate"}
+	}
+	return nil
+}
+
+func handleApply(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxGenerateBodyBytes)
+	var req parseRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if strings.Contains(err.Error(), "request body too large") {
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.Compose) == "" {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(applyResponse{OK: false, Errors: []string{"compose is required"}})
+		return
+	}
+	parsed, err := composegen.ParseCompose([]byte(req.Compose))
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(applyResponse{OK: false, Errors: []string{err.Error()}})
+		return
+	}
+	services := extractServiceNames(parsed)
+	envVars := composegen.ExtractEnvVars(parsed)
+	// .env 文本覆盖/追加到从 compose 提取的变量
+	for k, v := range parseEnvText(req.Env) {
+		envVars[k] = v
+	}
+	suggested := suggestModes(services)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(applyResponse{
+		OK:             true,
+		Services:       services,
+		EnvVars:        envVars,
+		SuggestedModes: suggested,
+	})
 }
 
 func cacheControlHandler(value string, h http.Handler) http.Handler {
@@ -219,6 +321,7 @@ func cmdServe() error {
 	})
 	mux.Handle("/static/", http.StripPrefix("/static", staticHandler))
 	mux.HandleFunc("/api/parse", handleParse)
+	mux.HandleFunc("/api/apply", handleApply)
 	mux.HandleFunc("/api/generate", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

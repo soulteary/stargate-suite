@@ -6,6 +6,18 @@
 	'use strict';
 
 	var LANG_STORAGE_KEY = 'stargate-suite-lang';
+	var APPLIED_STORAGE_PREFIX = 'stargate-suite-applied-';
+
+	function randomUUID() {
+		if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+			return crypto.randomUUID();
+		}
+		return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+			var r = Math.random() * 16 | 0;
+			var v = c === 'x' ? r : (r & 0x3 | 0x8);
+			return v.toString(16);
+		});
+	}
 
 	function getLang() {
 		return localStorage.getItem(LANG_STORAGE_KEY) || 'zh';
@@ -287,6 +299,53 @@
 						}
 						parseResultEl.innerHTML = html || (t.parseSuccess || '解析成功，未识别到服务或环境变量。');
 						parseResultEl.className = '';
+						// 加载到生成配置按钮
+						var actionsDiv = document.createElement('div');
+						actionsDiv.className = 'parse-result-actions';
+						var loadBtn = document.createElement('button');
+						loadBtn.type = 'button';
+						loadBtn.id = 'btn-load-into-generate';
+						loadBtn.className = 'pure-button pure-button-primary';
+						loadBtn.setAttribute('data-i18n', 'loadIntoGenerate');
+						loadBtn.textContent = t.loadIntoGenerate || '加载到生成配置';
+						actionsDiv.appendChild(loadBtn);
+						parseResultEl.appendChild(actionsDiv);
+						loadBtn.addEventListener('click', function () {
+							var compose = (composeEl && composeEl.value) ? composeEl.value.trim() : '';
+							var envText = (envEl && envEl.value) ? envEl.value.trim() : '';
+							if (!compose) {
+								parseResultEl.textContent = t.importComposeRequired || '请粘贴 docker-compose 内容。';
+								parseResultEl.className = 'error';
+								return;
+							}
+							loadBtn.disabled = true;
+							loadBtn.textContent = t.applying || '加载中…';
+							fetch('/api/apply', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ compose: compose, env: envText })
+							})
+								.then(function (resp) { return resp.json().then(function (data) { return { ok: resp.ok, data: data }; }); })
+								.then(function (res) {
+									if (res.ok && res.data.ok && res.data.envVars) {
+										var payload = { envVars: res.data.envVars, suggestedModes: res.data.suggestedModes || [] };
+										var applyId = randomUUID();
+										try { sessionStorage.setItem(APPLIED_STORAGE_PREFIX + applyId, JSON.stringify(payload)); } catch (e) {}
+										window.location.href = '/?applied=' + encodeURIComponent(applyId);
+									} else {
+										loadBtn.disabled = false;
+										loadBtn.textContent = t.loadIntoGenerate || '加载到生成配置';
+										parseResultEl.textContent = (res.data.errors && res.data.errors.length) ? res.data.errors.join('\n') : (t.applyFailed || '加载失败');
+										parseResultEl.className = 'error';
+									}
+								})
+								.catch(function (err) {
+									loadBtn.disabled = false;
+									loadBtn.textContent = t.loadIntoGenerate || '加载到生成配置';
+									parseResultEl.textContent = (t.requestFailed || '请求失败: ') + (err && err.message ? err.message : String(err));
+									parseResultEl.className = 'error';
+								});
+						});
 					} else {
 						var errMsg = (res.data.errors && res.data.errors.length) ? res.data.errors.join('\n') : (t.parseError || '解析失败');
 						parseResultEl.textContent = errMsg;
@@ -324,5 +383,43 @@
 			sel.removeAllRanges();
 			sel.addRange(range);
 		});
+	}
+
+	// 若为解析后一键导入：从 URL 的 applied=UUID 读取 sessionStorage 并装填生成配置表单，并切到生成 Tab
+	var appliedId = typeof URLSearchParams !== 'undefined' ? new URLSearchParams(window.location.search).get('applied') : null;
+	if (appliedId) {
+		var appliedKey = APPLIED_STORAGE_PREFIX + appliedId;
+		try {
+			var stored = sessionStorage.getItem(appliedKey);
+			if (stored) {
+				sessionStorage.removeItem(appliedKey);
+				var payload = JSON.parse(stored);
+				var envVars = payload.envVars || {};
+				var suggestedModes = payload.suggestedModes || [];
+				document.querySelectorAll('input[name="mode"]').forEach(function (cb) {
+					cb.checked = suggestedModes.indexOf(cb.value) !== -1;
+				});
+				document.querySelectorAll('input[name="envBool"]').forEach(function (el) {
+					var key = el.getAttribute('data-env');
+					if (key && envVars[key] !== undefined) {
+						var v = String(envVars[key]).toLowerCase();
+						el.checked = (v === 'true' || v === '1');
+					}
+				});
+				document.querySelectorAll('[data-env]').forEach(function (el) {
+					if (el.getAttribute('name') === 'envBool') return;
+					var key = el.getAttribute('data-env');
+					if (!key || envVars[key] === undefined) return;
+					if (el.type === 'checkbox') {
+						var v = String(envVars[key]).toLowerCase();
+						el.checked = (v === 'true' || v === '1');
+					} else {
+						el.value = envVars[key];
+					}
+				});
+				updateOptionDependents();
+				showPanel('generate');
+			}
+		} catch (e) {}
 	}
 })();

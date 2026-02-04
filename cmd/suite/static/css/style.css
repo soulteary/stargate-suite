@@ -118,6 +118,9 @@
 .parse-env-table code {
 	font-size: 0.8125rem;
 }
+.parse-result-actions {
+	margin-top: 1rem;
+}
 
 /* 通用配置：单列，每项独占一行 */
 .config-single-column {
