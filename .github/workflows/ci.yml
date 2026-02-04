@@ -88,6 +88,9 @@ jobs:
       - name: Generate compose (build/image)
         run: make gen
 
+      - name: Prepare Warden data for E2E
+        run: cp fixtures/warden/data.json build/image/data.json
+
       - name: Start services (Stargate, Warden, Herald + Redis)
         run: |
           echo "Starting containers..."
@@ -99,7 +102,7 @@ jobs:
           start=$(date +%s)
           while true; do
             all_ok=true
-            for endpoint in "8080/_auth" "8081/health" "8082/healthz"; do
+            for endpoint in "8080/health" "8081/health" "8082/healthz"; do
               port="${endpoint%%/*}"
               path="${endpoint#*/}"
               if ! curl -sf --connect-timeout 3 "http://127.0.0.1:$port/$path" > /dev/null 2>&1; then

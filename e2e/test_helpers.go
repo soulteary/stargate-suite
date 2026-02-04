@@ -448,7 +448,7 @@ func waitForService(t *testing.T, url string, timeout time.Duration) bool {
 
 // ensureServicesReady ensures all services (Stargate, Warden, Herald) are ready and clears rate-limit state.
 func ensureServicesReady(t *testing.T) {
-	if !waitForService(t, stargateURL+"/_auth", 30*time.Second) {
+	if !waitForService(t, stargateURL+"/health", 30*time.Second) {
 		t.Fatalf("Stargate service is not ready")
 	}
 	if !waitForService(t, heraldURL+"/healthz", 30*time.Second) {

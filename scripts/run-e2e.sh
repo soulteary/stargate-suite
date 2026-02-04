@@ -50,7 +50,7 @@ if ! docker compose -f "$COMPOSE_FILE" ps 2>/dev/null | grep -q "Up"; then
     start=$(date +%s)
     while true; do
         all_ok=true
-        for service in "stargate:8080/_auth" "warden:8081/health" "herald:8082/healthz"; do
+        for service in "stargate:8080/health" "warden:8081/health" "herald:8082/healthz"; do
             port=$(echo "$service" | cut -d: -f2 | cut -d/ -f1)
             path=$(echo "$service" | cut -d/ -f2-)
             if ! curl -sf "http://localhost:$port/$path" > /dev/null 2>&1; then
@@ -84,7 +84,7 @@ echo "Waiting for services to be ready (timeout ${TEST_WAIT_TIMEOUT}s)..."
 start=$(date +%s)
 while true; do
     all_ok=true
-    for service in "stargate:8080/_auth" "warden:8081/health" "herald:8082/healthz"; do
+    for service in "stargate:8080/health" "warden:8081/health" "herald:8082/healthz"; do
         port=$(echo "$service" | cut -d: -f2 | cut -d/ -f1)
         path=$(echo "$service" | cut -d/ -f2-)
         if ! curl -sf "http://localhost:$port/$path" > /dev/null 2>&1; then
@@ -107,7 +107,7 @@ done
 
 # Services ready: check health then run tests
 echo "Checking service health status..."
-services=("stargate:8080/_auth" "warden:8081/health" "herald:8082/healthz")
+services=("stargate:8080/health" "warden:8081/health" "herald:8082/healthz")
 all_healthy=true
 
 for service in "${services[@]}"; do
