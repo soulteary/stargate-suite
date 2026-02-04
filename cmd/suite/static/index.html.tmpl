@@ -221,7 +221,9 @@
 			</div>
 
 			<div id="panel-keys" class="tab-panel" role="tabpanel" aria-labelledby="tab-keys" aria-hidden="true" style="display:none;">
-				<p class="keys-desc config-desc" data-i18n="keysDesc">生成适用于「生成部署配置」的各类密钥与 API Key，可复制或一键填入生成配置表单。</p>
+				<h2 class="keys-title" data-i18n="keysTitle">密钥与 API Key 生成</h2>
+				<p class="keys-desc config-desc" data-i18n="keysDesc">生成适用于「生成部署配置」的各类密钥与 API Key，包括 Herald API 密钥、Herald HMAC 密钥、herald-totp API 密钥等。可复制或一键填入生成配置表单。</p>
+				<p class="keys-desc-fill-hint config-desc" data-i18n="keysDescFillHint">点击「填入生成配置」后，每个密钥会写入生成配置里所有同名环境变量，并自动跳转到「生成部署配置」标签页。</p>
 				<div class="keys-tool pure-g">
 					<div class="pure-u-1 keys-grid" id="keys-grid"></div>
 					<div class="pure-u-1 form-actions keys-actions">

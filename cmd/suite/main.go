@@ -128,6 +128,7 @@ func getCommands() []command {
 	if len(commands) == 0 {
 		commands = []command{
 			{"help", "Show help information", cmdHelp},
+			{"validate", "Validate that page config and merged config load without error", cmdValidate},
 			{"gen", "Generate docker-compose.yml and .env for mode(s) into build dir (use -o to set output dir)", cmdGen},
 			{"gen-split", "从 canonical 生成三分开 compose 到 build/（traefik-herald/warden/stargate）", cmdGenSplit},
 			{"serve", "Start web UI for compose generation (default :8085)", cmdServe},

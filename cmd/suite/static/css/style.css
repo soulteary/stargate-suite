@@ -143,8 +143,19 @@
 }
 
 /* 密钥生成 Tab */
+.keys-title {
+	font-size: 1.25rem;
+	font-weight: 600;
+	margin: 0 0 0.5rem;
+}
 .keys-desc {
+	margin-bottom: 0.5rem;
+}
+.keys-desc-fill-hint {
+	margin-top: 0;
 	margin-bottom: 1rem;
+	color: #666;
+	font-size: 0.8125rem;
 }
 .keys-tool {
 	margin-top: 0;

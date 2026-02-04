@@ -11,14 +11,18 @@
 	// 密钥生成：与「生成部署配置」中环境变量对应，genType: apiKey(hex32) | hmacSecret | hmacKeys(JSON) | aes32(base64) | password(base64url)
 	var KEY_DEFINITIONS = [
 		{ env: 'WARDEN_API_KEY', labelKey: 'keyLabelWardenApiKey', descKey: 'keyDescWardenApiKey', genType: 'apiKey' },
+		{ env: 'WARDEN_OTP_SECRET_KEY', labelKey: 'keyLabelWardenOtpSecretKey', descKey: 'keyDescWardenOtpSecretKey', genType: 'apiKey' },
 		{ env: 'HERALD_API_KEY', labelKey: 'keyLabelHeraldApiKey', descKey: 'keyDescHeraldApiKey', genType: 'apiKey' },
 		{ env: 'HERALD_HMAC_SECRET', labelKey: 'keyLabelHeraldHmacSecret', descKey: 'keyDescHeraldHmacSecret', genType: 'hmacSecret' },
 		{ env: 'HERALD_HMAC_KEYS', labelKey: 'keyLabelHeraldHmacKeys', descKey: 'keyDescHeraldHmacKeys', genType: 'hmacKeys' },
 		{ env: 'HERALD_TOTP_API_KEY', labelKey: 'keyLabelHeraldTotpApiKey', descKey: 'keyDescHeraldTotpApiKey', genType: 'apiKey' },
+		{ env: 'HERALD_TOTP_HMAC_SECRET', labelKey: 'keyLabelHeraldTotpHmacSecret', descKey: 'keyDescHeraldTotpHmacSecret', genType: 'hmacSecret' },
 		{ env: 'HERALD_TOTP_ENCRYPTION_KEY', labelKey: 'keyLabelHeraldTotpEncryptionKey', descKey: 'keyDescHeraldTotpEncryptionKey', genType: 'aes32' },
 		{ env: 'WARDEN_REDIS_PASSWORD', labelKey: 'keyLabelWardenRedisPassword', descKey: 'keyDescWardenRedisPassword', genType: 'password' },
 		{ env: 'HERALD_REDIS_PASSWORD', labelKey: 'keyLabelHeraldRedisPassword', descKey: 'keyDescHeraldRedisPassword', genType: 'password' },
-		{ env: 'SESSION_STORAGE_REDIS_PASSWORD', labelKey: 'keyLabelSessionRedisPassword', descKey: 'keyDescSessionRedisPassword', genType: 'password' }
+		{ env: 'SESSION_STORAGE_REDIS_PASSWORD', labelKey: 'keyLabelSessionRedisPassword', descKey: 'keyDescSessionRedisPassword', genType: 'password' },
+		{ env: 'HERALD_DINGTALK_API_KEY', labelKey: 'keyLabelHeraldDingtalkApiKey', descKey: 'keyDescHeraldDingtalkApiKey', genType: 'apiKey' },
+		{ env: 'HERALD_SMTP_API_KEY', labelKey: 'keyLabelHeraldSmtpApiKey', descKey: 'keyDescHeraldSmtpApiKey', genType: 'apiKey' }
 	];
 
 	function getRandomBytes(n) {
@@ -142,10 +146,12 @@
 		KEY_DEFINITIONS.forEach(function (def) {
 			var input = grid.querySelector('input.keys-value[data-env="' + def.env + '"]');
 			if (!input || !input.value) return;
-			var formEl = document.getElementById('env_' + def.env);
-			if (formEl) {
-				formEl.value = input.value;
-			}
+			var val = input.value;
+			// 填充所有同名环境变量输入（Stargate / Herald / herald-totp 等可能有多处），排除 checkbox
+			document.querySelectorAll('input[data-env="' + def.env + '"], select[data-env="' + def.env + '"]').forEach(function (el) {
+				if (el.type === 'checkbox') return;
+				el.value = val;
+			});
 		});
 		showPanel('generate');
 	}

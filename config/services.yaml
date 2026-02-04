@@ -136,7 +136,7 @@ services:
             type: text
             labelKey: sessionStorageRedisAddrLabel
             descKey: sessionStorageRedisAddrDesc
-            placeholder: "localhost:6379"
+            placeholder: "stargate-redis:6379"
             showWhenEnv: SESSION_STORAGE_ENABLED
           - env: SESSION_STORAGE_REDIS_PASSWORD
             type: text
@@ -273,7 +273,8 @@ services:
     name: Warden
     open: false
     sections:
-      - envVars:
+      - titleKey: wardenGeneralSection
+        envVars:
           - env: LOG_LEVEL
             type: select
             labelKey: wardenLogLevelLabel
@@ -372,7 +373,8 @@ services:
     name: Herald
     open: false
     sections:
-      - envVars:
+      - titleKey: heraldGeneralSection
+        envVars:
           - env: HERALD_TEST_MODE
             type: checkbox
             labelKey: heraldTestModeLabel
