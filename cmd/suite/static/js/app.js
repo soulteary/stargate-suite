@@ -120,20 +120,39 @@
 			} else if (copyBtn) {
 				var env = copyBtn.getAttribute('data-env');
 				var input = grid.querySelector('input.keys-value[data-env="' + env + '"]');
+				var statusEl = document.getElementById('keys-copy-status');
+				var lang = getLang();
+				var t = window.I18N && window.I18N[lang] ? window.I18N[lang] : {};
+				var copiedStr = t.keyCopied || '已复制';
+				var failedStr = t.keyCopyFailed || '复制失败';
+				var origBtn = copyBtn.textContent;
+				function setCopyFeedback(success) {
+					var msg = success ? copiedStr : failedStr;
+					copyBtn.textContent = msg;
+					copyBtn.setAttribute('aria-label', msg);
+					if (statusEl) { statusEl.textContent = msg; }
+					setTimeout(function () {
+						copyBtn.textContent = origBtn;
+						copyBtn.removeAttribute('aria-label');
+						if (statusEl) statusEl.textContent = '';
+					}, 800);
+				}
 				if (input && input.value) {
 					var text = input.value;
 					if (navigator.clipboard && navigator.clipboard.writeText) {
 						navigator.clipboard.writeText(text).then(function () {
-							var orig = copyBtn.textContent;
-							copyBtn.textContent = (window.I18N && window.I18N[getLang()] && window.I18N[getLang()].keyCopied) || '已复制';
-							setTimeout(function () { copyBtn.textContent = orig; }, 800);
+							setCopyFeedback(true);
 						}).catch(function () {
 							input.select();
-							try { document.execCommand('copy'); } catch (err) {}
+							var ok = false;
+							try { ok = document.execCommand('copy'); } catch (err) {}
+							setCopyFeedback(ok);
 						});
 					} else {
 						input.select();
-						try { document.execCommand('copy'); } catch (err) {}
+						var ok = false;
+						try { ok = document.execCommand('copy'); } catch (err) {}
+						setCopyFeedback(ok);
 					}
 				}
 			}
@@ -221,16 +240,50 @@
 	// 使用事件委托，避免 i18n 替换按钮文字后点击失效
 	var tabBar = document.querySelector('.tab-bar');
 	if (tabBar) {
+		var tabTriggers = tabBar.querySelectorAll('.tab-trigger');
+		function setRovingTabindex(activeTabId) {
+			tabTriggers.forEach(function (t) {
+				t.setAttribute('tabindex', t.getAttribute('data-tab') === activeTabId ? '0' : '-1');
+			});
+		}
+		setRovingTabindex(document.querySelector('.tab-trigger.active') ? document.querySelector('.tab-trigger.active').getAttribute('data-tab') : 'generate');
 		tabBar.addEventListener('click', function (e) {
 			var t = e.target;
 			while (t && t !== tabBar) {
 				if (t.classList && t.classList.contains('tab-trigger')) {
 					e.preventDefault();
 					var tabId = t.getAttribute('data-tab');
-					if (tabId) showPanel(tabId);
+					if (tabId) {
+						showPanel(tabId);
+						setRovingTabindex(tabId);
+					}
 					return;
 				}
 				t = t.parentNode;
+			}
+		});
+		tabBar.addEventListener('keydown', function (e) {
+			var triggers = Array.prototype.slice.call(tabBar.querySelectorAll('.tab-trigger'));
+			var idx = triggers.indexOf(e.target);
+			if (idx === -1 || !e.target.classList.contains('tab-trigger')) return;
+			var key = e.key;
+			if (key === 'ArrowLeft' || key === 'ArrowRight') {
+				e.preventDefault();
+				var nextIdx = key === 'ArrowLeft' ? (idx - 1 + triggers.length) % triggers.length : (idx + 1) % triggers.length;
+				var nextTab = triggers[nextIdx];
+				nextTab.focus();
+				var tabId = nextTab.getAttribute('data-tab');
+				if (tabId) {
+					showPanel(tabId);
+					setRovingTabindex(tabId);
+				}
+			} else if (key === 'Enter' || key === ' ') {
+				e.preventDefault();
+				var tabId = e.target.getAttribute('data-tab');
+				if (tabId) {
+					showPanel(tabId);
+					setRovingTabindex(tabId);
+				}
 			}
 		});
 	}
@@ -251,8 +304,10 @@
 		});
 		document.querySelectorAll('[data-depends-on-env]').forEach(function (el) {
 			var envKey = el.getAttribute('data-depends-on-env');
-			var cb = document.getElementById('env_' + envKey);
-			el.style.display = cb && cb.checked ? '' : 'none';
+			var scope = el.closest('.service-cell, .provider-row');
+			var cb = scope ? scope.querySelector('[data-env="' + envKey + '"]') : null;
+			var on = cb && (cb.type === 'checkbox' ? cb.checked : (cb.value === 'true' || cb.value === '1'));
+			el.style.display = on ? '' : 'none';
 		});
 	}
 	updateOptionDependents();
@@ -266,7 +321,8 @@
 	});
 	document.querySelectorAll('[data-depends-on-env]').forEach(function (el) {
 		var envKey = el.getAttribute('data-depends-on-env');
-		var cb = document.getElementById('env_' + envKey);
+		var scope = el.closest('.service-cell, .provider-row');
+		var cb = scope ? scope.querySelector('[data-env="' + envKey + '"]') : null;
 		if (cb && !cb._dependentBound) {
 			cb._dependentBound = true;
 			cb.addEventListener('change', updateOptionDependents);
@@ -328,6 +384,21 @@
 		});
 
 		var resultEl = document.getElementById('result');
+		if ((modes.indexOf('traefik') !== -1 || modes.indexOf('traefik-stargate') !== -1)) {
+			var requiredStargate = ['AUTH_HOST', 'WARDEN_URL', 'HERALD_URL'];
+			var missing = requiredStargate.filter(function (k) {
+				var v = envOverrides[k];
+				return v === undefined || v === null || !String(v).trim();
+			});
+			if (missing.length > 0) {
+				resultEl.textContent = (t.validationMissingEnv || '') + missing.join(', ');
+				resultEl.className = 'error';
+				document.getElementById('downloads').innerHTML = '';
+				var pw = document.getElementById('config-preview-wrap');
+				if (pw) { pw.style.display = 'none'; pw.setAttribute('aria-hidden', 'true'); }
+				return;
+			}
+		}
 		var downloadsEl = document.getElementById('downloads');
 		var previewWrap = document.getElementById('config-preview-wrap');
 		var previewContent = document.getElementById('config-preview-content');
@@ -352,34 +423,41 @@
 				return r.json();
 			})
 			.then(function (data) {
-				resultEl.textContent = t.resultSuccess;
 				resultEl.className = '';
 				downloadsEl.innerHTML = '';
-				for (var mode in data.composes) {
-					var a = document.createElement('a');
-					a.href =
-						'data:application/x-yaml;charset=utf-8,' +
-						encodeURIComponent(data.composes[mode]);
-					a.download = mode + '/docker-compose.yml';
-					a.textContent = mode + '/docker-compose.yml';
-					downloadsEl.appendChild(a);
+				var fallbackHint = false;
+				try {
+					for (var mode in data.composes) {
+						var blob = new Blob([data.composes[mode]], { type: 'application/x-yaml;charset=utf-8' });
+						var url = URL.createObjectURL(blob);
+						var a = document.createElement('a');
+						a.href = url;
+						a.download = mode + '/docker-compose.yml';
+						a.textContent = mode + '/docker-compose.yml';
+						downloadsEl.appendChild(a);
+					}
+					var envBlob = new Blob([data.env], { type: 'text/plain;charset=utf-8' });
+					var envUrl = URL.createObjectURL(envBlob);
+					var envA = document.createElement('a');
+					envA.href = envUrl;
+					envA.download = '.env';
+					envA.textContent = '.env';
+					downloadsEl.appendChild(envA);
+				} catch (e) {
+					fallbackHint = true;
 				}
-				var envA = document.createElement('a');
-				envA.href =
-					'data:text/plain;charset=utf-8,' + encodeURIComponent(data.env);
-				envA.download = '.env';
-				envA.textContent = '.env';
-				downloadsEl.appendChild(envA);
-				// 预览区：仅生成成功后显示，默认折叠；每个配置块独立全选按钮
+				resultEl.textContent = fallbackHint ? (t.resultSuccess + ' ' + (t.resultDownloadFallbackHint || '')) : t.resultSuccess;
+				// 预览区：仅生成成功后显示，默认折叠；每个配置块独立全选与复制按钮
 				if (previewWrap && previewContent) {
 					var composeLabel = t.previewComposeLabel || 'docker-compose.yml';
 					var envLabel = t.previewEnvLabel || '.env';
 					var selectAllLabel = t.previewSelectAll || '全选';
+					var copyLabel = t.previewCopy || '复制';
 					var html = '';
 					for (var m in data.composes) {
-						html += '<div class="config-preview-block"><div class="config-preview-heading-row"><h4 class="config-preview-heading">' + escapeHtml(m + '/' + composeLabel) + '</h4><button type="button" class="pure-button config-preview-block-select-all">' + escapeHtml(selectAllLabel) + '</button></div><pre class="config-preview-pre">' + escapeHtml(data.composes[m]) + '</pre></div>';
+						html += '<div class="config-preview-block"><div class="config-preview-heading-row"><h4 class="config-preview-heading">' + escapeHtml(m + '/' + composeLabel) + '</h4><button type="button" class="pure-button config-preview-block-select-all">' + escapeHtml(selectAllLabel) + '</button> <button type="button" class="pure-button config-preview-block-copy">' + escapeHtml(copyLabel) + '</button></div><pre class="config-preview-pre">' + escapeHtml(data.composes[m]) + '</pre></div>';
 					}
-					html += '<div class="config-preview-block"><div class="config-preview-heading-row"><h4 class="config-preview-heading">' + escapeHtml(envLabel) + '</h4><button type="button" class="pure-button config-preview-block-select-all">' + escapeHtml(selectAllLabel) + '</button></div><pre class="config-preview-pre">' + escapeHtml(data.env) + '</pre></div>';
+					html += '<div class="config-preview-block"><div class="config-preview-heading-row"><h4 class="config-preview-heading">' + escapeHtml(envLabel) + '</h4><button type="button" class="pure-button config-preview-block-select-all">' + escapeHtml(selectAllLabel) + '</button> <button type="button" class="pure-button config-preview-block-copy">' + escapeHtml(copyLabel) + '</button></div><pre class="config-preview-pre">' + escapeHtml(data.env) + '</pre></div>';
 					previewContent.innerHTML = html;
 					previewWrap.style.display = '';
 					previewWrap.setAttribute('aria-hidden', 'false');
@@ -398,7 +476,7 @@
 			});
 	};
 
-	// Parse (import-parse tab)
+	// Parse (import-parse tab). Convention: API errors and parse messages are plain text only; we use textContent for error display to avoid XSS.
 	var btnParse = document.getElementById('btn-parse');
 	var parseResultEl = document.getElementById('parse-result');
 	if (btnParse && parseResultEl) {
@@ -541,19 +619,54 @@
 
 	// 预览区：每个配置块独立全选（事件委托，因块为动态生成）
 	var previewContentEl = document.getElementById('config-preview-content');
+	var previewStatusEl = document.getElementById('config-preview-status');
 	if (previewContentEl) {
 		previewContentEl.addEventListener('click', function (e) {
-			var btn = e.target && e.target.classList && e.target.classList.contains('config-preview-block-select-all') ? e.target : null;
-			if (!btn) return;
-			var block = btn.closest('.config-preview-block');
+			var isSelectAll = e.target && e.target.classList && e.target.classList.contains('config-preview-block-select-all');
+			var isCopy = e.target && e.target.classList && e.target.classList.contains('config-preview-block-copy');
+			if (!isSelectAll && !isCopy) return;
+			var block = e.target.closest('.config-preview-block');
 			var pre = block && block.querySelector('.config-preview-pre');
 			if (!pre || !pre.textContent) return;
 			e.preventDefault();
-			var range = document.createRange();
-			range.selectNodeContents(pre);
-			var sel = window.getSelection();
-			sel.removeAllRanges();
-			sel.addRange(range);
+			var lang = getLang();
+			var t = window.I18N && window.I18N[lang] ? window.I18N[lang] : {};
+			if (isSelectAll) {
+				var range = document.createRange();
+				range.selectNodeContents(pre);
+				var sel = window.getSelection();
+				sel.removeAllRanges();
+				sel.addRange(range);
+				if (previewStatusEl) {
+					previewStatusEl.textContent = t.previewSelectedHint || '已选中，请使用 Ctrl+C 复制。';
+					setTimeout(function () { previewStatusEl.textContent = ''; }, 2000);
+				}
+			} else {
+				var text = pre.textContent;
+				var copiedStr = t.keyCopied || '已复制';
+				var failedStr = t.keyCopyFailed || '复制失败';
+				function setStatus(success) {
+					if (previewStatusEl) previewStatusEl.textContent = success ? copiedStr : failedStr;
+					setTimeout(function () { if (previewStatusEl) previewStatusEl.textContent = ''; }, 800);
+				}
+				if (navigator.clipboard && navigator.clipboard.writeText) {
+					navigator.clipboard.writeText(text).then(function () { setStatus(true); }).catch(function () {
+						var range = document.createRange();
+						range.selectNodeContents(pre);
+						window.getSelection().removeAllRanges();
+						window.getSelection().addRange(range);
+						try { setStatus(document.execCommand('copy')); } catch (err) { setStatus(false); }
+						window.getSelection().removeAllRanges();
+					});
+				} else {
+					var range = document.createRange();
+					range.selectNodeContents(pre);
+					window.getSelection().removeAllRanges();
+					window.getSelection().addRange(range);
+					try { setStatus(document.execCommand('copy')); } catch (err) { setStatus(false); }
+					window.getSelection().removeAllRanges();
+				}
+			}
 		});
 	}
 

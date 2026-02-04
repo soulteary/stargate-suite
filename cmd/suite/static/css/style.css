@@ -143,6 +143,16 @@
 }
 
 /* 密钥生成 Tab */
+.keys-copy-status {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	border: 0;
+}
 .keys-desc {
 	margin-bottom: 1rem;
 }
@@ -203,6 +213,17 @@
 }
 .keys-actions .pure-button {
 	margin-right: 0.5rem;
+}
+.keys-panel-title {
+	font-size: 1.125rem;
+	font-weight: 600;
+	margin: 0 0 0.5rem 0;
+}
+.keys-panel-desc {
+	margin-bottom: 0.75rem;
+}
+.keys-panel-desc:last-of-type {
+	margin-bottom: 1rem;
 }
 
 /* 通用配置：单列，每项独占一行 */
@@ -458,6 +479,10 @@
 	cursor: pointer;
 	list-style: none;
 }
+.pure-details-summary:focus-visible {
+	outline: 2px solid #0078e7;
+	outline-offset: 2px;
+}
 .pure-details-summary::-webkit-details-marker {
 	display: none;
 }
@@ -538,10 +563,14 @@
 	font-weight: 600;
 	margin: 0;
 }
-.config-preview-block-select-all {
+.config-preview-block-select-all,
+.config-preview-block-copy {
 	font-size: 0.8125rem;
 	padding: 0.25rem 0.5rem;
 	flex-shrink: 0;
+}
+.config-preview-block-copy {
+	margin-left: 0.25rem;
 }
 .config-preview-pre {
 	font-family: ui-monospace, monospace;

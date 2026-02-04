@@ -24,9 +24,9 @@
 			<p class="subtitle" data-i18n="subtitle">Select compose type(s) and options, then click Generate.</p>
 
 			<nav class="tab-bar" role="tablist" aria-label="Main tabs" data-i18n-aria-label="tablistAriaLabel">
-				<button type="button" class="tab-trigger active" role="tab" aria-selected="true" aria-controls="panel-generate" id="tab-generate" data-tab="generate" data-i18n="tabGenerate">生成部署配置</button>
-				<button type="button" class="tab-trigger" role="tab" aria-selected="false" aria-controls="panel-import-parse" id="tab-import-parse" data-tab="import-parse" data-i18n="tabImportParse">导入并解析配置</button>
-				<button type="button" class="tab-trigger" role="tab" aria-selected="false" aria-controls="panel-keys" id="tab-keys" data-tab="keys" data-i18n="tabKeys">密钥生成</button>
+				<button type="button" class="tab-trigger active" role="tab" aria-selected="true" aria-controls="panel-generate" id="tab-generate" data-tab="generate" tabindex="0" data-i18n="tabGenerate">生成部署配置</button>
+				<button type="button" class="tab-trigger" role="tab" aria-selected="false" aria-controls="panel-import-parse" id="tab-import-parse" data-tab="import-parse" tabindex="-1" data-i18n="tabImportParse">导入并解析配置</button>
+				<button type="button" class="tab-trigger" role="tab" aria-selected="false" aria-controls="panel-keys" id="tab-keys" data-tab="keys" tabindex="-1" data-i18n="tabKeys">密钥生成</button>
 			</nav>
 
 			<div id="panel-generate" class="tab-panel" role="tabpanel" aria-labelledby="tab-generate">
@@ -130,18 +130,18 @@
 								<div class="config-item pure-control-group" data-env-name="{{.Env}}"{{if .ShowWhenEnv}} data-depends-on-env="{{.ShowWhenEnv}}"{{end}}{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
 									{{if eq .Type "checkbox"}}
 									<label>
-										<input type="checkbox" name="envBool" id="env_{{.Env}}" data-env="{{.Env}}" class="pure-checkbox"{{if .Default}} checked{{end}}>
+										<input type="checkbox" name="envBool" id="env_{{.Env}}_{{$s.Id}}" data-env="{{.Env}}" class="pure-checkbox"{{if .Default}} checked{{end}}>
 										<span class="config-label" data-i18n="{{.LabelKey}}"></span>
 										<span class="config-env">{{.Env}}</span>
 									</label>
 									{{else}}
-									<label for="env_{{.Env}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.Env}}</span></label>
+									<label for="env_{{.Env}}_{{$s.Id}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.Env}}</span></label>
 									{{if eq .Type "text"}}
-									<input type="text" id="env_{{.Env}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}>
+									<input type="text" id="env_{{.Env}}_{{$s.Id}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}>
 									{{else if eq .Type "number"}}
-									<input type="number" id="env_{{.Env}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}{{if .Min}} min="{{.Min}}"{{end}}{{if .Max}} max="{{.Max}}"{{end}}>
+									<input type="number" id="env_{{.Env}}_{{$s.Id}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}{{if .Min}} min="{{.Min}}"{{end}}{{if .Max}} max="{{.Max}}"{{end}}>
 									{{else if eq .Type "select"}}
-									<select id="env_{{.Env}}" data-env="{{.Env}}" class="pure-input-1">
+									<select id="env_{{.Env}}_{{$s.Id}}" data-env="{{.Env}}" class="pure-input-1">
 										{{$def := .Default}}{{range .Options}}
 										<option value="{{.Value}}"{{if eq (printf "%v" $def) .Value}} selected{{end}}>{{.Value}}</option>
 										{{end}}
@@ -165,29 +165,29 @@
 					<legend data-i18n="providerEnv">Provider (Herald channel)</legend>
 					<p class="config-desc providers-desc" data-i18n="providerEnvDesc"></p>
 					<div class="providers-rows">
-					{{range .Providers}}
-					<div class="provider-row"{{if eq .Id "herald-dingtalk"}} data-depends-on-option="dingtalkEnabled"{{else if eq .Id "herald-smtp"}} data-depends-on-option="smtpEnabled"{{else if eq .Id "herald-totp"}} data-depends-on-option="totpEnabled"{{end}}>
-						<details class="pure-details"{{if .Open}} open{{end}}>
-							<summary class="pure-details-summary"><strong>{{if .NameKey}}<span data-i18n="{{.NameKey}}"></span>{{else}}{{.Name}}{{end}}</strong></summary>
-							{{range .Sections}}
+					{{range $p := .Providers}}
+					<div class="provider-row"{{if eq $p.Id "herald-dingtalk"}} data-depends-on-option="dingtalkEnabled"{{else if eq $p.Id "herald-smtp"}} data-depends-on-option="smtpEnabled"{{else if eq $p.Id "herald-totp"}} data-depends-on-option="totpEnabled"{{end}}>
+						<details class="pure-details"{{if $p.Open}} open{{end}}>
+							<summary class="pure-details-summary"><strong>{{if $p.NameKey}}<span data-i18n="{{$p.NameKey}}"></span>{{else}}{{$p.Name}}{{end}}</strong></summary>
+							{{range $p.Sections}}
 							<div class="env-group">
 								{{if .TitleKey}}<h2 class="section-title" data-i18n="{{.TitleKey}}"></h2>{{end}}
 								{{range .EnvVars}}
 								<div class="config-item pure-control-group" data-env-name="{{.Env}}"{{if .ShowWhenEnv}} data-depends-on-env="{{.ShowWhenEnv}}"{{end}}{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
 									{{if eq .Type "checkbox"}}
 									<label>
-										<input type="checkbox" name="envBool" id="env_{{.Env}}" data-env="{{.Env}}" class="pure-checkbox"{{if .Default}} checked{{end}}>
+										<input type="checkbox" name="envBool" id="env_{{.Env}}_{{$p.Id}}" data-env="{{.Env}}" class="pure-checkbox"{{if .Default}} checked{{end}}>
 										<span class="config-label" data-i18n="{{.LabelKey}}"></span>
 										<span class="config-env">{{.Env}}</span>
 									</label>
 									{{else}}
-									<label for="env_{{.Env}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.Env}}</span></label>
+									<label for="env_{{.Env}}_{{$p.Id}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.Env}}</span></label>
 									{{if eq .Type "text"}}
-									<input type="text" id="env_{{.Env}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}>
+									<input type="text" id="env_{{.Env}}_{{$p.Id}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}>
 									{{else if eq .Type "number"}}
-									<input type="number" id="env_{{.Env}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}{{if .Min}} min="{{.Min}}"{{end}}{{if .Max}} max="{{.Max}}"{{end}}>
+									<input type="number" id="env_{{.Env}}_{{$p.Id}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}{{if .Min}} min="{{.Min}}"{{end}}{{if .Max}} max="{{.Max}}"{{end}}>
 									{{else if eq .Type "select"}}
-									<select id="env_{{.Env}}" data-env="{{.Env}}" class="pure-input-1">
+									<select id="env_{{.Env}}_{{$p.Id}}" data-env="{{.Env}}" class="pure-input-1">
 										{{$def := .Default}}{{range .Options}}
 										<option value="{{.Value}}"{{if eq (printf "%v" $def) .Value}} selected{{end}}>{{.Value}}</option>
 										{{end}}
@@ -213,6 +213,7 @@
 			<div id="result" class="result-area" role="status" aria-live="polite"></div>
 			<div id="downloads" class="downloads pure-menu pure-menu-list" aria-label="Download links"></div>
 			<div id="config-preview-wrap" class="config-preview-wrap" style="display:none;" aria-hidden="true">
+				<div id="config-preview-status" role="status" aria-live="polite" class="keys-copy-status"></div>
 				<details class="config-preview-details pure-details">
 					<summary class="pure-details-summary" data-i18n="previewSummary">预览生成配置</summary>
 					<div id="config-preview-content" class="config-preview-content"></div>
@@ -221,6 +222,10 @@
 			</div>
 
 			<div id="panel-keys" class="tab-panel" role="tabpanel" aria-labelledby="tab-keys" aria-hidden="true" style="display:none;">
+				<div id="keys-copy-status" role="status" aria-live="polite" class="keys-copy-status"></div>
+				<h2 class="keys-panel-title" data-i18n="keysTitle">密钥与 API Key 生成</h2>
+				<p class="keys-panel-desc config-desc" data-i18n="keysDesc">生成适用于「生成部署配置」的各类密钥与 API Key，包括 Herald API 密钥 (HERALD_API_KEY)、Herald HMAC 密钥 (HERALD_HMAC_SECRET)、herald-totp API 密钥 (HERALD_TOTP_API_KEY) 等。可复制到 .env 或点击「填入生成配置」同步到表单中所有对应环境变量输入框。</p>
+				<p class="keys-panel-desc config-desc" data-i18n="keysDescFillHint">点击「填入生成配置」后，每个密钥会写入生成配置里所有同名环境变量（如 Stargate 与 Herald 中的 HERALD_API_KEY 等），并自动跳转到「生成部署配置」标签页。</p>
 				<div class="keys-tool pure-g">
 					<div class="pure-u-1 keys-grid" id="keys-grid"></div>
 					<div class="pure-u-1 form-actions keys-actions">
