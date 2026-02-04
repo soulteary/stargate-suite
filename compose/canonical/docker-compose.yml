@@ -168,7 +168,7 @@ services:
       - HTTP_INSECURE_TLS=${WARDEN_HTTP_INSECURE_TLS:-false}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
-      - ../../fixtures/warden/data.json:/app/data.json:ro
+      - ./data.json:/app/data.json:ro
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
     depends_on:

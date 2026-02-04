@@ -3,10 +3,11 @@ package e2e
 import "os"
 
 // E2E service URLs and auth host (used by tests and test helpers).
+// Use 127.0.0.1 (not localhost) so CI and local runs behave consistently; localhost can resolve to IPv6 (::1) on some runners and cause connection failures when services bind to IPv4 only.
 const (
-	stargateURL = "http://localhost:8080"
-	heraldURL   = "http://localhost:8082"
-	wardenURL   = "http://localhost:8081"
+	stargateURL = "http://127.0.0.1:8080"
+	heraldURL   = "http://127.0.0.1:8082"
+	wardenURL   = "http://127.0.0.1:8081"
 	authHost    = "auth.test.localhost"
 )
 

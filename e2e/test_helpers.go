@@ -412,23 +412,37 @@ func clearRateLimitKeys(t *testing.T) error {
 }
 
 // waitForService waits for the service to be ready (HTTP status < 500).
+// Returns false on timeout; on failure the last error or status is logged for debugging.
 func waitForService(t *testing.T, url string, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
-	client := &http.Client{Timeout: 2 * time.Second}
+	client := &http.Client{Timeout: 5 * time.Second}
+	var lastErr error
+	var lastStatus int
 
 	for time.Now().Before(deadline) {
 		resp, err := client.Get(url)
-		if err == nil {
-			if closeErr := resp.Body.Close(); closeErr != nil {
-				t.Logf("Warning: failed to close response body: %v", closeErr)
-			}
-			if resp.StatusCode < 500 {
-				return true
-			}
+		if err != nil {
+			lastErr = err
+			lastStatus = 0
+			time.Sleep(1 * time.Second)
+			continue
 		}
+		lastStatus = resp.StatusCode
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			t.Logf("Warning: failed to close response body: %v", closeErr)
+		}
+		if resp.StatusCode < 500 {
+			return true
+		}
+		lastErr = nil
 		time.Sleep(1 * time.Second)
 	}
 
+	if lastErr != nil {
+		t.Logf("waitForService %s: last error: %v", url, lastErr)
+	} else if lastStatus != 0 {
+		t.Logf("waitForService %s: last status: %d", url, lastStatus)
+	}
 	return false
 }
 

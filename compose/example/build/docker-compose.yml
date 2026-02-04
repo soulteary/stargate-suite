@@ -73,7 +73,7 @@ services:
       - INTERVAL=5
       - LOG_LEVEL=info
     volumes:
-      - ../../fixtures/warden/data.json:/app/data.json:ro
+      - ./data.json:/app/data.json:ro
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
     depends_on:
