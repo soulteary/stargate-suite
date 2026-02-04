@@ -40,6 +40,12 @@ configSections:
         default: "redis:8.4-alpine"
         placeholder: "redis:8.4-alpine"
       - type: imageEnv
+        envName: STARGATE_REDIS_IMAGE
+        labelKey: stargateRedisImageLabel
+        descKey: stargateRedisImageDesc
+        default: "redis:8.4-alpine"
+        placeholder: "redis:8.4-alpine"
+      - type: imageEnv
         envName: PROTECTED_IMAGE
         labelKey: protectedImageLabel
         descKey: protectedImageDesc
@@ -241,3 +247,11 @@ configSections:
             descKey: wardenRedisPathDesc
             default: "./data/warden-redis"
             placeholder: "./data/warden-redis"
+      - type: checkbox
+        id: sessionStorageRedisUseBuiltin
+        name: sessionStorageRedisUseBuiltin
+        envName: sessionStorageRedisUseBuiltin
+        labelKey: sessionStorageRedisUseBuiltinLabel
+        descKey: sessionStorageRedisUseBuiltinDesc
+        default: false
+        showWhenEnv: SESSION_STORAGE_ENABLED

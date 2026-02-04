@@ -12,6 +12,18 @@ services:
             descKey: authHostDesc
             default: "auth.test.localhost"
             placeholder: "auth.test.localhost"
+          - env: WARDEN_URL
+            type: text
+            labelKey: wardenUrlLabel
+            descKey: wardenUrlDesc
+            default: "http://warden:8081"
+            placeholder: "http://warden:8081"
+          - env: HERALD_URL
+            type: text
+            labelKey: heraldUrlLabel
+            descKey: heraldUrlDesc
+            default: "http://herald:8082"
+            placeholder: "http://herald:8082"
           - env: STARGATE_DOMAIN
             type: text
             labelKey: stargateDomainLabel
@@ -95,6 +107,21 @@ services:
             default: "300"
             placeholder: "300"
             min: 1
+          - env: WARDEN_OTP_ENABLED
+            type: checkbox
+            labelKey: wardenOtpEnabledLabel
+            descKey: wardenOtpEnabledDesc
+            default: false
+          - env: LOGIN_SMS_ENABLED
+            type: checkbox
+            labelKey: loginSmsEnabledLabel
+            descKey: loginSmsEnabledDesc
+            default: true
+          - env: LOGIN_EMAIL_ENABLED
+            type: checkbox
+            labelKey: loginEmailEnabledLabel
+            descKey: loginEmailEnabledDesc
+            default: true
           - env: HERALD_TOTP_HMAC_SECRET
             type: text
             labelKey: heraldTotpHmacSecretLabel
@@ -149,6 +176,60 @@ services:
             type: checkbox
             labelKey: debugLabel
             descKey: debugDesc
+          - env: PORT
+            type: text
+            labelKey: portLabel
+            descKey: portDesc
+            placeholder: "80"
+      - titleKey: heraldTlsSection
+        envVars:
+          - env: HERALD_TLS_CA_CERT_FILE
+            type: text
+            labelKey: heraldTlsCaCertFileLabel
+            descKey: heraldTlsCaCertFileDesc
+            placeholder: ""
+          - env: HERALD_TLS_CLIENT_CERT_FILE
+            type: text
+            labelKey: heraldTlsClientCertFileLabel
+            descKey: heraldTlsClientCertFileDesc
+            placeholder: ""
+          - env: HERALD_TLS_CLIENT_KEY_FILE
+            type: text
+            labelKey: heraldTlsClientKeyFileLabel
+            descKey: heraldTlsClientKeyFileDesc
+            placeholder: ""
+          - env: HERALD_TLS_SERVER_NAME
+            type: text
+            labelKey: heraldTlsServerNameLabel
+            descKey: heraldTlsServerNameDesc
+            placeholder: ""
+      - titleKey: otlpSection
+        envVars:
+          - env: OTLP_ENABLED
+            type: checkbox
+            labelKey: otlpEnabledLabel
+            descKey: otlpEnabledDesc
+            default: false
+          - env: OTLP_ENDPOINT
+            type: text
+            labelKey: otlpEndpointLabel
+            descKey: otlpEndpointDesc
+            placeholder: "http://localhost:4317"
+            showWhenEnv: OTLP_ENABLED
+      - titleKey: authRefreshSection
+        envVars:
+          - env: AUTH_REFRESH_ENABLED
+            type: checkbox
+            labelKey: authRefreshEnabledLabel
+            descKey: authRefreshEnabledDesc
+            default: false
+          - env: AUTH_REFRESH_INTERVAL
+            type: text
+            labelKey: authRefreshIntervalLabel
+            descKey: authRefreshIntervalDesc
+            default: "5m"
+            placeholder: "5m"
+            showWhenEnv: AUTH_REFRESH_ENABLED
       - titleKey: stepUpSection
         envVars:
           - env: STEP_UP_ENABLED
@@ -163,6 +244,26 @@ services:
             placeholder: "/admin*,/api/secret*"
       - titleKey: optionalSensitive
         envVars:
+          - env: WARDEN_API_KEY
+            type: text
+            labelKey: wardenApiKeyLabel
+            descKey: wardenApiKeyDesc
+            placeholder: "test-warden-api-key"
+          - env: HERALD_API_KEY
+            type: text
+            labelKey: heraldApiKeyLabel
+            descKey: heraldApiKeyDesc
+            placeholder: "test-herald-api-key"
+          - env: HERALD_HMAC_SECRET
+            type: text
+            labelKey: heraldHmacLabel
+            descKey: heraldHmacDesc
+            placeholder: "test-hmac-secret"
+          - env: WARDEN_OTP_SECRET_KEY
+            type: text
+            labelKey: wardenOtpSecretKeyLabel
+            descKey: wardenOtpSecretKeyDesc
+            placeholder: ""
           - env: PASSWORDS
             type: text
             labelKey: passwordsLabel

@@ -60,6 +60,7 @@ type configOption struct {
 	Options        []selectOption `yaml:"options"`
 	Paths          []redisPath    `yaml:"paths"`
 	ShowWhenOption string         `yaml:"showWhenOption"`
+	ShowWhenEnv    string         `yaml:"showWhenEnv"`
 	Min            int            `yaml:"min"`
 	Max            int            `yaml:"max"`
 }

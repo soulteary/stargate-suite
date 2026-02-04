@@ -37,13 +37,15 @@ type Options struct {
 	UseNamedVolume      bool   // 为 true 时保持命名卷；为 false 时使用 HeraldRedisDataPath / WardenRedisDataPath
 	HeraldRedisDataPath string // 绑定路径时 Herald Redis 数据目录，默认 ./data/herald-redis
 	WardenRedisDataPath string // 绑定路径时 Warden Redis 数据目录，默认 ./data/warden-redis
+	// Stargate 会话 Redis：为 true 时在 traefik / traefik-stargate 中注入 stargate-redis 服务，并设置 SESSION_STORAGE_REDIS_ADDR=stargate-redis:6379
+	StargateSessionRedisUseBuiltin bool
 }
 
 // serviceNameToContainerSuffix 逻辑服务名 -> container_name 后缀（前缀由 Options 提供）
 var serviceNameToContainerSuffix = map[string]string{
 	"herald": "herald", "herald-redis": "herald-redis", "herald-totp": "herald-totp", "herald-dingtalk": "herald-dingtalk", "herald-smtp": "herald-smtp", "owlmail": "owlmail",
 	"warden": "warden", "warden-redis": "warden-redis",
-	"stargate": "stargate", "protected-service": "whoami",
+	"stargate": "stargate", "stargate-redis": "stargate-redis", "protected-service": "whoami",
 }
 
 // splitDef 定义从完整 compose 中切出的服务、卷及是否应用 stargate 覆盖。
@@ -98,15 +100,19 @@ var serviceAllowedEnvKeys = func() map[string]map[string]bool {
 			"WARDEN_HTTP_TIMEOUT", "WARDEN_HTTP_MAX_IDLE_CONNS", "WARDEN_HTTP_INSECURE_TLS", "LOG_LEVEL",
 		),
 		"stargate": allowed(
-			"AUTH_HOST", "LOGIN_PAGE_TITLE", "LOGIN_PAGE_FOOTER_TEXT", "COOKIE_DOMAIN", "PASSWORDS", "LANGUAGE",
-			"WARDEN_ENABLED", "WARDEN_API_KEY", "WARDEN_CACHE_TTL", "HERALD_ENABLED", "HERALD_API_KEY", "HERALD_HMAC_SECRET",
-			"LOGIN_SMS_ENABLED", "LOGIN_EMAIL_ENABLED",
+			"AUTH_HOST", "PORT", "LOGIN_PAGE_TITLE", "LOGIN_PAGE_FOOTER_TEXT", "COOKIE_DOMAIN", "PASSWORDS", "LANGUAGE",
+			"USER_HEADER_NAME", "WARDEN_URL", "WARDEN_ENABLED", "WARDEN_API_KEY", "WARDEN_CACHE_TTL",
+			"WARDEN_OTP_ENABLED", "WARDEN_OTP_SECRET_KEY",
+			"HERALD_URL", "HERALD_ENABLED", "HERALD_API_KEY", "HERALD_HMAC_SECRET",
+			"HERALD_TLS_CA_CERT_FILE", "HERALD_TLS_CLIENT_CERT_FILE", "HERALD_TLS_CLIENT_KEY_FILE", "HERALD_TLS_SERVER_NAME",
 			"HERALD_TOTP_ENABLED", "HERALD_TOTP_BASE_URL", "HERALD_TOTP_API_KEY", "HERALD_TOTP_HMAC_SECRET",
+			"LOGIN_SMS_ENABLED", "LOGIN_EMAIL_ENABLED",
 			"SESSION_STORAGE_ENABLED", "SESSION_STORAGE_REDIS_ADDR", "SESSION_STORAGE_REDIS_PASSWORD",
 			"SESSION_STORAGE_REDIS_DB", "SESSION_STORAGE_REDIS_KEY_PREFIX",
 			"STEP_UP_ENABLED", "STEP_UP_PATHS",
-			"AUDIT_LOG_ENABLED", "AUDIT_LOG_FORMAT", "DEBUG",
-			"STARGATE_DOMAIN", "PROTECTED_DOMAIN", "STARGATE_PREFIX", "PROTECTED_PREFIX", "USER_HEADER_NAME",
+			"AUDIT_LOG_ENABLED", "AUDIT_LOG_FORMAT",
+			"OTLP_ENABLED", "OTLP_ENDPOINT", "AUTH_REFRESH_ENABLED", "AUTH_REFRESH_INTERVAL", "DEBUG",
+			"STARGATE_DOMAIN", "PROTECTED_DOMAIN", "STARGATE_PREFIX", "PROTECTED_PREFIX",
 		),
 		// herald-redis, warden-redis, protected-service: 无 environment 块，不注入任何 override（不在 map 中即视为允许集合为空）
 	}
@@ -151,8 +157,14 @@ var envComments = map[string]string{
 	"WARDEN_ENABLED":                      "是否启用 Warden",
 	"WARDEN_API_KEY":                      "Warden API 密钥",
 	"WARDEN_CACHE_TTL":                    "Warden 缓存 TTL（秒）",
+	"WARDEN_OTP_ENABLED":                  "是否启用 Warden OTP（遗留/兼容）",
+	"WARDEN_OTP_SECRET_KEY":               "Warden OTP 密钥（遗留/兼容）",
 	"HERALD_URL":                          "Stargate 调用 Herald 的地址",
 	"HERALD_ENABLED":                      "是否启用 Herald",
+	"HERALD_TLS_CA_CERT_FILE":             "Herald mTLS：CA 证书文件路径",
+	"HERALD_TLS_CLIENT_CERT_FILE":         "Herald mTLS：客户端证书文件路径",
+	"HERALD_TLS_CLIENT_KEY_FILE":          "Herald mTLS：客户端私钥文件路径",
+	"HERALD_TLS_SERVER_NAME":              "Herald mTLS：服务端 SNI 名称",
 	"LOGIN_SMS_ENABLED":                   "是否允许短信验证码登录（默认 true）",
 	"LOGIN_EMAIL_ENABLED":                 "是否允许邮箱验证码登录（默认 true）",
 	"HERALD_API_KEY":                      "Herald API 密钥",
@@ -167,6 +179,11 @@ var envComments = map[string]string{
 	"HERALD_TOTP_HMAC_SECRET":             "Stargate 调用 herald-totp 的 HMAC 密钥（可选）",
 	"AUDIT_LOG_ENABLED":                   "是否启用审计日志",
 	"AUDIT_LOG_FORMAT":                    "审计日志格式 (json/text)",
+	"OTLP_ENABLED":                        "是否启用 OpenTelemetry 导出",
+	"OTLP_ENDPOINT":                       "OTLP 采集端地址（如 http://localhost:4317）",
+	"AUTH_REFRESH_ENABLED":                "是否启用会话期间授权信息刷新",
+	"AUTH_REFRESH_INTERVAL":               "授权信息刷新间隔（如 5m）",
+	"USER_HEADER_NAME":                    "鉴权通过后转发给下游的用户头名称",
 	"WARDEN_REDIS_PASSWORD":               "Warden Redis 密码",
 	"WARDEN_HTTP_TIMEOUT":                 "Warden HTTP 请求超时（秒）",
 	"LOCKOUT_DURATION":                    "Herald 锁定时长（超过最大尝试次数后）",
@@ -341,20 +358,23 @@ func EnvBodyFromVars(vars map[string]string, optionalOverride string) string {
 	// 常用顺序（镜像与域名优先，再按服务分组；Herald 当前使用 REDIS_ADDR，HERALD_REDIS_URL 为规范建议，待 Herald 支持后可启用）
 	order := []string{
 		"HERALD_IMAGE", "WARDEN_IMAGE", "STARGATE_IMAGE",
-		"HERALD_REDIS_IMAGE", "WARDEN_REDIS_IMAGE",
+		"HERALD_REDIS_IMAGE", "WARDEN_REDIS_IMAGE", "STARGATE_REDIS_IMAGE",
 		"HERALD_REDIS_ADDR", "HERALD_REDIS_PASSWORD", "HERALD_REDIS_DB",
 		"WARDEN_REDIS_ADDR", "WARDEN_REDIS_PASSWORD", "WARDEN_REDIS_PASSWORD_FILE", "WARDEN_REDIS_ENABLED", "WARDEN_DATA_FILE",
 		"HERALD_REDIS_DATA_PATH", "WARDEN_REDIS_DATA_PATH",
 		"PROTECTED_IMAGE",
-		"AUTH_HOST", "STARGATE_DOMAIN", "PROTECTED_DOMAIN",
+		"AUTH_HOST", "WARDEN_URL", "HERALD_URL", "STARGATE_DOMAIN", "PROTECTED_DOMAIN",
 		"STARGATE_PREFIX", "PROTECTED_PREFIX", "USER_HEADER_NAME",
 		"LOGIN_PAGE_TITLE", "LOGIN_PAGE_FOOTER_TEXT", "COOKIE_DOMAIN",
-		"LANGUAGE", "PASSWORDS",
+		"LANGUAGE", "PASSWORDS", "PORT",
 		"HERALD_API_KEY", "HERALD_HMAC_SECRET", "WARDEN_API_KEY",
-		"WARDEN_ENABLED", "HERALD_ENABLED", "LOGIN_SMS_ENABLED", "LOGIN_EMAIL_ENABLED", "SESSION_STORAGE_ENABLED",
+		"WARDEN_ENABLED", "HERALD_ENABLED", "WARDEN_OTP_ENABLED", "WARDEN_OTP_SECRET_KEY",
+		"LOGIN_SMS_ENABLED", "LOGIN_EMAIL_ENABLED", "SESSION_STORAGE_ENABLED",
 		"SESSION_STORAGE_REDIS_ADDR", "SESSION_STORAGE_REDIS_PASSWORD", "SESSION_STORAGE_REDIS_DB", "SESSION_STORAGE_REDIS_KEY_PREFIX",
+		"HERALD_TLS_CA_CERT_FILE", "HERALD_TLS_CLIENT_CERT_FILE", "HERALD_TLS_CLIENT_KEY_FILE", "HERALD_TLS_SERVER_NAME",
 		"STEP_UP_ENABLED", "STEP_UP_PATHS", "HERALD_TOTP_HMAC_SECRET",
-		"WARDEN_CACHE_TTL", "AUDIT_LOG_ENABLED", "AUDIT_LOG_FORMAT", "DEBUG",
+		"WARDEN_CACHE_TTL", "AUDIT_LOG_ENABLED", "AUDIT_LOG_FORMAT",
+		"OTLP_ENABLED", "OTLP_ENDPOINT", "AUTH_REFRESH_ENABLED", "AUTH_REFRESH_INTERVAL", "DEBUG",
 		"MODE", "LOG_LEVEL", "INTERVAL", "WARDEN_REMOTE_CONFIG", "WARDEN_REMOTE_KEY",
 		"WARDEN_HTTP_TIMEOUT", "WARDEN_HTTP_MAX_IDLE_CONNS", "WARDEN_HTTP_INSECURE_TLS",
 		"HERALD_TEST_MODE", "CHALLENGE_EXPIRY", "CODE_LENGTH", "MAX_ATTEMPTS",
@@ -373,6 +393,7 @@ func EnvBodyFromVars(vars map[string]string, optionalOverride string) string {
 	lines = append(lines, "# Container Image / Env - generated from compose")
 	lines = append(lines, "")
 	redisCommentAdded := false
+	sessionRedisCommentAdded := false
 	dingtalkCommentAdded := false
 	smtpCommentAdded := false
 	for _, k := range order {
@@ -381,6 +402,10 @@ func EnvBodyFromVars(vars map[string]string, optionalOverride string) string {
 			if (k == "HERALD_REDIS_ADDR" || k == "WARDEN_REDIS_ADDR") && !redisCommentAdded {
 				lines = append(lines, "# Redis connection (override for external Redis)")
 				redisCommentAdded = true
+			}
+			if (k == "SESSION_STORAGE_ENABLED" || k == "SESSION_STORAGE_REDIS_ADDR") && !sessionRedisCommentAdded {
+				lines = append(lines, "# Stargate session Redis (when SESSION_STORAGE_ENABLED=true; use built-in option sets SESSION_STORAGE_REDIS_ADDR=stargate-redis:6379)")
+				sessionRedisCommentAdded = true
 			}
 			if k == "HERALD_DINGTALK_IMAGE" && !dingtalkCommentAdded {
 				lines = append(lines, "# DingTalk channel (optional): Herald calls herald-dingtalk via HTTP")
@@ -424,6 +449,7 @@ STARGATE_IMAGE=ghcr.io/soulteary/stargate:v0.9.0
 # Redis Image Version
 HERALD_REDIS_IMAGE=redis:8.4-alpine
 WARDEN_REDIS_IMAGE=redis:8.4-alpine
+STARGATE_REDIS_IMAGE=redis:8.4-alpine
 
 # Herald Redis connection (Herald uses REDIS_ADDR; HERALD_REDIS_URL is spec suggestion, not yet used)
 HERALD_REDIS_ADDR=herald-redis:6379
@@ -447,6 +473,13 @@ WARDEN_REDIS_PASSWORD=
 # Redis data path (only used when UseNamedVolume=false / bind path)
 # HERALD_REDIS_DATA_PATH=./data/herald-redis
 # WARDEN_REDIS_DATA_PATH=./data/warden-redis
+
+# Stargate session Redis (when SESSION_STORAGE_ENABLED=true; use built-in container option adds stargate-redis service and SESSION_STORAGE_REDIS_ADDR=stargate-redis:6379)
+# SESSION_STORAGE_ENABLED=false
+# SESSION_STORAGE_REDIS_ADDR=localhost:6379
+# SESSION_STORAGE_REDIS_PASSWORD=
+# SESSION_STORAGE_REDIS_DB=0
+# SESSION_STORAGE_REDIS_KEY_PREFIX=
 
 # Protected service (whoami) - example service behind Stargate Forward Auth, used for E2E and demos
 # PROTECTED_IMAGE=ghcr.io/traefik/whoami:v1.11
@@ -660,49 +693,8 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 			}
 		}
 	}
-	if len(opts.EnvOverrides) > 0 {
-		allowed := serviceAllowedEnvKeys[serviceName]
-		if len(allowed) == 0 {
-			return // 该服务不允许注入任何 EnvOverrides（如 herald-redis、warden-redis、protected-service）
-		}
-		envList, _ := svc["environment"].([]interface{})
-		overrides := opts.EnvOverrides
-		used := make(map[string]bool)
-		var newList []interface{}
-		for _, e := range envList {
-			s, _ := e.(string)
-			if idx := strings.Index(s, "="); idx >= 0 {
-				key := strings.TrimSpace(s[:idx])
-				if allowed[key] {
-					if v, ok := overrides[key]; ok {
-						// 保留 DINGTALK_LOOKUP_MODE 为变量引用，便于用户通过 .env 修改
-						if key == "DINGTALK_LOOKUP_MODE" {
-							newList = append(newList, key+"=${DINGTALK_LOOKUP_MODE:-none}")
-						} else {
-							newList = append(newList, key+"="+v)
-						}
-						used[key] = true
-					} else {
-						newList = append(newList, s)
-					}
-				} else {
-					newList = append(newList, s)
-				}
-			} else {
-				newList = append(newList, e)
-			}
-		}
-		for k, v := range overrides {
-			if allowed[k] && !used[k] {
-				if k == "DINGTALK_LOOKUP_MODE" {
-					newList = append(newList, k+"=${DINGTALK_LOOKUP_MODE:-none}")
-				} else {
-					newList = append(newList, k+"="+v)
-				}
-			}
-		}
-		svc["environment"] = newList
-	}
+	// EnvOverrides 仅用于生成 .env（在 Generate 中合并进 vars），不写入 compose 的 environment，
+	// 以便生成的 compose 保留 ${VAR:-default} 形式，用户通过 .env 覆盖即可生效。
 }
 
 // applyOptionsToCompose 对整份 compose（out）应用 Options：每个服务 applyOptions，并处理 Traefik 网络。
@@ -858,6 +850,72 @@ func injectOwlmailService(svcs map[string]interface{}, opts *Options) {
 		"restart": "unless-stopped",
 	}
 	svcs["owlmail"] = owlmail
+}
+
+// injectStargateRedisService 向 compose 注入 stargate-redis 服务及卷，并为 stargate 服务添加 depends_on。
+// 仅在 mode 为 traefik 或 traefik-stargate 且 opts.StargateSessionRedisUseBuiltin 为 true 时调用。
+func injectStargateRedisService(out map[string]interface{}, opts *Options) {
+	if opts == nil || !opts.StargateSessionRedisUseBuiltin {
+		return
+	}
+	svcs, _ := out["services"].(map[string]interface{})
+	if svcs == nil {
+		return
+	}
+	prefix := opts.ContainerNamePrefix
+	if prefix == "" {
+		prefix = "the-gate-"
+	}
+	redisImage := "${STARGATE_REDIS_IMAGE:-redis:8.4-alpine}"
+	stargateRedis := map[string]interface{}{
+		"image":          redisImage,
+		"container_name": prefix + "stargate-redis",
+		"expose":         []interface{}{"6379"},
+		"volumes":        []interface{}{"stargate-redis-data:/data"},
+		"networks":       []interface{}{"the-gate-network"},
+		"healthcheck": map[string]interface{}{
+			"test":     []interface{}{"CMD", "redis-cli", "ping"},
+			"interval": "5s",
+			"timeout":  "3s",
+			"retries":  5,
+		},
+		"restart": "unless-stopped",
+	}
+	svcs["stargate-redis"] = stargateRedis
+
+	volumes, _ := out["volumes"].(map[string]interface{})
+	if volumes == nil {
+		volumes = make(map[string]interface{})
+		out["volumes"] = volumes
+	}
+	volumes["stargate-redis-data"] = map[string]interface{}{"driver": "local"}
+
+	// stargate 依赖 stargate-redis
+	if stargate, ok := svcs["stargate"].(map[string]interface{}); ok {
+		depMap := make(map[string]interface{})
+		if dep, ok := stargate["depends_on"]; ok {
+			switch d := dep.(type) {
+			case map[string]interface{}:
+				for k, v := range d {
+					depMap[k] = v
+				}
+			case map[interface{}]interface{}:
+				for k, v := range d {
+					if s, ok := k.(string); ok {
+						depMap[s] = v
+					}
+				}
+			case []interface{}:
+				for _, v := range d {
+					if s, ok := v.(string); ok {
+						depMap[s] = map[string]interface{}{"condition": "service_healthy"}
+					}
+				}
+			}
+		}
+		depMap["stargate-redis"] = map[string]interface{}{"condition": "service_healthy"}
+		stargate["depends_on"] = depMap
+	}
 }
 
 // patchHeraldSmtpForOwlmail 将 herald-smtp 的 SMTP 配置改为指向 owlmail，并增加 depends_on: owlmail。
@@ -1047,6 +1105,10 @@ func GenerateOne(full map[string]interface{}, mode string, opts *Options) ([]byt
 			stripStargateTotpEnvAndDependsOn(svcs)
 		}
 	}
+	// traefik 或 traefik-stargate 且启用「Stargate 会话 Redis 使用内置容器」时，注入 stargate-redis 服务
+	if (mode == "traefik" || mode == "traefik-stargate") && opts != nil && opts.StargateSessionRedisUseBuiltin {
+		injectStargateRedisService(out, opts)
+	}
 
 	applyOptionsToCompose(out, opts)
 
@@ -1121,6 +1183,10 @@ func Generate(full map[string]interface{}, modes []string, envOverride string, o
 		for k, v := range opts.EnvOverrides {
 			vars[k] = v
 		}
+	}
+	if opts != nil && opts.StargateSessionRedisUseBuiltin {
+		vars["SESSION_STORAGE_ENABLED"] = "true"
+		vars["SESSION_STORAGE_REDIS_ADDR"] = "stargate-redis:6379"
 	}
 	if opts != nil && !opts.IncludeDingTalk {
 		for _, k := range []string{

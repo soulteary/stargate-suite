@@ -106,6 +106,9 @@ func genOptionsFromEnv() *composegen.Options {
 	if v := os.Getenv("TOTP_ENABLED"); v == "1" || strings.EqualFold(v, "true") {
 		opts.IncludeTotp = true
 	}
+	if v := os.Getenv("STARGATE_SESSION_REDIS_USE_BUILTIN"); v == "1" || strings.EqualFold(v, "true") {
+		opts.StargateSessionRedisUseBuiltin = true
+	}
 	if p := strings.TrimSpace(os.Getenv("PORT_OWLMAIL")); p != "" {
 		opts.PortOwlmail = p
 	}
@@ -159,27 +162,28 @@ type generateRequest struct {
 }
 
 type composeGenOptionsJSON struct {
-	HealthCheck            *bool             `json:"healthCheck"`
-	HealthCheckInterval    string            `json:"healthCheckInterval"`
-	HealthCheckStartPeriod string            `json:"healthCheckStartPeriod"`
-	TraefikNetwork         *bool             `json:"traefikNetwork"`
-	TraefikNetworkName     string            `json:"traefikNetworkName"`
-	ExposePorts            *bool             `json:"exposePorts"`
-	PortHerald             string            `json:"portHerald"`
-	PortWarden             string            `json:"portWarden"`
-	PortHeraldRedis        string            `json:"portHeraldRedis"`
-	PortHeraldTotp         string            `json:"portHeraldTotp"`
-	PortHeraldSmtp         string            `json:"portHeraldSmtp"`
-	PortOwlmail            string            `json:"portOwlmail"`
-	ContainerNamePrefix    string            `json:"containerNamePrefix"`
-	DingtalkEnabled        *bool             `json:"dingtalkEnabled"`
-	SmtpEnabled            *bool             `json:"smtpEnabled"`
-	SmtpUseOwlmail         *bool             `json:"smtpUseOwlmail"`
-	TotpEnabled            *bool             `json:"totpEnabled"`
-	EnvOverrides           map[string]string `json:"envOverrides"`
-	UseNamedVolume         *bool             `json:"useNamedVolume"`
-	HeraldRedisDataPath    string            `json:"heraldRedisDataPath"`
-	WardenRedisDataPath    string            `json:"wardenRedisDataPath"`
+	HealthCheck                   *bool             `json:"healthCheck"`
+	HealthCheckInterval           string            `json:"healthCheckInterval"`
+	HealthCheckStartPeriod        string            `json:"healthCheckStartPeriod"`
+	TraefikNetwork                *bool             `json:"traefikNetwork"`
+	TraefikNetworkName            string            `json:"traefikNetworkName"`
+	ExposePorts                   *bool             `json:"exposePorts"`
+	PortHerald                    string            `json:"portHerald"`
+	PortWarden                    string            `json:"portWarden"`
+	PortHeraldRedis               string            `json:"portHeraldRedis"`
+	PortHeraldTotp                string            `json:"portHeraldTotp"`
+	PortHeraldSmtp                string            `json:"portHeraldSmtp"`
+	PortOwlmail                   string            `json:"portOwlmail"`
+	ContainerNamePrefix           string            `json:"containerNamePrefix"`
+	DingtalkEnabled               *bool             `json:"dingtalkEnabled"`
+	SmtpEnabled                   *bool             `json:"smtpEnabled"`
+	SmtpUseOwlmail                *bool             `json:"smtpUseOwlmail"`
+	TotpEnabled                   *bool             `json:"totpEnabled"`
+	EnvOverrides                  map[string]string `json:"envOverrides"`
+	UseNamedVolume                *bool             `json:"useNamedVolume"`
+	HeraldRedisDataPath           string            `json:"heraldRedisDataPath"`
+	WardenRedisDataPath           string            `json:"wardenRedisDataPath"`
+	SessionStorageRedisUseBuiltin *bool             `json:"sessionStorageRedisUseBuiltin"`
 }
 
 func reqOptionsToComposegen(o *composeGenOptionsJSON) *composegen.Options {
@@ -229,6 +233,11 @@ func reqOptionsToComposegen(o *composeGenOptionsJSON) *composegen.Options {
 	}
 	if opts.WardenRedisDataPath == "" {
 		opts.WardenRedisDataPath = "./data/warden-redis"
+	}
+	if o.SessionStorageRedisUseBuiltin != nil {
+		opts.StargateSessionRedisUseBuiltin = *o.SessionStorageRedisUseBuiltin
+	} else {
+		opts.StargateSessionRedisUseBuiltin = false
 	}
 	if o.DingtalkEnabled != nil {
 		opts.IncludeDingTalk = *o.DingtalkEnabled

@@ -15,9 +15,9 @@ services:
       - "8082:8082"
     environment:
       - PORT=:8082
-      - REDIS_ADDR=herald-redis:6379
-      - REDIS_PASSWORD=
-      - REDIS_DB=0
+      - REDIS_ADDR=${HERALD_REDIS_ADDR:-herald-redis:6379}
+      - REDIS_PASSWORD=${HERALD_REDIS_PASSWORD:-}
+      - REDIS_DB=${HERALD_REDIS_DB:-0}
       - LOG_LEVEL=info
       - API_KEY=${HERALD_API_KEY:-test-herald-api-key}
       - HMAC_SECRET=${HERALD_HMAC_SECRET:-test-hmac-secret}
@@ -66,8 +66,8 @@ services:
       - "8081:8081"
     environment:
       - PORT=8081
-      - REDIS=warden-redis:6379
-      - REDIS_PASSWORD=
+      - REDIS=${WARDEN_REDIS_ADDR:-warden-redis:6379}
+      - REDIS_PASSWORD=${WARDEN_REDIS_PASSWORD:-}
       - MODE=ONLY_LOCAL
       - API_KEY=${WARDEN_API_KEY:-test-warden-api-key}
       - INTERVAL=5
@@ -121,12 +121,16 @@ services:
       - WARDEN_URL=http://warden:8081
       - WARDEN_ENABLED=${WARDEN_ENABLED:-true}
       - WARDEN_API_KEY=${WARDEN_API_KEY:-test-warden-api-key}
-      - WARDEN_CACHE_TTL=300
+      - WARDEN_CACHE_TTL=${WARDEN_CACHE_TTL:-300}
       - HERALD_URL=http://herald:8082
       - HERALD_ENABLED=${HERALD_ENABLED:-true}
       - HERALD_API_KEY=${HERALD_API_KEY:-test-herald-api-key}
       - HERALD_HMAC_SECRET=${HERALD_HMAC_SECRET:-test-hmac-secret}
       - SESSION_STORAGE_ENABLED=${SESSION_STORAGE_ENABLED:-false}
+      - SESSION_STORAGE_REDIS_ADDR=${SESSION_STORAGE_REDIS_ADDR:-localhost:6379}
+      - SESSION_STORAGE_REDIS_PASSWORD=${SESSION_STORAGE_REDIS_PASSWORD:-}
+      - SESSION_STORAGE_REDIS_DB=${SESSION_STORAGE_REDIS_DB:-0}
+      - SESSION_STORAGE_REDIS_KEY_PREFIX=${SESSION_STORAGE_REDIS_KEY_PREFIX:-}
       - DEBUG=false
     depends_on:
       warden:
