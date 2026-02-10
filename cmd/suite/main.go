@@ -32,6 +32,7 @@ type pageData struct {
 	ConfigSections []configOptionSection `yaml:"configSections"`
 	Services       []pageService         `yaml:"services"`
 	Providers      []pageService         `yaml:"providers"`
+	KeysStepVars   []envVar              `yaml:"-"` // 从 config/keys-step.yaml 加载
 }
 
 type configOptionSection struct {
@@ -113,6 +114,11 @@ type pageYAML struct {
 	ConfigSections []configOptionSection        `yaml:"configSections"`
 	Services       []pageService                `yaml:"services"`
 	Providers      []pageService                `yaml:"providers"`
+}
+
+// keysStepYAML 对应 config/keys-step.yaml
+type keysStepYAML struct {
+	KeysStepVars []envVar `yaml:"keysStepVars"`
 }
 
 var genOutDir, genModeArg string

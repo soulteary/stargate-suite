@@ -288,6 +288,54 @@
 		});
 	}
 
+	// Step nav: scroll to section and set active
+	function scrollToStep(stepNum) {
+		var id = 'step-compose-type';
+		if (stepNum === 2) id = 'step-general';
+		else if (stepNum === 3) id = 'step-stargate';
+		else if (stepNum === 4) id = 'step-warden';
+		else if (stepNum === 5) id = 'step-herald';
+		var el = document.getElementById(id);
+		if (el) {
+			el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			document.querySelectorAll('.step-nav-item').forEach(function (a) {
+				a.classList.toggle('active', parseInt(a.getAttribute('data-step'), 10) === stepNum);
+			});
+			document.querySelectorAll('.config-step').forEach(function (s) {
+				s.classList.toggle('id-step-active', parseInt(s.getAttribute('data-step'), 10) === stepNum);
+			});
+		}
+	}
+	var stepNav = document.getElementById('step-nav');
+	if (stepNav) {
+		stepNav.addEventListener('click', function (e) {
+			var a = e.target && e.target.classList && e.target.classList.contains('step-nav-item') ? e.target : null;
+			if (!a) return;
+			e.preventDefault();
+			var step = parseInt(a.getAttribute('data-step'), 10);
+			if (step) scrollToStep(step);
+		});
+	}
+	document.querySelectorAll('.step-next').forEach(function (btn) {
+		btn.addEventListener('click', function () {
+			var next = parseInt(this.getAttribute('data-next'), 10);
+			if (next) scrollToStep(next);
+		});
+	});
+	document.querySelectorAll('.step-prev').forEach(function (btn) {
+		btn.addEventListener('click', function () {
+			var prev = parseInt(this.getAttribute('data-prev'), 10);
+			if (prev) scrollToStep(prev);
+		});
+	});
+	// Initial active step (1) – set visual state only, do not scroll
+	document.querySelectorAll('.step-nav-item').forEach(function (a) {
+		a.classList.toggle('active', a.getAttribute('data-step') === '1');
+	});
+	document.querySelectorAll('.config-step').forEach(function (s) {
+		s.classList.toggle('id-step-active', s.getAttribute('data-step') === '1');
+	});
+
 	document.querySelectorAll('input[name="redisStorage"]').forEach(function (r) {
 		r.addEventListener('change', function () {
 			document.getElementById('redisPathInputs').style.display =

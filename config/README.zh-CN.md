@@ -10,11 +10,8 @@ CLI 预设（`presets.json`）与 Web UI 页面配置。总览见 [../README.zh-
 
 ## 预设与 compose 路径
 
-- **CLI/Makefile/E2E 默认使用的 compose 文件**：`COMPOSE_FILE` 默认为 `build/image/docker-compose.yml`，即生成输出在 `build/` 目录下。
-- **presets.json 语义**：
-  - `default`：表示**示例 compose 路径**，指向 `compose/example/image/docker-compose.yml`（仓库内预置示例，非生成结果）。
-  - `image`、`build`、`traefik`、`traefik-herald`、`traefik-warden`、`traefik-stargate`：对应 `build/` 下各生成产物路径。
-- 运行 `./suite gen all` 后，实际使用的文件在 `build/` 下；`compose/example/` 仅作参考或单独示例。
+- **CLI/Makefile/E2E 默认使用的 compose 文件**：`COMPOSE_FILE` 默认为 `build/image/docker-compose.yml`；所有 compose 均由 canonical 生成到 `build/`。
+- **presets.json 语义**：`default`、`image`、`build`、`traefik`、`traefik-herald`、`traefik-warden`、`traefik-stargate` 均为 `build/` 下生成产物路径（需先执行 `make gen` 或 `./suite gen all`）。
 
 ## 敏感项与生产环境
 

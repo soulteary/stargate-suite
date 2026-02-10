@@ -1,9 +1,1 @@
-{
-  "default": "compose/example/image/docker-compose.yml",
-  "image": "build/image/docker-compose.yml",
-  "build": "build/build/docker-compose.yml",
-  "traefik": "build/traefik/docker-compose.yml",
-  "traefik-herald": "build/traefik-herald/docker-compose.yml",
-  "traefik-warden": "build/traefik-warden/docker-compose.yml",
-  "traefik-stargate": "build/traefik-stargate/docker-compose.yml"
-}
+{"default":"build/image/docker-compose.yml","image":"build/image/docker-compose.yml","build":"build/build/docker-compose.yml","traefik":"build/traefik/docker-compose.yml","traefik-herald":"build/traefik-herald/docker-compose.yml","traefik-warden":"build/traefik-warden/docker-compose.yml","traefik-stargate":"build/traefik-stargate/docker-compose.yml"}

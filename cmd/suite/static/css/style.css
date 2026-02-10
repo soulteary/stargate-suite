@@ -76,6 +76,65 @@
 	margin-top: 0;
 }
 
+/* 配置步骤导航与区块 */
+.step-nav {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+	margin: 0 0 1rem;
+	padding: 0.5rem 0;
+	border-bottom: 1px solid #eee;
+	list-style: none;
+}
+.step-nav-item {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2rem;
+	height: 2rem;
+	border-radius: 50%;
+	background: #eee;
+	color: #555;
+	text-decoration: none;
+	font-size: 0.875rem;
+	font-weight: 500;
+	transition: background 0.15s, color 0.15s;
+}
+.step-nav-item:hover {
+	background: #ddd;
+	color: #0078e7;
+}
+.step-nav-item.active {
+	background: #0078e7;
+	color: #fff;
+}
+.config-step {
+	margin-bottom: 2rem;
+	padding-top: 0.5rem;
+}
+.config-step:target .step-heading,
+.config-step.id-step-active .step-heading {
+	color: #0078e7;
+}
+.step-heading {
+	font-size: 1.125rem;
+	font-weight: 600;
+	margin: 0 0 0.25rem;
+}
+.step-desc {
+	color: #555;
+	font-size: 0.875rem;
+	margin: 0 0 1rem;
+}
+.step-actions {
+	margin-top: 1rem;
+	padding-top: 0.75rem;
+	border-top: 1px solid #eee;
+}
+.step-actions .step-prev {
+	margin-right: 0.5rem;
+}
+
 /* 导入并解析 */
 .import-parse-desc {
 	margin-bottom: 1rem;

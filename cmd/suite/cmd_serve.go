@@ -261,6 +261,15 @@ func loadPageData(yamlPath string) (*pageData, error) {
 		}
 	}
 
+	var keysStepVars []envVar
+	keysStepPath := filepath.Join(configDir, "keys-step.yaml")
+	if b, err := os.ReadFile(keysStepPath); err == nil {
+		var frag keysStepYAML
+		if err := yaml.Unmarshal(b, &frag); err == nil && len(frag.KeysStepVars) > 0 {
+			keysStepVars = frag.KeysStepVars
+		}
+	}
+
 	jsonI18N, err := json.Marshal(raw.I18N)
 	if err != nil {
 		return nil, err
@@ -279,6 +288,7 @@ func loadPageData(yamlPath string) (*pageData, error) {
 		ConfigSections: raw.ConfigSections,
 		Services:       raw.Services,
 		Providers:      raw.Providers,
+		KeysStepVars:   keysStepVars,
 	}, nil
 }
 

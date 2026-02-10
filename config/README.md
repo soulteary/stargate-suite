@@ -10,11 +10,9 @@ CLI presets (`presets.json`) and Web UI page config. Overview: [../README.md](..
 
 ## Presets & compose path
 
-- **Default compose file used by CLI/Makefile/E2E**: `COMPOSE_FILE` defaults to `build/image/docker-compose.yml`; generated output lives under `build/`.
+- **Default compose file used by CLI/Makefile/E2E**: `COMPOSE_FILE` defaults to `build/image/docker-compose.yml`; all compose output is generated under `build/` from canonical.
 - **presets.json semantics**:
-  - `default`: **Example compose path** only — points to `compose/example/image/docker-compose.yml` (in-repo sample, not generated output).
-  - `image`, `build`, `traefik`, `traefik-herald`, `traefik-warden`, `traefik-stargate`: paths under `build/` for generated artifacts.
-- After `./suite gen all`, the files you use are under `build/`; `compose/example/` is for reference only.
+  - `default`, `image`, `build`, `traefik`, `traefik-herald`, `traefik-warden`, `traefik-stargate`: paths under `build/` for generated artifacts (run `make gen` or `./suite gen all` first).
 
 ## Sensitive options & production
 

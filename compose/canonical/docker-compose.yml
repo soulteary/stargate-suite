@@ -1,10 +1,18 @@
-# Stargate Suite with Traefik - 三合一版本（单一数据源，用于生成）
-# traefik / traefik-herald / traefik-warden / traefik-stargate 由此文件通过 gen 或 Web UI 生成到 build/。
+# Stargate Suite - Canonical Compose（单一数据源）
 #
-# 使用（生成后）：docker compose -f build/traefik/docker-compose.yml up -d
+# 本文件为唯一数据源，用于通过 CLI（gen/gen-split）或 Web UI 生成以下 compose：
+#   - traefik：全量（Traefik + Stargate + Warden + Herald + 可选通道）
+#   - traefik-herald：仅 Herald + herald-totp + Redis
+#   - traefik-warden：仅 Warden + Redis
+#   - traefik-stargate：仅 Stargate + 受保护示例服务（依赖已独立启动的 Herald/Warden）
+#
+# 生成输出目录：build/<mode>/docker-compose.yml 与 build/<mode>/.env
+# 推荐用法：go run ./cmd/suite gen all 或 Web UI 生成后，执行：
+#   docker network create traefik   # 若使用 Traefik 接入
+#   docker compose -f build/traefik/docker-compose.yml up -d
 
 services:
-  # Herald - OTP/验证码服务
+  # Herald（传令）- OTP/验证码服务，负责 challenge 创建、发送、校验与限流
   herald:
     image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.6.1}
     container_name: the-gate-herald
@@ -51,6 +59,7 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  # Herald 使用的 Redis（challenge、限流状态等）
   herald-redis:
     image: ${HERALD_REDIS_IMAGE:-redis:8.4-alpine}
     container_name: the-gate-herald-redis
@@ -145,7 +154,7 @@ services:
       start_period: 5s
     restart: unless-stopped
 
-  # Warden - 白名单用户服务
+  # Warden（看守）- 白名单用户服务，提供 user_id、email/phone 等供 Stargate 与 Herald 使用
   warden:
     image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.10.0}
     container_name: the-gate-warden
@@ -184,6 +193,7 @@ services:
       start_period: 15s
     restart: unless-stopped
 
+  # Warden 使用的 Redis（缓存等）
   warden-redis:
     image: ${WARDEN_REDIS_IMAGE:-redis:8.4-alpine}
     container_name: the-gate-warden-redis
@@ -200,7 +210,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Stargate - Forward Auth，依赖 Warden/Herald（内网）
+  # Stargate（门）- Forward Auth 鉴权与登录编排，依赖 Warden、Herald（内网）
   stargate:
     image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.9.2}
     container_name: the-gate-stargate

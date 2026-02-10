@@ -9,6 +9,12 @@
 # 互斥与联动见 config/README.md。
 
 modes:
+  - value: image
+    labelKey: modeImage
+    descKey: modeImageDesc
+  - value: build
+    labelKey: modeBuild
+    descKey: modeBuildDesc
   - value: traefik
     labelKey: modeTraefik
     descKey: modeTraefikDesc

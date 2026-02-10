@@ -2,7 +2,11 @@ English | [中文](README.zh-CN.md)
 
 # Traefik
 
-**All-in-one:** `build/traefik/docker-compose.yml`. **Split:** generated `build/traefik-herald/`, `build/traefik-warden/`, `build/traefik-stargate/`. Compose: [../README.md](../README.md), project: [../../README.md](../../README.md).
+This directory is **documentation only**. The actual Traefik compose files live in `build/traefik/` (all-in-one) and `build/traefik-herald/`, `build/traefik-warden/`, `build/traefik-stargate/` (split). They are generated from canonical — run `make gen` or `go run ./cmd/suite gen traefik` before use so that `build/traefik/` exists.
+
+Traefik compose lives in **build/traefik/** (and split in `build/traefik-herald/`, etc.). All are **generated from canonical** — this directory holds docs only; there is no hand-edited compose here. Compose: [../README.md](../README.md), project: [../../README.md](../../README.md).
+
+**You must run `make gen` (or `go run ./cmd/suite gen traefik`) before using Traefik**, so that `build/traefik/` exists.
 
 ## All-in-one (build/traefik)
 

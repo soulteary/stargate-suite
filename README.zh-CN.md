@@ -21,7 +21,7 @@ Go 模块：`github.com/soulteary/the-gate`。仓库名：**stargate-suite**。
 
 ```
 stargate-suite/
-├── compose/example/   # image | build
+├── compose/example/   # 可选；image | build 由 canonical 生成
 ├── compose/canonical/ # 单一数据源 → 生成 traefik / 三分开
 ├── build/             # 生成输出（gen 或 Web UI）
 ├── config/            # page.yaml, presets.json

@@ -23,17 +23,44 @@
 			</header>
 			<p class="subtitle" data-i18n="subtitle">Select compose type(s) and options, then click Generate.</p>
 
-			<nav class="tab-bar" role="tablist" aria-label="Main tabs" data-i18n-aria-label="tablistAriaLabel">
-				<button type="button" class="tab-trigger active" role="tab" aria-selected="true" aria-controls="panel-generate" id="tab-generate" data-tab="generate" tabindex="0" data-i18n="tabGenerate">生成部署配置</button>
-				<button type="button" class="tab-trigger" role="tab" aria-selected="false" aria-controls="panel-import-parse" id="tab-import-parse" data-tab="import-parse" tabindex="-1" data-i18n="tabImportParse">导入并解析配置</button>
-				<button type="button" class="tab-trigger" role="tab" aria-selected="false" aria-controls="panel-keys" id="tab-keys" data-tab="keys" tabindex="-1" data-i18n="tabKeys">密钥生成</button>
-			</nav>
+			<!-- 第一步：选择 创建配置 或 导入配置 -->
+			<div id="view-choice" class="main-view">
+				<h2 class="choice-heading" data-i18n="choiceHeading">请选择</h2>
+				<div class="choice-cards pure-g">
+					<div class="pure-u-1 pure-u-md-1-2 choice-card-wrap">
+						<button type="button" id="btn-choice-create" class="choice-card pure-button" data-choice="create">
+							<span class="choice-card-title" data-i18n="choiceCreate">创建配置</span>
+							<span class="choice-card-desc" data-i18n="choiceCreateDesc">从零开始选择 Compose 类型与各项参数，生成 docker-compose 与 .env。</span>
+						</button>
+					</div>
+					<div class="pure-u-1 pure-u-md-1-2 choice-card-wrap">
+						<button type="button" id="btn-choice-import" class="choice-card pure-button" data-choice="import">
+							<span class="choice-card-title" data-i18n="choiceImport">导入配置</span>
+							<span class="choice-card-desc" data-i18n="choiceImportDesc">粘贴已有 docker-compose 或 .env，解析并查看或加载到生成配置。</span>
+						</button>
+					</div>
+				</div>
+			</div>
 
-			<div id="panel-generate" class="tab-panel" role="tabpanel" aria-labelledby="tab-generate">
+			<!-- 创建配置：向导（每步只展示一个界面） -->
+			<div id="wizard-wrap" class="main-view" style="display:none;">
+				<div class="wizard-back-row">
+					<button type="button" id="btn-wizard-back" class="pure-button" data-i18n="backToChoice">返回选择</button>
+				</div>
+				<nav id="step-nav" class="step-nav" aria-label="Configuration steps" data-i18n-aria-label="stepNavAriaLabel">
+					<button type="button" class="step-nav-item" data-step="1">1</button>
+					<button type="button" class="step-nav-item" data-step="2">2</button>
+					<button type="button" class="step-nav-item" data-step="3">3</button>
+					<button type="button" class="step-nav-item" data-step="4">4</button>
+					<button type="button" class="step-nav-item" data-step="5">5</button>
+					<button type="button" class="step-nav-item" data-step="6">6</button>
+					<button type="button" class="step-nav-item" data-step="7">7</button>
+				</nav>
 			<form id="form" class="pure-form pure-form-stacked">
-				<!-- 通用配置：单列布局，每项一行 -->
-				<div class="config-single-column pure-g">
-					<div class="pure-u-1">
+				<!-- Step 1: 选择 Compose 类型 -->
+				<section id="step-compose-type" class="config-step" data-step="1">
+					<h2 class="step-heading" data-i18n="step1ComposeType">1. 选择 Compose 类型</h2>
+					<p class="step-desc" data-i18n="step1ComposeTypeDesc">先选择要生成的 compose 类型（可多选）。</p>
 				<fieldset class="pure-group compose-type-row">
 					<legend data-i18n="composeType">Compose Type</legend>
 					{{range .Modes}}
@@ -46,6 +73,12 @@
 					</div>
 					{{end}}
 				</fieldset>
+				<div class="step-actions"><button type="button" class="pure-button step-next" data-next="2" data-i18n="stepNext">下一步</button></div>
+				</section>
+				<!-- Step 2: 通用选项 -->
+				<section id="step-general" class="config-step" data-step="2">
+					<h2 class="step-heading" data-i18n="step2GeneralOptions">2. 通用选项</h2>
+					<p class="step-desc" data-i18n="step2GeneralOptionsDesc">镜像版本、健康检查、网络、端口、可选通道与 Redis 存储等。</p>
 				<fieldset class="pure-group config-options-cols">
 					<legend data-i18n="configOptions">Options</legend>
 					{{range .ConfigSections}}
@@ -112,17 +145,64 @@
 					</div>
 					{{end}}
 				</fieldset>
+				<div class="step-actions"><button type="button" class="pure-button step-prev" data-prev="1" data-i18n="stepPrev">上一步</button> <button type="button" class="pure-button pure-button-primary step-next" data-next="3" data-i18n="stepNext">下一步</button></div>
+				</section>
 					</div>
 				</div>
-				<!-- 服务配置：Stargate 单独一列占两行高，Warden/Herald 另一列上下两行 -->
-				<fieldset class="pure-group">
-					<legend data-i18n="serviceEnv">Service env vars</legend>
+				<!-- Step 3: Stargate（门 - Forward Auth） -->
+				<section id="step-stargate" class="config-step" data-step="3">
+					<h2 class="step-heading" data-i18n="step3Stargate">3. Stargate（门 - Forward Auth）</h2>
+					<p class="step-desc" data-i18n="step3StargateDesc">鉴权、登录编排、会话与下游 Header。</p>
 					<div class="services-grid">
-					{{range $i, $s := .Services}}
-					<div class="service-cell {{if eq $i 0}}service-cell-stargate{{else}}service-cell-other{{end}}">
+					{{range .Services}}{{if eq .Id "stargate"}}{{$s := .}}
+					<div class="service-cell service-cell-stargate">
 						<details class="pure-details"{{if $s.Open}} open{{end}}>
 							<summary class="pure-details-summary"><strong>{{if $s.NameKey}}<span data-i18n="{{$s.NameKey}}"></span>{{else}}{{$s.Name}}{{end}}</strong></summary>
-							{{if eq $i 0}}<div class="stargate-cols">{{end}}
+							<div class="stargate-cols">{{range $s.Sections}}
+							<div class="env-group">
+								{{if .TitleKey}}<h2 class="section-title" data-i18n="{{.TitleKey}}"></h2>{{end}}
+								{{range .EnvVars}}
+								<div class="config-item pure-control-group" data-env-name="{{.Env}}"{{if .ShowWhenEnv}} data-depends-on-env="{{.ShowWhenEnv}}"{{end}}{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
+									{{if eq .Type "checkbox"}}
+									<label>
+										<input type="checkbox" name="envBool" id="env_{{.Env}}_{{$s.Id}}" data-env="{{.Env}}" class="pure-checkbox"{{if .Default}} checked{{end}}>
+										<span class="config-label" data-i18n="{{.LabelKey}}"></span>
+										<span class="config-env">{{.Env}}</span>
+									</label>
+									{{else}}
+									<label for="env_{{.Env}}_{{$s.Id}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.Env}}</span></label>
+									{{if eq .Type "text"}}
+									<input type="text" id="env_{{.Env}}_{{$s.Id}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}>
+									{{else if eq .Type "number"}}
+									<input type="number" id="env_{{.Env}}_{{$s.Id}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}{{if .Min}} min="{{.Min}}"{{end}}{{if .Max}} max="{{.Max}}"{{end}}>
+									{{else if eq .Type "select"}}
+									<select id="env_{{.Env}}_{{$s.Id}}" data-env="{{.Env}}" class="pure-input-1">
+										{{$def := .Default}}{{range .Options}}
+										<option value="{{.Value}}"{{if eq (printf "%v" $def) .Value}} selected{{end}}>{{.Value}}</option>
+										{{end}}
+									</select>
+									{{end}}
+									{{end}}
+									<p class="config-desc" data-i18n="{{.DescKey}}"></p>
+								</div>
+								{{end}}
+							</div>
+							{{end}}</div>
+						</details>
+					</div>
+					{{end}}{{end}}
+					</div>
+				<div class="step-actions"><button type="button" class="pure-button step-prev" data-prev="2" data-i18n="stepPrev">上一步</button> <button type="button" class="pure-button pure-button-primary step-next" data-next="4" data-i18n="stepNext">下一步</button></div>
+				</section>
+				<!-- Step 4: Warden（看守 - 白名单用户） -->
+				<section id="step-warden" class="config-step" data-step="4">
+					<h2 class="step-heading" data-i18n="step4Warden">4. Warden（看守 - 白名单用户）</h2>
+					<p class="step-desc" data-i18n="step4WardenDesc">白名单用户数据与 API。</p>
+					<div class="services-grid">
+					{{range .Services}}{{if eq .Id "warden"}}{{$s := .}}
+					<div class="service-cell service-cell-other">
+						<details class="pure-details"{{if $s.Open}} open{{end}}>
+							<summary class="pure-details-summary"><strong>{{if $s.NameKey}}<span data-i18n="{{$s.NameKey}}"></span>{{else}}{{$s.Name}}{{end}}</strong></summary>
 							{{range $s.Sections}}
 							<div class="env-group">
 								{{if .TitleKey}}<h2 class="section-title" data-i18n="{{.TitleKey}}"></h2>{{end}}
@@ -153,13 +233,56 @@
 								{{end}}
 							</div>
 							{{end}}
-							{{if eq $i 0}}</div>{{end}}
 						</details>
 					</div>
-					{{end}}
+					{{end}}{{end}}
 					</div>
-				</fieldset>
-				<!-- Provider（Herald 通道）：每类 provider 单独一行展示 -->
+				<div class="step-actions"><button type="button" class="pure-button step-prev" data-prev="3" data-i18n="stepPrev">上一步</button> <button type="button" class="pure-button pure-button-primary step-next" data-next="5" data-i18n="stepNext">下一步</button></div>
+				</section>
+				<!-- Step 5: Herald（传令 - OTP/验证码）与 Provider -->
+				<section id="step-herald" class="config-step" data-step="5">
+					<h2 class="step-heading" data-i18n="step5Herald">5. Herald（传令 - OTP/验证码）</h2>
+					<p class="step-desc" data-i18n="step5HeraldDesc">验证码生命周期、限流与可选通道（钉钉/SMTP/TOTP）。</p>
+					<div class="services-grid">
+					{{range .Services}}{{if or (eq .Id "herald") (eq .Id "herald-totp")}}{{$s := .}}
+					<div class="service-cell service-cell-other">
+						<details class="pure-details"{{if $s.Open}} open{{end}}>
+							<summary class="pure-details-summary"><strong>{{if $s.NameKey}}<span data-i18n="{{$s.NameKey}}"></span>{{else}}{{$s.Name}}{{end}}</strong></summary>
+							{{range $s.Sections}}
+							<div class="env-group">
+								{{if .TitleKey}}<h2 class="section-title" data-i18n="{{.TitleKey}}"></h2>{{end}}
+								{{range .EnvVars}}
+								<div class="config-item pure-control-group" data-env-name="{{.Env}}"{{if .ShowWhenEnv}} data-depends-on-env="{{.ShowWhenEnv}}"{{end}}{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
+									{{if eq .Type "checkbox"}}
+									<label>
+										<input type="checkbox" name="envBool" id="env_{{.Env}}_{{$s.Id}}" data-env="{{.Env}}" class="pure-checkbox"{{if .Default}} checked{{end}}>
+										<span class="config-label" data-i18n="{{.LabelKey}}"></span>
+										<span class="config-env">{{.Env}}</span>
+									</label>
+									{{else}}
+									<label for="env_{{.Env}}_{{$s.Id}}"><span class="config-label" data-i18n="{{.LabelKey}}"></span> <span class="config-env">{{.Env}}</span></label>
+									{{if eq .Type "text"}}
+									<input type="text" id="env_{{.Env}}_{{$s.Id}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}>
+									{{else if eq .Type "number"}}
+									<input type="number" id="env_{{.Env}}_{{$s.Id}}" data-env="{{.Env}}" class="pure-input-1"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}{{if .Min}} min="{{.Min}}"{{end}}{{if .Max}} max="{{.Max}}"{{end}}>
+									{{else if eq .Type "select"}}
+									<select id="env_{{.Env}}_{{$s.Id}}" data-env="{{.Env}}" class="pure-input-1">
+										{{$def := .Default}}{{range .Options}}
+										<option value="{{.Value}}"{{if eq (printf "%v" $def) .Value}} selected{{end}}>{{.Value}}</option>
+										{{end}}
+									</select>
+									{{end}}
+									{{end}}
+									<p class="config-desc" data-i18n="{{.DescKey}}"></p>
+								</div>
+								{{end}}
+							</div>
+							{{end}}
+						</details>
+					</div>
+					{{end}}{{end}}
+					</div>
+				<!-- Provider（Herald 通道） -->
 				{{if .Providers}}
 				<fieldset class="pure-group providers-fieldset">
 					<legend data-i18n="providerEnv">Provider (Herald channel)</legend>
@@ -205,6 +328,8 @@
 					</div>
 				</fieldset>
 				{{end}}
+				<div class="step-actions"><button type="button" class="pure-button step-prev" data-prev="4" data-i18n="stepPrev">上一步</button></div>
+				</section>
 				<div class="form-actions">
 					<button type="submit" id="btn-generate" class="pure-button pure-button-primary" data-i18n="btnGenerate">Generate</button>
 				</div>

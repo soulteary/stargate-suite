@@ -1,0 +1,72 @@
+# 最后一步集中配置：所有密钥与 API Key（从各服务中移出，仅在此步展示）
+keysStepVars:
+  - env: WARDEN_API_KEY
+    type: text
+    labelKey: wardenApiKeyLabel
+    descKey: wardenApiKeyDesc
+    placeholder: "test-warden-api-key"
+  - env: WARDEN_OTP_SECRET_KEY
+    type: text
+    labelKey: wardenOtpSecretKeyLabel
+    descKey: wardenOtpSecretKeyDesc
+    placeholder: ""
+  - env: HERALD_API_KEY
+    type: text
+    labelKey: heraldApiKeyLabel
+    descKey: heraldApiKeyDesc
+    placeholder: "test-herald-api-key"
+  - env: HERALD_HMAC_SECRET
+    type: text
+    labelKey: heraldHmacLabel
+    descKey: heraldHmacDesc
+    placeholder: "test-hmac-secret"
+  - env: HERALD_HMAC_KEYS
+    type: text
+    labelKey: heraldHmacKeysLabel
+    descKey: heraldHmacKeysDesc
+    placeholder: '{"key-id":"secret"}'
+  - env: HERALD_TOTP_API_KEY
+    type: text
+    labelKey: heraldTotpApiKeyLabel
+    descKey: heraldTotpApiKeyDesc
+    placeholder: ""
+  - env: HERALD_TOTP_HMAC_SECRET
+    type: text
+    labelKey: heraldTotpHmacSecretLabel
+    descKey: heraldTotpHmacSecretDesc
+    placeholder: ""
+  - env: HERALD_TOTP_ENCRYPTION_KEY
+    type: text
+    labelKey: heraldTotpEncryptionKeyLabel
+    descKey: heraldTotpEncryptionKeyDesc
+    placeholder: "32-byte-key-for-aes-256!!"
+  - env: PASSWORDS
+    type: text
+    labelKey: passwordsLabel
+    descKey: passwordsDesc
+    placeholder: "plaintext:pass1|pass2"
+  - env: WARDEN_REDIS_PASSWORD
+    type: text
+    labelKey: wardenRedisPasswordLabel
+    descKey: wardenRedisPasswordDesc
+    placeholder: ""
+  - env: HERALD_REDIS_PASSWORD
+    type: text
+    labelKey: heraldRedisPasswordLabel
+    descKey: heraldRedisPasswordDesc
+    placeholder: ""
+  - env: SESSION_STORAGE_REDIS_PASSWORD
+    type: text
+    labelKey: sessionStorageRedisPasswordLabel
+    descKey: sessionStorageRedisPasswordDesc
+    placeholder: ""
+  - env: HERALD_DINGTALK_API_KEY
+    type: text
+    labelKey: heraldDingtalkApiKeyLabel
+    descKey: heraldDingtalkApiKeyDesc
+    placeholder: ""
+  - env: HERALD_SMTP_API_KEY
+    type: text
+    labelKey: heraldSmtpApiKeyLabel
+    descKey: heraldSmtpApiKeyDesc
+    placeholder: ""

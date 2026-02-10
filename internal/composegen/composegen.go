@@ -63,6 +63,17 @@ var traefikSplitDefs = []splitDef{
 	{"traefik-stargate", []string{"stargate", "protected-service"}, nil, true},
 }
 
+// image/build 模式：仅核心三服务+Redis，无 Traefik；build 模式将 herald/warden/stargate 的 image 替换为 build。
+var imageBuildServices = []string{"herald", "herald-redis", "warden", "warden-redis", "stargate"}
+var imageBuildVolumes = []string{"herald-redis-data", "warden-redis-data"}
+
+// buildContexts 为 build 模式下各服务的 build context（相对 stargate-suite 根目录）。
+var buildContexts = map[string]struct{ Context, Dockerfile string }{
+	"herald":  {"../../herald", "docker/Dockerfile.manual"},
+	"warden":  {"../../warden", "docker/Dockerfile.manual"},
+	"stargate": {"../../stargate", "docker/Dockerfile.manual"},
+}
+
 // serviceAllowedEnvKeys 定义各服务允许接收的 EnvOverrides 键（与 canonical compose 中该服务 environment/labels 使用的 ${VAR:-default} 一致）。
 // 仅在此集合内的键会被合并进该服务的 environment；未列出的服务（如 herald-redis、warden-redis、protected-service）不注入任何 override。
 var serviceAllowedEnvKeys = func() map[string]map[string]bool {
@@ -571,6 +582,17 @@ func splitComposeComment(name string) string {
 # 启动：docker compose -f build/traefik-stargate/docker-compose.yml up -d
 #
 `
+	case "image":
+		return `# Stargate Suite - 预构建镜像运行（由 canonical 生成）
+# 使用：docker compose -f build/image/docker-compose.yml up -d
+#
+`
+	case "build":
+		return `# Stargate Suite - 从源码构建运行（由 canonical 生成）
+# 使用：docker compose -f build/build/docker-compose.yml up -d --build
+# 注意：build context 为 ../../herald、../../warden、../../stargate，需在 stargate-suite 根目录执行。
+#
+`
 	default:
 		return ""
 	}
@@ -998,7 +1020,75 @@ func applyStargateSplitOverrides(svc map[string]interface{}, containerNamePrefix
 	}
 }
 
-// GenerateOne 根据 mode 从完整 compose 生成一份 compose YAML；mode 为 traefik | traefik-herald | traefik-warden | traefik-stargate。opts 为 nil 时使用默认行为。
+// generateImageOrBuild 生成 image 或 build 模式的 compose：仅核心服务 + the-gate-network（bridge），无 Traefik；build 模式将 herald/warden/stargate 的 image 替换为 build。
+func generateImageOrBuild(full map[string]interface{}, mode string, opts *Options) ([]byte, error) {
+	services, _ := full["services"].(map[string]interface{})
+	if services == nil {
+		return nil, fmt.Errorf("compose missing services")
+	}
+	volumes, _ := full["volumes"].(map[string]interface{})
+	out := make(map[string]interface{})
+	outSvcs := make(map[string]interface{})
+	for _, name := range imageBuildServices {
+		if svc, ok := services[name]; ok {
+			svcMap, _ := svc.(map[string]interface{})
+			if svcMap != nil {
+				outSvcs[name] = copyMap(svcMap)
+			} else {
+				outSvcs[name] = svc
+			}
+		}
+	}
+	out["services"] = outSvcs
+	outVol := make(map[string]interface{})
+	for _, vn := range imageBuildVolumes {
+		if v, ok := volumes[vn]; ok {
+			outVol[vn] = v
+		}
+	}
+	out["volumes"] = outVol
+	out["networks"] = map[string]interface{}{
+		"the-gate-network": map[string]interface{}{"driver": "bridge"},
+	}
+	if opts == nil {
+		opts = &Options{}
+	}
+	optsCopy := *opts
+	optsCopy.TraefikNetwork = false
+	applyOptionsToCompose(out, &optsCopy)
+	if !optsCopy.UseNamedVolume {
+		applyRedisBindPaths(out, &optsCopy)
+	}
+	if mode == "build" {
+		svcs, _ := out["services"].(map[string]interface{})
+		if svcs != nil {
+			for name, bc := range buildContexts {
+				if svc, ok := svcs[name].(map[string]interface{}); ok {
+					delete(svc, "image")
+					svc["build"] = map[string]interface{}{
+						"context":    bc.Context,
+						"dockerfile": bc.Dockerfile,
+					}
+				}
+			}
+		}
+	}
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(out); err != nil {
+		return nil, err
+	}
+	outData := buf.Bytes()
+	if bytes.HasPrefix(outData, []byte("---\n")) {
+		outData = outData[4:]
+	}
+	outData = injectEnvComments(outData, envComments)
+	header := splitComposeComment(mode)
+	return append([]byte(header), outData...), nil
+}
+
+// GenerateOne 根据 mode 从完整 compose 生成一份 compose YAML；mode 为 traefik | traefik-herald | traefik-warden | traefik-stargate | image | build。opts 为 nil 时使用默认行为。
 func GenerateOne(full map[string]interface{}, mode string, opts *Options) ([]byte, error) {
 	services, _ := full["services"].(map[string]interface{})
 	if services == nil {
@@ -1008,6 +1098,11 @@ func GenerateOne(full map[string]interface{}, mode string, opts *Options) ([]byt
 	prefix := "the-gate-"
 	if opts != nil && opts.ContainerNamePrefix != "" {
 		prefix = opts.ContainerNamePrefix
+	}
+
+	// image / build 模式：仅核心服务，无 Traefik 网络
+	if mode == "image" || mode == "build" {
+		return generateImageOrBuild(full, mode, opts)
 	}
 
 	var def *splitDef

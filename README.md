@@ -21,7 +21,7 @@ Go module: `github.com/soulteary/the-gate`. Repo name: **stargate-suite**.
 
 ```
 stargate-suite/
-├── compose/example/   # image | build
+├── compose/example/   # optional; image | build generated from canonical
 ├── compose/canonical/ # single source → gen traefik / split
 ├── build/             # generated (gen or Web UI)
 ├── config/             # page.yaml, presets.json

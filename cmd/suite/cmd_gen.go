@@ -21,20 +21,17 @@ func cmdGen() error {
 	if modeArg == "" {
 		modeArg = "all"
 	}
-	var exampleModes, traefikModes []string
+	var modes []string
 	switch modeArg {
 	case "image", "build":
-		exampleModes = []string{modeArg}
+		modes = []string{modeArg}
 	case "traefik":
-		traefikModes = []string{"traefik", "traefik-herald", "traefik-warden", "traefik-stargate"}
+		modes = []string{"traefik", "traefik-herald", "traefik-warden", "traefik-stargate"}
 	case "", "all":
-		exampleModes = []string{"image", "build"}
-		traefikModes = []string{"traefik", "traefik-herald", "traefik-warden", "traefik-stargate"}
+		modes = []string{"image", "build", "traefik", "traefik-herald", "traefik-warden", "traefik-stargate"}
 	default:
-		if strings.HasPrefix(modeArg, "traefik") {
-			traefikModes = []string{modeArg}
-		} else if modeArg == "image" || modeArg == "build" {
-			exampleModes = []string{modeArg}
+		if strings.HasPrefix(modeArg, "traefik") || modeArg == "image" || modeArg == "build" {
+			modes = []string{modeArg}
 		} else {
 			fmt.Fprintf(os.Stderr, "Unknown mode %q. Use: image, build, traefik, traefik-herald, traefik-warden, traefik-stargate, or all\n", modeArg)
 			return fmt.Errorf("unknown gen mode: %s", modeArg)
@@ -47,28 +44,20 @@ func cmdGen() error {
 	if envBody == "" {
 		envBody = composegen.DefaultEnvBody()
 	}
-	for _, mode := range exampleModes {
-		if err := genModeExample(root, outBase, mode, envBody); err != nil {
-			return err
-		}
+	fullPath := filepath.Join(root, canonicalCompose)
+	full, err := composegen.LoadCompose(fullPath)
+	if err != nil {
+		return fmt.Errorf("load canonical compose: %w", err)
 	}
-	if len(traefikModes) > 0 {
-		fullPath := filepath.Join(root, canonicalCompose)
-		full, err := composegen.LoadCompose(fullPath)
-		if err != nil {
-			return fmt.Errorf("load canonical compose: %w", err)
-		}
-		opts := genOptionsFromEnv()
-		gen, err := composegen.Generate(full, traefikModes, envBody, opts)
-		if err != nil {
-			return err
-		}
-		if err := writeGenerated(outBase, gen, traefikModes); err != nil {
-			return err
-		}
+	opts := genOptionsFromEnv()
+	gen, err := composegen.Generate(full, modes, envBody, opts)
+	if err != nil {
+		return err
 	}
-	allModes := append(exampleModes, traefikModes...)
-	fmt.Printf("Generated %s for mode(s): %s\n", outDir, strings.Join(allModes, ", "))
+	if err := writeGenerated(outBase, gen, modes); err != nil {
+		return err
+	}
+	fmt.Printf("Generated %s for mode(s): %s\n", outDir, strings.Join(modes, ", "))
 	return nil
 }
 
@@ -113,29 +102,6 @@ func genOptionsFromEnv() *composegen.Options {
 		opts.PortOwlmail = p
 	}
 	return opts
-}
-
-func genModeExample(projectRoot, outBase, mode, envBody string) error {
-	dir := filepath.Join(outBase, mode)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("mkdir %s: %w", dir, err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte(envBody), 0644); err != nil {
-		return fmt.Errorf("write .env: %w", err)
-	}
-	src := filepath.Join(projectRoot, "compose", "example", mode, "docker-compose.yml")
-	return copyFile(src, filepath.Join(dir, "docker-compose.yml"))
-}
-
-func copyFile(src, dst string) error {
-	data, err := os.ReadFile(src)
-	if err != nil {
-		return fmt.Errorf("read %s: %w", src, err)
-	}
-	if err := os.WriteFile(dst, data, 0644); err != nil {
-		return fmt.Errorf("write %s: %w", dst, err)
-	}
-	return nil
 }
 
 func writeGenerated(outBase string, gen *composegen.Generated, modes []string) error {

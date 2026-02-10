@@ -2,18 +2,17 @@ English | [中文](README.zh-CN.md)
 
 # Compose
 
-Static examples + single canonical source. Output is generated into `build/` by CLI or Web UI. Run from project root. Overview: [../README.md](../README.md).
+Single canonical source. All output is generated into `build/` by CLI or Web UI from `canonical/docker-compose.yml`. Run from project root. Overview: [../README.md](../README.md).
 
 ## Layout
 
 | Dir | Purpose |
 |-----|---------|
-| example/image/ | Pre-built images — quick try, CI |
-| example/build/ | Build from source — local dev, E2E |
-| canonical/ | Single source → gen traefik + split (traefik-herald, traefik-warden, traefik-stargate) |
-| traefik/ | Notes: [traefik/README.md](./traefik/README.md) |
+| canonical/ | **Single source of truth.** One compose → gen image, build, traefik + split (traefik-herald, traefik-warden, traefik-stargate). Edit here only. |
+| example/ | Empty or optional; image and build are generated from canonical, not copied from here. |
+| traefik/ | Docs only: [traefik/README.md](./traefik/README.md). Compose lives in `build/traefik/` (generated). |
 
-**Generated (build/):** image, build, traefik, traefik-herald, traefik-warden, traefik-stargate.
+**Generated (build/):** image, build, traefik, traefik-herald, traefik-warden, traefik-stargate. All derived from `canonical/docker-compose.yml`.
 
 ## Usage
 
@@ -25,7 +24,7 @@ make up    # default: build/image
 
 - **Pre-built:** `build/image/` → `docker compose -f build/image/docker-compose.yml up -d`
 - **From source:** `build/build/` → `docker compose -f build/build/docker-compose.yml up -d --build`
-- **Traefik:** `docker network create traefik` then `docker compose -f build/traefik/docker-compose.yml up -d`
+- **Traefik:** Run `make gen` (or `go run ./cmd/suite gen traefik`) first so that `build/traefik/` exists. Then `docker network create traefik` and `docker compose -f build/traefik/docker-compose.yml up -d`
 
 Split is generated from canonical; after editing canonical run `go run ./cmd/suite gen traefik`.  
 Web UI: `go run ./cmd/suite serve` → select type, download compose + .env.
