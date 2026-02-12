@@ -1,7 +1,8 @@
-// Package main: gen command and /api/generate request types.
+// Package main: /api/generate request types and scenario presets (Web UI only).
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,115 +11,102 @@ import (
 	"github.com/soulteary/the-gate/internal/composegen"
 )
 
-func cmdGen() error {
-	outDir := genOutDir
-	if outDir == "" {
-		outDir = buildDirRelative
-	}
-	root := projectRoot()
-	outBase := filepath.Join(root, outDir)
-	modeArg := strings.TrimSpace(genModeArg)
-	if modeArg == "" {
-		modeArg = "all"
-	}
-	var modes []string
-	switch modeArg {
-	case "image", "build":
-		modes = []string{modeArg}
-	case "traefik":
-		modes = []string{"traefik", "traefik-herald", "traefik-warden", "traefik-stargate"}
-	case "", "all":
-		modes = []string{"image", "build", "traefik", "traefik-herald", "traefik-warden", "traefik-stargate"}
+type scenarioPreset struct {
+	Name          string                 `json:"name"`
+	NameZh        string                 `json:"nameZh"`
+	NameEn        string                 `json:"nameEn"`
+	Description   string                 `json:"description"`
+	DescriptionZh string                 `json:"descriptionZh"`
+	DescriptionEn string                 `json:"descriptionEn"`
+	RiskNote      string                 `json:"riskNote"`
+	RiskNoteZh    string                 `json:"riskNoteZh"`
+	RiskNoteEn    string                 `json:"riskNoteEn"`
+	Modes         []string               `json:"modes"`
+	EnvOverrides  map[string]string      `json:"envOverrides"`
+	Options       map[string]interface{} `json:"options"` // 通用键值；通过 scenarioOptionSetters 映射到 composegen.Options
+}
+
+// scenarioOptionSetters 将 scenarios.json 的 option 键映射到 Options 字段；新增选项时在此表与 config 各加一项即可，无需改结构体。
+var scenarioOptionSetters = map[string]func(*composegen.Options, interface{}){
+	"includeDingTalk": func(opts *composegen.Options, v interface{}) {
+		if b, ok := toBool(v); ok {
+			opts.IncludeDingTalk = b
+		}
+	},
+	"includeSmtp": func(opts *composegen.Options, v interface{}) {
+		if b, ok := toBool(v); ok {
+			opts.IncludeSmtp = b
+		}
+	},
+	"useOwlmailForSmtp": func(opts *composegen.Options, v interface{}) {
+		if b, ok := toBool(v); ok {
+			opts.UseOwlmailForSmtp = b
+		}
+	},
+	"includeTotp": func(opts *composegen.Options, v interface{}) {
+		if b, ok := toBool(v); ok {
+			opts.IncludeTotp = b
+		}
+	},
+	"stargateSessionRedisUseBuiltin": func(opts *composegen.Options, v interface{}) {
+		if b, ok := toBool(v); ok {
+			opts.StargateSessionRedisUseBuiltin = b
+		}
+	},
+	"useNamedVolume": func(opts *composegen.Options, v interface{}) {
+		if b, ok := toBool(v); ok {
+			opts.UseNamedVolume = b
+		}
+	},
+	"disableWardenRedisService": func(opts *composegen.Options, v interface{}) {
+		if b, ok := toBool(v); ok {
+			opts.DisableWardenRedisService = b
+		}
+	},
+}
+
+func toBool(v interface{}) (bool, bool) {
+	switch x := v.(type) {
+	case bool:
+		return x, true
+	case *bool:
+		if x != nil {
+			return *x, true
+		}
+		return false, false
 	default:
-		if strings.HasPrefix(modeArg, "traefik") || modeArg == "image" || modeArg == "build" {
-			modes = []string{modeArg}
-		} else {
-			fmt.Fprintf(os.Stderr, "Unknown mode %q. Use: image, build, traefik, traefik-herald, traefik-warden, traefik-stargate, or all\n", modeArg)
-			return fmt.Errorf("unknown gen mode: %s", modeArg)
-		}
+		return false, false
 	}
-	envBody := ""
-	if b, err := os.ReadFile(filepath.Join(root, ".env")); err == nil && len(b) > 0 {
-		envBody = string(b)
-	}
-	if envBody == "" {
-		envBody = composegen.DefaultEnvBody()
-	}
-	fullPath := filepath.Join(root, canonicalCompose)
-	full, err := composegen.LoadCompose(fullPath)
-	if err != nil {
-		return fmt.Errorf("load canonical compose: %w", err)
-	}
-	opts := genOptionsFromEnv()
-	gen, err := composegen.Generate(full, modes, envBody, opts)
-	if err != nil {
-		return err
-	}
-	if err := writeGenerated(outBase, gen, modes); err != nil {
-		return err
-	}
-	fmt.Printf("Generated %s for mode(s): %s\n", outDir, strings.Join(modes, ", "))
-	return nil
 }
 
-func genOptionsFromEnv() *composegen.Options {
-	useNamed := true
-	if v := strings.TrimSpace(os.Getenv("USE_NAMED_VOLUME")); v == "0" || strings.EqualFold(v, "false") {
-		useNamed = false
+func loadScenarioPresets(root string) (map[string]scenarioPreset, error) {
+	path := filepath.Join(root, "config", "scenarios.json")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read scenarios file: %w", err)
 	}
-	opts := &composegen.Options{
-		HealthCheck:         true,
-		TraefikNetwork:      true,
-		TraefikNetworkName:  "traefik",
-		ExposePorts:         true,
-		ContainerNamePrefix: "the-gate-",
-		UseNamedVolume:      useNamed,
-		HeraldRedisDataPath: strings.TrimSpace(os.Getenv("HERALD_REDIS_DATA_PATH")),
-		WardenRedisDataPath: strings.TrimSpace(os.Getenv("WARDEN_REDIS_DATA_PATH")),
+	out := make(map[string]scenarioPreset)
+	if err := json.Unmarshal(b, &out); err != nil {
+		return nil, fmt.Errorf("parse scenarios file: %w", err)
 	}
-	if opts.HeraldRedisDataPath == "" {
-		opts.HeraldRedisDataPath = "./data/herald-redis"
-	}
-	if opts.WardenRedisDataPath == "" {
-		opts.WardenRedisDataPath = "./data/warden-redis"
-	}
-	// 可选通道：从环境变量读取（与 Web UI 选项一致，便于 CLI 生成）
-	if v := os.Getenv("DINGTALK_ENABLED"); v == "1" || strings.EqualFold(v, "true") {
-		opts.IncludeDingTalk = true
-	}
-	if v := os.Getenv("SMTP_ENABLED"); v == "1" || strings.EqualFold(v, "true") {
-		opts.IncludeSmtp = true
-	}
-	if v := os.Getenv("SMTP_USE_OWLMAIL"); v == "1" || strings.EqualFold(v, "true") {
-		opts.UseOwlmailForSmtp = true
-	}
-	if v := os.Getenv("TOTP_ENABLED"); v == "1" || strings.EqualFold(v, "true") {
-		opts.IncludeTotp = true
-	}
-	if v := os.Getenv("STARGATE_SESSION_REDIS_USE_BUILTIN"); v == "1" || strings.EqualFold(v, "true") {
-		opts.StargateSessionRedisUseBuiltin = true
-	}
-	if p := strings.TrimSpace(os.Getenv("PORT_OWLMAIL")); p != "" {
-		opts.PortOwlmail = p
-	}
-	return opts
+	return out, nil
 }
 
-func writeGenerated(outBase string, gen *composegen.Generated, modes []string) error {
-	for _, mode := range modes {
-		dir := filepath.Join(outBase, mode)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("mkdir %s: %w", dir, err)
-		}
-		ymlPath := filepath.Join(dir, "docker-compose.yml")
-		if err := os.WriteFile(ymlPath, gen.Composes[mode], 0644); err != nil {
-			return fmt.Errorf("write %s: %w", ymlPath, err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, ".env"), gen.Env, 0644); err != nil {
-			return fmt.Errorf("write .env: %w", err)
+func applyScenePresetToOptions(opts *composegen.Options, scene *scenarioPreset) {
+	if opts == nil || scene == nil {
+		return
+	}
+	if opts.EnvOverrides == nil {
+		opts.EnvOverrides = make(map[string]string)
+	}
+	for k, v := range scene.EnvOverrides {
+		opts.EnvOverrides[k] = v
+	}
+	for key, val := range scene.Options {
+		if setter, ok := scenarioOptionSetters[key]; ok {
+			setter(opts, val)
 		}
 	}
-	return nil
 }
 
 type generateRequest struct {
@@ -150,6 +138,96 @@ type composeGenOptionsJSON struct {
 	HeraldRedisDataPath           string            `json:"heraldRedisDataPath"`
 	WardenRedisDataPath           string            `json:"wardenRedisDataPath"`
 	SessionStorageRedisUseBuiltin *bool             `json:"sessionStorageRedisUseBuiltin"`
+	DisableWardenRedisService     *bool             `json:"disableWardenRedisService"`
+}
+
+// optionToComposeGenJSONSetters 将 session/API 的 option 键统一映射到 composeGenOptionsJSON；新增选项时在此表与 config 各加一项即可。
+var optionToComposeGenJSONSetters = map[string]func(*composeGenOptionsJSON, interface{}){
+	"healthCheck": func(o *composeGenOptionsJSON, v interface{}) {
+		if b, ok := toBool(v); ok {
+			o.HealthCheck = &b
+		}
+	},
+	"traefikNetwork": func(o *composeGenOptionsJSON, v interface{}) {
+		if b, ok := toBool(v); ok {
+			o.TraefikNetwork = &b
+		}
+	},
+	"exposePorts": func(o *composeGenOptionsJSON, v interface{}) {
+		if b, ok := toBool(v); ok {
+			o.ExposePorts = &b
+		}
+	},
+	"dingtalkEnabled": func(o *composeGenOptionsJSON, v interface{}) {
+		if b, ok := toBool(v); ok {
+			o.DingtalkEnabled = &b
+		}
+	},
+	"smtpEnabled": func(o *composeGenOptionsJSON, v interface{}) {
+		if b, ok := toBool(v); ok {
+			o.SmtpEnabled = &b
+		}
+	},
+	"smtpUseOwlmail": func(o *composeGenOptionsJSON, v interface{}) {
+		if b, ok := toBool(v); ok {
+			o.SmtpUseOwlmail = &b
+		}
+	},
+	"totpEnabled": func(o *composeGenOptionsJSON, v interface{}) {
+		if b, ok := toBool(v); ok {
+			o.TotpEnabled = &b
+		}
+	},
+	"useNamedVolume": func(o *composeGenOptionsJSON, v interface{}) {
+		if b, ok := toBool(v); ok {
+			o.UseNamedVolume = &b
+		}
+	},
+	"sessionStorageRedisUseBuiltin": func(o *composeGenOptionsJSON, v interface{}) {
+		if b, ok := toBool(v); ok {
+			o.SessionStorageRedisUseBuiltin = &b
+		}
+	},
+	"disableWardenRedisService": func(o *composeGenOptionsJSON, v interface{}) {
+		if b, ok := toBool(v); ok {
+			o.DisableWardenRedisService = &b
+		}
+	},
+	"traefikNetworkName":     func(o *composeGenOptionsJSON, v interface{}) { o.TraefikNetworkName = optStr(v) },
+	"heraldRedisDataPath":    func(o *composeGenOptionsJSON, v interface{}) { o.HeraldRedisDataPath = optStr(v) },
+	"wardenRedisDataPath":    func(o *composeGenOptionsJSON, v interface{}) { o.WardenRedisDataPath = optStr(v) },
+	"portHerald":             func(o *composeGenOptionsJSON, v interface{}) { o.PortHerald = optStr(v) },
+	"portWarden":             func(o *composeGenOptionsJSON, v interface{}) { o.PortWarden = optStr(v) },
+	"containerNamePrefix":    func(o *composeGenOptionsJSON, v interface{}) { o.ContainerNamePrefix = optStr(v) },
+	"healthCheckInterval":    func(o *composeGenOptionsJSON, v interface{}) { o.HealthCheckInterval = optStr(v) },
+	"healthCheckStartPeriod": func(o *composeGenOptionsJSON, v interface{}) { o.HealthCheckStartPeriod = optStr(v) },
+	"portHeraldRedis":        func(o *composeGenOptionsJSON, v interface{}) { o.PortHeraldRedis = optStr(v) },
+	"portHeraldTotp":         func(o *composeGenOptionsJSON, v interface{}) { o.PortHeraldTotp = optStr(v) },
+	"portHeraldSmtp":         func(o *composeGenOptionsJSON, v interface{}) { o.PortHeraldSmtp = optStr(v) },
+	"portOwlmail":            func(o *composeGenOptionsJSON, v interface{}) { o.PortOwlmail = optStr(v) },
+}
+
+func optStr(v interface{}) string {
+	switch x := v.(type) {
+	case string:
+		return strings.TrimSpace(x)
+	case float64:
+		return strings.TrimSpace(fmt.Sprintf("%v", x))
+	default:
+		return ""
+	}
+}
+
+// FillComposeGenOptionsFromMap 根据 option 键值映射填充 composeGenOptionsJSON，供 session 与 API 共用。
+func FillComposeGenOptionsFromMap(o *composeGenOptionsJSON, m map[string]interface{}) {
+	if o == nil || m == nil {
+		return
+	}
+	for key, val := range m {
+		if setter, ok := optionToComposeGenJSONSetters[key]; ok {
+			setter(o, val)
+		}
+	}
 }
 
 func reqOptionsToComposegen(o *composeGenOptionsJSON) *composegen.Options {
@@ -204,6 +282,11 @@ func reqOptionsToComposegen(o *composeGenOptionsJSON) *composegen.Options {
 		opts.StargateSessionRedisUseBuiltin = *o.SessionStorageRedisUseBuiltin
 	} else {
 		opts.StargateSessionRedisUseBuiltin = false
+	}
+	if o.DisableWardenRedisService != nil {
+		opts.DisableWardenRedisService = *o.DisableWardenRedisService
+	} else {
+		opts.DisableWardenRedisService = false
 	}
 	if o.DingtalkEnabled != nil {
 		opts.IncludeDingTalk = *o.DingtalkEnabled

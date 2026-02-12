@@ -1,0 +1,33 @@
+{{define "content-review"}}
+<div class="main-view main-view-wizard">
+	<div class="wizard-toolbar mb-4">
+		<a href="/" class="btn btn-link text-body-secondary px-0" data-i18n="backToChoice">← 返回选择</a>
+	</div>
+	<nav class="step-nav step-nav-labeled mb-4" aria-label="Configuration steps">
+		<a href="/wizard/step-1" class="step-nav-item"><span class="step-num">1</span><span class="step-label" data-i18n="step1ComposeTypeShort">场景预设</span></a>
+		<a href="/wizard/step-2" class="step-nav-item"><span class="step-num">2</span><span class="step-label" data-i18n="step2GeneralOptionsShort">通用</span></a>
+		<a href="/wizard/step-3" class="step-nav-item"><span class="step-num">3</span><span class="step-label" data-i18n="step3StargateShort">Stargate</span></a>
+		<a href="/wizard/step-4" class="step-nav-item"><span class="step-num">4</span><span class="step-label" data-i18n="step4WardenShort">Warden</span></a>
+		<a href="/wizard/step-5" class="step-nav-item"><span class="step-num">5</span><span class="step-label" data-i18n="step5HeraldShort">Herald</span></a>
+		<a href="/review" class="step-nav-item active"><span class="step-num">6</span><span class="step-label" data-i18n="step6ReviewShort">确认生成</span></a>
+	</nav>
+	<section class="config-step-block">
+		<h2 class="step-heading mb-2" data-i18n="previewSummary">确认并生成</h2>
+		<p class="step-desc text-body-secondary mb-4" data-i18n="stepReviewDesc">确认上述配置无误后点击「生成」，将根据当前会话生成 docker-compose 与 .env 并提供下载。如需配置 API 密钥等敏感项，请先前往「密钥与 API Key」页。</p>
+		<p class="step-desc text-body-secondary mb-3"><span data-i18n="stepReviewKeysHint">如需配置 API 密钥、HMAC、Redis 密码等敏感项，请先前往</span> <a href="/keys" data-i18n="stepReviewKeysLink">密钥与 API Key</a>。</p>
+		<div class="step-actions">
+			<a href="/wizard/step-5" class="btn btn-outline-secondary" data-i18n="stepPrev">上一步</a>
+			<button type="button" id="btn-generate" class="btn btn-primary btn-lg" data-i18n="btnGenerate">生成</button>
+		</div>
+	</section>
+	<div id="result" class="result-area mt-4" role="status" aria-live="polite"></div>
+	<div id="downloads" class="downloads mt-3" aria-label="Download links"></div>
+	<div id="config-preview-wrap" class="config-preview-wrap mt-4" style="display:none;" aria-hidden="true">
+		<div id="config-preview-status" role="status" aria-live="polite" class="sr-only"></div>
+		<details class="config-preview-details pure-details">
+			<summary class="pure-details-summary" data-i18n="previewSummary">预览生成配置</summary>
+			<div id="config-preview-content" class="config-preview-content pt-3"></div>
+		</details>
+	</div>
+</div>
+{{end}}

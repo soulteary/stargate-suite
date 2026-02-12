@@ -1,4 +1,4 @@
-# 默认使用 build/image（需先执行 make gen 或 ./bin/suite gen all）
+# 默认使用 build/image（需先执行 make gen 或通过 Web UI 生成）
 COMPOSE_FILE ?= build/image/docker-compose.yml
 BUILD_DIR ?= build
 
@@ -8,13 +8,13 @@ help: ## Show help information
 	@echo "the-gate End-to-End Integration Test Project"
 	@echo ""
 	@echo "Compose 生成到 $(BUILD_DIR)/，默认使用: $(COMPOSE_FILE)"
-	@echo "首次使用请执行: make gen 或 ./bin/suite gen all"
+	@echo "首次使用请执行: make gen（通过 Web API）或 make serve 在浏览器中配置生成"
 	@echo ""
 	@echo "Available commands:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
 
-gen: ## Generate docker-compose and .env into build/ (run before up)
-	@go run ./cmd/suite gen all
+gen: ## Generate docker-compose and .env into build/ via Web API (run before up)
+	@./scripts/gen-via-api.sh
 
 up: ## Start all services（默认 build/image）
 	docker compose -f $(COMPOSE_FILE) up -d

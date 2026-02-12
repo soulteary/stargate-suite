@@ -1,0 +1,89 @@
+{{define "content-wizard-2"}}
+<div class="main-view main-view-wizard">
+	<div class="wizard-toolbar mb-4">
+		<a href="/" class="btn btn-link text-body-secondary px-0" data-i18n="backToChoice">← 返回选择</a>
+	</div>
+	<nav class="step-nav step-nav-labeled mb-4" aria-label="Configuration steps">
+		<a href="/wizard/step-1" class="step-nav-item"><span class="step-num">1</span><span class="step-label" data-i18n="step1ComposeTypeShort">场景预设</span></a>
+		<a href="/wizard/step-2" class="step-nav-item active"><span class="step-num">2</span><span class="step-label" data-i18n="step2GeneralOptionsShort">通用</span></a>
+		<a href="/wizard/step-3" class="step-nav-item"><span class="step-num">3</span><span class="step-label" data-i18n="step3StargateShort">Stargate</span></a>
+		<a href="/wizard/step-4" class="step-nav-item"><span class="step-num">4</span><span class="step-label" data-i18n="step4WardenShort">Warden</span></a>
+		<a href="/wizard/step-5" class="step-nav-item"><span class="step-num">5</span><span class="step-label" data-i18n="step5HeraldShort">Herald</span></a>
+		<a href="/review" class="step-nav-item"><span class="step-num">6</span><span class="step-label" data-i18n="step6ReviewShort">确认生成</span></a>
+	</nav>
+	<form id="form-step-2" class="form wizard-form" method="post" action="/wizard/step-2">
+		<section class="config-step-block" data-step="2">
+			<h2 class="step-heading mb-2" data-i18n="step2GeneralOptions">2. 通用选项</h2>
+			<p class="step-desc text-body-secondary mb-4" data-i18n="step2GeneralOptionsDesc">镜像版本、健康检查、网络、端口、可选通道与 Redis 存储等。</p>
+			<fieldset class="field-group config-options-cols border-0 p-0">
+				{{range .ConfigSections}}
+				<div class="env-group mb-4" data-section-key="{{.TitleKey}}">
+					{{if .TitleKey}}<h3 class="section-title h6 mb-3" data-i18n="{{.TitleKey}}"></h3>{{end}}
+					{{range .Options}}
+					{{if eq .Type "checkbox"}}
+					<div class="config-item mb-3{{if .FullRow}} config-item-full-row{{end}}" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}{{if .ShowWhenEnv}} data-depends-on-env="{{.ShowWhenEnv}}"{{end}}>
+						<div class="form-check">
+							<input type="checkbox" name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}" class="form-check-input" value="true"{{if .Default}} checked{{end}}>
+							<label class="form-check-label" for="{{.Id}}"><span data-i18n="{{.LabelKey}}"></span> <code class="config-env">{{.EnvName}}</code></label>
+						</div>
+						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}"></p>
+					</div>
+					{{else if eq .Type "select"}}
+					<div class="config-item mb-3" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
+						<label for="{{.Id}}" class="form-label"><span data-i18n="{{.LabelKey}}"></span> <code class="config-env">{{.EnvName}}</code></label>
+						<select name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}" class="form-select">
+							{{$def := .Default}}{{range .Options}}
+							<option value="{{.Value}}"{{if eq (printf "%v" $def) .Value}} selected{{end}}>{{.Value}}</option>
+							{{end}}
+						</select>
+						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}"></p>
+					</div>
+					{{else if eq .Type "text"}}
+					<div class="config-item mb-3" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
+						<label for="{{.Id}}" class="form-label"><span data-i18n="{{.LabelKey}}"></span> <code class="config-env">{{.EnvName}}</code></label>
+						<input type="text" name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}" class="form-control"{{if .PlaceholderKey}} data-i18n-placeholder="{{.PlaceholderKey}}"{{end}}{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}>
+						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}"></p>
+					</div>
+					{{else if eq .Type "number"}}
+					<div class="config-item mb-3" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
+						<label for="{{.Id}}" class="form-label"><span data-i18n="{{.LabelKey}}"></span> <code class="config-env">{{.EnvName}}</code></label>
+						<input type="number" name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}" class="form-control"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}{{if .Min}} min="{{.Min}}"{{end}}{{if .Max}} max="{{.Max}}"{{end}}>
+						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}"></p>
+					</div>
+					{{else if eq .Type "radio"}}
+					<div class="config-item mb-3" data-env-name="">
+						<div class="form-check">
+							<input type="radio" name="{{.Name}}" id="{{.Id}}" value="{{.Value}}" class="form-check-input"{{if .Default}} checked{{end}}>
+							<label class="form-check-label" for="{{.Id}}"><span data-i18n="{{.LabelKey}}"></span></label>
+						</div>
+						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}"></p>
+					</div>
+					{{else if eq .Type "redisPaths"}}
+					<div id="redisPathInputs" class="redis-paths" style="display:none;">
+						{{range .Paths}}
+						<div class="config-item mb-3" data-env-name="{{.Env}}">
+							<label for="{{.Id}}" class="form-label"><span data-i18n="{{.LabelKey}}"></span> <code class="config-env">{{.Env}}</code></label>
+							<input type="text" name="{{.Env}}" id="{{.Id}}" data-option="{{.Id}}" class="form-control" placeholder="{{.Placeholder}}" value="{{.Default}}">
+							<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}"></p>
+						</div>
+						{{end}}
+					</div>
+					{{else if eq .Type "imageEnv"}}
+					<div class="config-item mb-3" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
+						<label for="env_{{.EnvName}}" class="form-label"><span data-i18n="{{.LabelKey}}"></span> <code class="config-env">{{.EnvName}}</code></label>
+						<input type="text" name="{{.EnvName}}" id="env_{{.EnvName}}" data-env="{{.EnvName}}" class="form-control"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}>
+						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}"></p>
+					</div>
+					{{end}}
+					{{end}}
+				</div>
+				{{end}}
+			</fieldset>
+			<div class="step-actions pt-2">
+				<a href="/wizard/step-1" class="btn btn-outline-secondary" data-i18n="stepPrev">上一步</a>
+				<button type="submit" class="btn btn-primary btn-lg" data-i18n="stepNext">下一步</button>
+			</div>
+		</section>
+	</form>
+</div>
+{{end}}

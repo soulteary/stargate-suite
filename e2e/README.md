@@ -35,4 +35,4 @@ With Traefik: `export PROTECTED_URL=https://whoami.test.localhost` then run Test
 - Challenge expiry: tune Herald CHALLENGE_EXPIRY for expiry tests.
 - Protected whoami: skipped when PROTECTED_URL is unset (e.g. build/image without Traefik).
 
-See [../README](../README.md) · [../MANUAL_TESTING](../MANUAL_TESTING.md).
+See [../README](../README.md).

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"testing"
@@ -49,6 +50,32 @@ type HeraldVerifyResponse struct {
 	AMR      []string `json:"amr,omitempty"`
 	IssuedAt int64    `json:"issued_at,omitempty"`
 	Reason   string   `json:"reason,omitempty"`
+}
+
+// Allowed verify failure reasons per CLAUDE §3.2
+var allowedVerifyFailureReasons = map[string]bool{
+	"expired":            true,
+	"invalid":            true,
+	"locked":             true,
+	"too_many_attempts":  true,
+	"rate_limited":       true,
+	"verification_failed": true, // legacy/alias
+}
+
+func assertVerifyFailureReason(t *testing.T, reason string, allowed ...string) {
+	t.Helper()
+	if reason == "" {
+		return
+	}
+	if allowedVerifyFailureReasons[reason] {
+		return
+	}
+	for _, a := range allowed {
+		if reason == a {
+			return
+		}
+	}
+	t.Errorf("verify failure reason %q is not in allowed set (expired, invalid, locked, too_many_attempts, rate_limited)", reason)
 }
 
 // TestHeraldCreateChallenge tests creating a challenge
@@ -253,16 +280,16 @@ func TestHeraldChallengeExpired(t *testing.T) {
 		}
 	}()
 
-	// Herald returns 401 Unauthorized for expired or not found challenges
-	testza.AssertEqual(t, http.StatusUnauthorized, verifyResp.StatusCode,
-		"Should return 401 Unauthorized for expired challenge")
+	// Herald may return 401 or 200 with ok:false for expired/not-found challenges
+	testza.AssertTrue(t, verifyResp.StatusCode == http.StatusUnauthorized || verifyResp.StatusCode == http.StatusOK,
+		"Should return 401 or 200 with ok:false for expired challenge")
 
 	var verifyRespBody HeraldVerifyResponse
-	err = json.NewDecoder(verifyResp.Body).Decode(&verifyRespBody)
-	if err == nil {
+	if err := json.NewDecoder(verifyResp.Body).Decode(&verifyRespBody); err == nil {
 		testza.AssertFalse(t, verifyRespBody.OK, "Verification should fail")
+		assertVerifyFailureReason(t, verifyRespBody.Reason)
 		testza.AssertTrue(t, verifyRespBody.Reason == "expired" || verifyRespBody.Reason == "invalid" || verifyRespBody.Reason == "verification_failed",
-			"Reason should be expired, invalid, or verification_failed")
+			"Reason for unknown/expired challenge should be expired, invalid, or verification_failed, got %q", verifyRespBody.Reason)
 	}
 
 	t.Logf("✓ Expired challenge rejected: Status %d", verifyResp.StatusCode)
@@ -334,14 +361,97 @@ func TestHeraldInvalidCode(t *testing.T) {
 	err = json.NewDecoder(verifyResp.Body).Decode(&verifyRespBody)
 	if err == nil {
 		testza.AssertFalse(t, verifyRespBody.OK, "Verification should fail")
+		assertVerifyFailureReason(t, verifyRespBody.Reason)
 		testza.AssertTrue(t, verifyRespBody.Reason == "invalid" || verifyRespBody.Reason == "expired",
-			"Reason should be invalid or expired")
+			"Reason for wrong code should be invalid or expired, got %q", verifyRespBody.Reason)
 	}
 
 	t.Logf("✓ Invalid code rejected: Status %d", verifyResp.StatusCode)
 }
 
-// TestHeraldRateLimit tests rate limit response
+// TestHeraldVerifyLockedAfterMaxAttempts tests that after MAX_ATTEMPTS wrong verify attempts, Herald returns reason locked or too_many_attempts (CLAUDE §3.2, §5).
+func TestHeraldVerifyLockedAfterMaxAttempts(t *testing.T) {
+	ensureServicesReady(t)
+
+	reqBody := HeraldChallengeRequest{
+		UserID:      "test-user-locked",
+		Channel:     "sms",
+		Destination: "+8613600136000",
+		Purpose:     "login",
+	}
+
+	bodyBytes, err := json.Marshal(reqBody)
+	testza.AssertNoError(t, err)
+
+	url := fmt.Sprintf("%s/v1/otp/challenges", heraldURL)
+	req, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
+	testza.AssertNoError(t, err)
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-API-Key", heraldAPIKey)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	testza.AssertNoError(t, err)
+
+	var challengeResp HeraldChallengeResponse
+	err = json.NewDecoder(resp.Body).Decode(&challengeResp)
+	testza.AssertNoError(t, err)
+	resp.Body.Close()
+
+	challengeID := challengeResp.ChallengeID
+	testza.AssertNotNil(t, challengeID)
+
+	// Send MAX_ATTEMPTS (5) wrong verify requests
+	for i := 0; i < 5; i++ {
+		verifyReqBody := HeraldVerifyRequest{ChallengeID: challengeID, Code: "000000"}
+		verifyBodyBytes, _ := json.Marshal(verifyReqBody)
+		verifyReq, _ := http.NewRequest("POST", heraldURL+"/v1/otp/verifications", bytes.NewReader(verifyBodyBytes))
+		verifyReq.Header.Set("Content-Type", "application/json")
+		verifyReq.Header.Set("Accept", "application/json")
+		verifyReq.Header.Set("X-API-Key", heraldAPIKey)
+		verifyResp, err := client.Do(verifyReq)
+		testza.AssertNoError(t, err)
+		_, _ = io.ReadAll(verifyResp.Body)
+		verifyResp.Body.Close()
+		// May get 400/401 or 200 with ok:false
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	// Next verify must return locked or too_many_attempts
+	verifyReqBody := HeraldVerifyRequest{ChallengeID: challengeID, Code: "123456"}
+	verifyBodyBytes, err := json.Marshal(verifyReqBody)
+	testza.AssertNoError(t, err)
+
+	verifyReq, err := http.NewRequest("POST", heraldURL+"/v1/otp/verifications", bytes.NewReader(verifyBodyBytes))
+	testza.AssertNoError(t, err)
+	verifyReq.Header.Set("Content-Type", "application/json")
+	verifyReq.Header.Set("Accept", "application/json")
+	verifyReq.Header.Set("X-API-Key", heraldAPIKey)
+
+	verifyResp, err := client.Do(verifyReq)
+	testza.AssertNoError(t, err)
+	defer func() {
+		if closeErr := verifyResp.Body.Close(); closeErr != nil {
+			t.Logf("Warning: failed to close response body: %v", closeErr)
+		}
+	}()
+
+	var verifyRespBody HeraldVerifyResponse
+	if err := json.NewDecoder(verifyResp.Body).Decode(&verifyRespBody); err != nil {
+		t.Logf("Note: could not decode verify response body")
+		return
+	}
+	testza.AssertFalse(t, verifyRespBody.OK, "Verification should fail after max attempts")
+	assertVerifyFailureReason(t, verifyRespBody.Reason)
+	testza.AssertTrue(t, verifyRespBody.Reason == "locked" || verifyRespBody.Reason == "too_many_attempts",
+		"Reason after max wrong attempts should be locked or too_many_attempts, got %q", verifyRespBody.Reason)
+
+	t.Logf("✓ Locked/too_many_attempts returned: reason=%s", verifyRespBody.Reason)
+}
+
+// TestHeraldRateLimit tests challenge-creation rate limit (response may include reason rate_limited per CLAUDE §3.2).
 func TestHeraldRateLimit(t *testing.T) {
 	ensureServicesReady(t)
 

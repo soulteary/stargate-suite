@@ -40,6 +40,9 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Config validation
+        run: go run ./cmd/suite validate
+
       - name: Run tests (exclude e2e)
         run: |
           pkgs=$(go list ./... | grep -v '/e2e$' || true)
@@ -84,6 +87,9 @@ jobs:
 
       - name: Download dependencies
         run: go mod download
+
+      - name: Install jq (for gen-via-api.sh)
+        run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Generate compose (build/image)
         run: make gen

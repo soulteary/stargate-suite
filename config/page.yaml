@@ -1,6 +1,6 @@
 # Page 入口：Compose 生成页配置。
 # 完整配置已按类型拆分为多文件，由 serve 加载时合并：
-#   config/page.yaml           - 本文件，Compose 类型（modes）
+#   config/page.yaml           - 本文件，生成模式定义（由场景预设使用）
 #   config/config-sections.yaml - 配置选项（镜像、健康检查、网络、端口、Redis 等）
 #   config/i18n/zh.yaml        - 中文文案
 #   config/i18n/en.yaml        - 英文文案

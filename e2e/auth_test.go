@@ -172,6 +172,62 @@ func TestHeraldHMACSignatureExpired(t *testing.T) {
 	t.Logf("✓ Expired timestamp rejected: Status %d", resp.StatusCode)
 }
 
+// TestHeraldHMACWithXKeyId tests that X-Key-Id header is accepted when present (CLAUDE §6.1 key rotation).
+// When HERALD_HMAC_KEYS is set, Herald uses X-Key-Id to select the key; with only HERALD_HMAC_SECRET, implementations may ignore or accept X-Key-Id.
+func TestHeraldHMACWithXKeyId(t *testing.T) {
+	ensureServicesReady(t)
+
+	time.Sleep(2 * time.Second)
+
+	reqBody := HeraldChallengeRequest{
+		UserID:      "test-user-001",
+		Channel:     "sms",
+		Destination: "+8613800138000",
+		Purpose:     "login",
+	}
+
+	bodyBytes, err := json.Marshal(reqBody)
+	testza.AssertNoError(t, err)
+	bodyStr := string(bodyBytes)
+
+	timestamp := time.Now().Unix()
+	service := "stargate"
+	signature := calculateHMAC(timestamp, service, bodyStr, heraldHMACSecret)
+
+	url := fmt.Sprintf("%s/v1/otp/challenges", heraldURL)
+	req, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
+	testza.AssertNoError(t, err)
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-Signature", signature)
+	req.Header.Set("X-Timestamp", strconv.FormatInt(timestamp, 10))
+	req.Header.Set("X-Service", service)
+	req.Header.Set("X-Key-Id", "stargate")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	testza.AssertNoError(t, err)
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			t.Logf("Warning: failed to close response body: %v", closeErr)
+		}
+	}()
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		t.Logf("⚠ Rate limited, skipping this test. Status: %d", resp.StatusCode)
+		return
+	}
+	testza.AssertEqual(t, http.StatusOK, resp.StatusCode, "Should return 200 OK with valid HMAC and X-Key-Id")
+
+	var challengeResp HeraldChallengeResponse
+	err = json.NewDecoder(resp.Body).Decode(&challengeResp)
+	testza.AssertNoError(t, err)
+
+	testza.AssertNotNil(t, challengeResp.ChallengeID)
+	t.Logf("✓ Valid HMAC with X-Key-Id accepted: %+v", challengeResp)
+}
+
 // TestHeraldHMACSignatureMissing tests that missing signature headers are rejected
 func TestHeraldHMACSignatureMissing(t *testing.T) {
 	ensureServicesReady(t)

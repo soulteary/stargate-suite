@@ -1,20 +1,20 @@
 # Stargate Suite - Canonical Compose（单一数据源）
 #
-# 本文件为唯一数据源，用于通过 CLI（gen/gen-split）或 Web UI 生成以下 compose：
+# 本文件为唯一数据源，用于通过 Web UI 或 make gen（Web API）生成以下 compose：
 #   - traefik：全量（Traefik + Stargate + Warden + Herald + 可选通道）
 #   - traefik-herald：仅 Herald + herald-totp + Redis
 #   - traefik-warden：仅 Warden + Redis
 #   - traefik-stargate：仅 Stargate + 受保护示例服务（依赖已独立启动的 Herald/Warden）
 #
 # 生成输出目录：build/<mode>/docker-compose.yml 与 build/<mode>/.env
-# 推荐用法：go run ./cmd/suite gen all 或 Web UI 生成后，执行：
+# 推荐用法：make gen 或 Web UI 生成后，执行：
 #   docker network create traefik   # 若使用 Traefik 接入
 #   docker compose -f build/traefik/docker-compose.yml up -d
 
 services:
   # Herald（传令）- OTP/验证码服务，负责 challenge 创建、发送、校验与限流
   herald:
-    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.6.1}
+    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.9.0}
     container_name: the-gate-herald
     ports:
       - "8082:8082"
@@ -46,6 +46,40 @@ services:
       # Email channel (optional): Herald calls herald-smtp via HTTP; set when using SMTP for email verification codes
       - HERALD_SMTP_API_URL=${HERALD_SMTP_API_URL:-}
       - HERALD_SMTP_API_KEY=${HERALD_SMTP_API_KEY:-}
+      # Herald built-in SMTP (when not using herald-smtp plugin)
+      - SMTP_HOST=${HERALD_BUILTIN_SMTP_HOST:-}
+      - SMTP_PORT=${HERALD_BUILTIN_SMTP_PORT:-587}
+      - SMTP_USER=${HERALD_BUILTIN_SMTP_USER:-}
+      - SMTP_PASSWORD=${HERALD_BUILTIN_SMTP_PASSWORD:-}
+      - SMTP_FROM=${HERALD_BUILTIN_SMTP_FROM:-}
+      # SMS HTTP API (optional)
+      - SMS_PROVIDER=${SMS_PROVIDER:-}
+      - SMS_API_BASE_URL=${SMS_API_BASE_URL:-}
+      - SMS_API_KEY=${SMS_API_KEY:-}
+      # Herald server/client TLS (optional)
+      - TLS_CERT_FILE=${HERALD_TLS_CERT_FILE:-}
+      - TLS_KEY_FILE=${HERALD_TLS_KEY_FILE:-}
+      - TLS_CA_CERT_FILE=${HERALD_TLS_CA_CERT_FILE:-}
+      - TLS_CLIENT_CA_FILE=${HERALD_TLS_CLIENT_CA_FILE:-}
+      # Herald session storage (optional)
+      - HERALD_SESSION_STORAGE_ENABLED=${HERALD_SESSION_STORAGE_ENABLED:-false}
+      - HERALD_SESSION_DEFAULT_TTL=${HERALD_SESSION_DEFAULT_TTL:-1h}
+      - HERALD_SESSION_KEY_PREFIX=${HERALD_SESSION_KEY_PREFIX:-session:}
+      # Herald audit (optional)
+      - AUDIT_ENABLED=${HERALD_AUDIT_ENABLED:-true}
+      - AUDIT_MASK_DESTINATION=${HERALD_AUDIT_MASK_DESTINATION:-false}
+      - AUDIT_TTL=${HERALD_AUDIT_TTL:-168h}
+      - AUDIT_STORAGE_TYPE=${HERALD_AUDIT_STORAGE_TYPE:-}
+      - AUDIT_DATABASE_URL=${HERALD_AUDIT_DATABASE_URL:-}
+      - AUDIT_TABLE_NAME=${HERALD_AUDIT_TABLE_NAME:-audit_logs}
+      - AUDIT_FILE_PATH=${HERALD_AUDIT_FILE_PATH:-}
+      - AUDIT_LOKI_URL=${HERALD_AUDIT_LOKI_URL:-}
+      - AUDIT_WRITER_QUEUE_SIZE=${HERALD_AUDIT_WRITER_QUEUE_SIZE:-1000}
+      - AUDIT_WRITER_WORKERS=${HERALD_AUDIT_WRITER_WORKERS:-2}
+      # Herald observability (optional)
+      - TEMPLATE_DIR=${HERALD_TEMPLATE_DIR:-}
+      - OTLP_ENABLED=${HERALD_OTLP_ENABLED:-false}
+      - OTLP_ENDPOINT=${HERALD_OTLP_ENDPOINT:-}
     depends_on:
       herald-redis:
         condition: service_healthy
@@ -78,17 +112,29 @@ services:
 
   # herald-totp - TOTP 2FA（可选）：Stargate 调用，用于绑定/验证 TOTP 与恢复码
   herald-totp:
-    image: ${HERALD_TOTP_IMAGE:-ghcr.io/soulteary/herald-totp:latest}
+    image: ${HERALD_TOTP_IMAGE:-ghcr.io/soulteary/herald-totp:v0.3.0}
     container_name: the-gate-herald-totp
     ports:
       - "8084:8084"
     environment:
       - PORT=${HERALD_TOTP_PORT:-:8084}
       - REDIS_ADDR=${HERALD_TOTP_REDIS_ADDR:-herald-redis:6379}
+      - REDIS_PASSWORD=${HERALD_TOTP_REDIS_PASSWORD:-}
+      - REDIS_DB=${HERALD_TOTP_REDIS_DB:-0}
       - HERALD_TOTP_ENCRYPTION_KEY=${HERALD_TOTP_ENCRYPTION_KEY:-}
       - EXPOSE_SECRET_IN_ENROLL=${HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL:-true}
       - API_KEY=${HERALD_TOTP_API_KEY:-}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - TOTP_ISSUER=${HERALD_TOTP_ISSUER:-Herald}
+      - TOTP_PERIOD=${HERALD_TOTP_PERIOD:-30}
+      - TOTP_DIGITS=${HERALD_TOTP_DIGITS:-6}
+      - TOTP_SKEW=${HERALD_TOTP_SKEW:-1}
+      - ENROLL_TTL=${HERALD_TOTP_ENROLL_TTL:-10m}
+      - HMAC_SECRET=${HERALD_TOTP_HMAC_SECRET:-}
+      - HERALD_TOTP_HMAC_KEYS=${HERALD_TOTP_HMAC_KEYS:-}
+      - SERVICE_NAME=${HERALD_TOTP_SERVICE_NAME:-herald-totp}
+      - RATE_LIMIT_PER_SUBJECT=${HERALD_TOTP_RATE_LIMIT_PER_SUBJECT:-20}
+      - RATE_LIMIT_PER_IP=${HERALD_TOTP_RATE_LIMIT_PER_IP:-30}
     depends_on:
       herald-redis:
         condition: service_healthy
@@ -104,7 +150,7 @@ services:
 
   # herald-dingtalk - 钉钉验证码推送（可选）：Herald 通过 HTTP 调用，钉钉凭证仅在此服务
   herald-dingtalk:
-    image: ${HERALD_DINGTALK_IMAGE:-ghcr.io/soulteary/herald-dingtalk:latest}
+    image: ${HERALD_DINGTALK_IMAGE:-ghcr.io/soulteary/herald-dingtalk:v0.5.0}
     container_name: the-gate-herald-dingtalk
     ports:
       - "8083:8083"
@@ -129,7 +175,7 @@ services:
 
   # herald-smtp - 邮件验证码发送（可选）：Herald 通过 HTTP 调用，SMTP 凭证仅在此服务
   herald-smtp:
-    image: ${HERALD_SMTP_IMAGE:-ghcr.io/soulteary/herald-smtp:latest}
+    image: ${HERALD_SMTP_IMAGE:-ghcr.io/soulteary/herald-smtp:v0.2.0}
     container_name: the-gate-herald-smtp
     ports:
       - "8085:8085"
@@ -156,7 +202,7 @@ services:
 
   # Warden（看守）- 白名单用户服务，提供 user_id、email/phone 等供 Stargate 与 Herald 使用
   warden:
-    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.10.0}
+    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.13.0}
     container_name: the-gate-warden
     ports:
       - "8081:8081"
@@ -176,6 +222,22 @@ services:
       - HTTP_MAX_IDLE_CONNS=${WARDEN_HTTP_MAX_IDLE_CONNS:-100}
       - HTTP_INSECURE_TLS=${WARDEN_HTTP_INSECURE_TLS:-false}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - DATA_DIR=${WARDEN_DATA_DIR:-}
+      - RESPONSE_FIELDS=${WARDEN_RESPONSE_FIELDS:-}
+      - REMOTE_DECRYPT_ENABLED=${WARDEN_REMOTE_DECRYPT_ENABLED:-false}
+      - REMOTE_RSA_PRIVATE_KEY_FILE=${WARDEN_REMOTE_RSA_PRIVATE_KEY_FILE:-}
+      - REMOTE_RSA_PRIVATE_KEY=${WARDEN_REMOTE_RSA_PRIVATE_KEY:-}
+      - OTLP_ENABLED=${WARDEN_OTLP_ENABLED:-false}
+      - OTLP_ENDPOINT=${WARDEN_OTLP_ENDPOINT:-}
+      - TRUSTED_PROXY_IPS=${WARDEN_TRUSTED_PROXY_IPS:-}
+      - HEALTH_CHECK_IP_WHITELIST=${WARDEN_HEALTH_CHECK_IP_WHITELIST:-}
+      - IP_WHITELIST=${WARDEN_IP_WHITELIST:-}
+      - WARDEN_HMAC_KEYS=${WARDEN_HMAC_KEYS:-}
+      - WARDEN_HMAC_TIMESTAMP_TOLERANCE=${WARDEN_HMAC_TIMESTAMP_TOLERANCE:-}
+      - WARDEN_TLS_CERT=${WARDEN_TLS_CERT:-}
+      - WARDEN_TLS_KEY=${WARDEN_TLS_KEY:-}
+      - WARDEN_TLS_CA=${WARDEN_TLS_CA:-}
+      - WARDEN_TLS_REQUIRE_CLIENT_CERT=${WARDEN_TLS_REQUIRE_CLIENT_CERT:-false}
     volumes:
       - ./data.json:/app/data.json:ro
       - /etc/localtime:/etc/localtime:ro
@@ -212,7 +274,7 @@ services:
 
   # Stargate（门）- Forward Auth 鉴权与登录编排，依赖 Warden、Herald（内网）
   stargate:
-    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.9.2}
+    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.11.0}
     container_name: the-gate-stargate
     ports: []
     environment:

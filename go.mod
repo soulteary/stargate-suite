@@ -1,11 +1,11 @@
 module github.com/soulteary/the-gate
 
-go 1.25
+go 1.26
 
 require (
 	github.com/MarvinJWendt/testza v0.5.2
-	github.com/redis/go-redis/v9 v9.17.3
-	github.com/soulteary/cli-kit v1.3.1
+	github.com/redis/go-redis/v9 v9.18.0
+	github.com/soulteary/cli-kit v1.6.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -27,7 +27,9 @@ require (
 	github.com/pterm/pterm v0.12.82 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/term v0.39.0 // indirect
 	golang.org/x/text v0.33.0 // indirect

@@ -39,6 +39,8 @@ type Options struct {
 	WardenRedisDataPath string // 绑定路径时 Warden Redis 数据目录，默认 ./data/warden-redis
 	// Stargate 会话 Redis：为 true 时在 traefik / traefik-stargate 中注入 stargate-redis 服务，并设置 SESSION_STORAGE_REDIS_ADDR=stargate-redis:6379
 	StargateSessionRedisUseBuiltin bool
+	// Warden 无 Redis 场景：为 true 时移除 warden-redis 服务与其卷，并清理 warden 的 depends_on
+	DisableWardenRedisService bool
 }
 
 // serviceNameToContainerSuffix 逻辑服务名 -> container_name 后缀（前缀由 Options 提供）
@@ -69,67 +71,12 @@ var imageBuildVolumes = []string{"herald-redis-data", "warden-redis-data"}
 
 // buildContexts 为 build 模式下各服务的 build context（相对 stargate-suite 根目录）。
 var buildContexts = map[string]struct{ Context, Dockerfile string }{
-	"herald":  {"../../herald", "docker/Dockerfile.manual"},
-	"warden":  {"../../warden", "docker/Dockerfile.manual"},
+	"herald":   {"../../herald", "docker/Dockerfile.manual"},
+	"warden":   {"../../warden", "docker/Dockerfile.manual"},
 	"stargate": {"../../stargate", "docker/Dockerfile.manual"},
 }
 
-// serviceAllowedEnvKeys 定义各服务允许接收的 EnvOverrides 键（与 canonical compose 中该服务 environment/labels 使用的 ${VAR:-default} 一致）。
-// 仅在此集合内的键会被合并进该服务的 environment；未列出的服务（如 herald-redis、warden-redis、protected-service）不注入任何 override。
-var serviceAllowedEnvKeys = func() map[string]map[string]bool {
-	allowed := func(keys ...string) map[string]bool {
-		m := make(map[string]bool, len(keys))
-		for _, k := range keys {
-			m[k] = true
-		}
-		return m
-	}
-	return map[string]map[string]bool{
-		"herald": allowed(
-			"HERALD_REDIS_ADDR", "HERALD_REDIS_PASSWORD", "HERALD_REDIS_DB", "LOG_LEVEL",
-			"HERALD_API_KEY", "HERALD_HMAC_SECRET", "HERALD_TEST_MODE", "PROVIDER_FAILURE_POLICY",
-			"CHALLENGE_EXPIRY", "CODE_LENGTH", "MAX_ATTEMPTS", "RESEND_COOLDOWN", "LOCKOUT_DURATION",
-			"IDEMPOTENCY_KEY_TTL", "ALLOWED_PURPOSES", "RATE_LIMIT_PER_USER", "RATE_LIMIT_PER_IP", "RATE_LIMIT_PER_DESTINATION",
-			"SERVICE_NAME", "HERALD_HMAC_KEYS",
-			"HERALD_DINGTALK_API_URL", "HERALD_DINGTALK_API_KEY", "HERALD_SMTP_API_URL", "HERALD_SMTP_API_KEY",
-		),
-		"herald-totp": allowed(
-			"HERALD_TOTP_PORT", "HERALD_TOTP_REDIS_ADDR", "HERALD_TOTP_ENCRYPTION_KEY",
-			"HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL", "HERALD_TOTP_API_KEY", "LOG_LEVEL",
-		),
-		"herald-dingtalk": allowed(
-			"LOG_LEVEL", "HERALD_DINGTALK_API_KEY", "DINGTALK_APP_KEY", "DINGTALK_APP_SECRET",
-			"DINGTALK_AGENT_ID", "DINGTALK_LOOKUP_MODE", "HERALD_DINGTALK_IDEMPOTENCY_TTL",
-		),
-		"herald-smtp": allowed(
-			"LOG_LEVEL", "HERALD_SMTP_API_KEY", "SMTP_HOST", "SMTP_PORT", "SMTP_USER",
-			"SMTP_PASSWORD", "SMTP_FROM", "SMTP_USE_STARTTLS", "HERALD_SMTP_IDEMPOTENCY_TTL",
-		),
-		"warden": allowed(
-			"WARDEN_REDIS_ADDR", "WARDEN_REDIS_PASSWORD", "WARDEN_REDIS_PASSWORD_FILE", "WARDEN_REDIS_ENABLED",
-			"WARDEN_DATA_FILE", "MODE", "WARDEN_API_KEY", "INTERVAL", "WARDEN_REMOTE_CONFIG", "WARDEN_REMOTE_KEY",
-			"WARDEN_HTTP_TIMEOUT", "WARDEN_HTTP_MAX_IDLE_CONNS", "WARDEN_HTTP_INSECURE_TLS", "LOG_LEVEL",
-		),
-		"stargate": allowed(
-			"AUTH_HOST", "PORT", "LOGIN_PAGE_TITLE", "LOGIN_PAGE_FOOTER_TEXT", "COOKIE_DOMAIN", "PASSWORDS", "LANGUAGE",
-			"USER_HEADER_NAME", "WARDEN_URL", "WARDEN_ENABLED", "WARDEN_API_KEY", "WARDEN_CACHE_TTL",
-			"WARDEN_OTP_ENABLED", "WARDEN_OTP_SECRET_KEY",
-			"HERALD_URL", "HERALD_ENABLED", "HERALD_API_KEY", "HERALD_HMAC_SECRET",
-			"HERALD_TLS_CA_CERT_FILE", "HERALD_TLS_CLIENT_CERT_FILE", "HERALD_TLS_CLIENT_KEY_FILE", "HERALD_TLS_SERVER_NAME",
-			"HERALD_TOTP_ENABLED", "HERALD_TOTP_BASE_URL", "HERALD_TOTP_API_KEY", "HERALD_TOTP_HMAC_SECRET",
-			"LOGIN_SMS_ENABLED", "LOGIN_EMAIL_ENABLED",
-			"SESSION_STORAGE_ENABLED", "SESSION_STORAGE_REDIS_ADDR", "SESSION_STORAGE_REDIS_PASSWORD",
-			"SESSION_STORAGE_REDIS_DB", "SESSION_STORAGE_REDIS_KEY_PREFIX",
-			"STEP_UP_ENABLED", "STEP_UP_PATHS",
-			"AUDIT_LOG_ENABLED", "AUDIT_LOG_FORMAT",
-			"OTLP_ENABLED", "OTLP_ENDPOINT", "AUTH_REFRESH_ENABLED", "AUTH_REFRESH_INTERVAL", "DEBUG",
-			"STARGATE_DOMAIN", "PROTECTED_DOMAIN", "STARGATE_PREFIX", "PROTECTED_PREFIX",
-		),
-		// herald-redis, warden-redis, protected-service: 无 environment 块，不注入任何 override（不在 map 中即视为允许集合为空）
-	}
-}()
-
-// envComments 环境变量名 -> 注释（用于在生成的 docker-compose 中插入注释，便于用户查看和修改）
+// envComments 环境变量名 -> 注释（用于在生成的 docker-compose 中插入注释；无 env-meta 时的 fallback，有 env-meta 时由 meta.Comments() 提供）
 var envComments = map[string]string{
 	"PORT":                                "服务监听端口",
 	"REDIS_ADDR":                          "Herald Redis 地址 (host:port)，可通过 HERALD_REDIS_ADDR 覆盖",
@@ -187,7 +134,7 @@ var envComments = map[string]string{
 	"SESSION_STORAGE_REDIS_KEY_PREFIX":    "会话存储 Redis 键前缀",
 	"STEP_UP_ENABLED":                     "是否启用敏感路径二次验证（step-up）",
 	"STEP_UP_PATHS":                       "需二次验证的路径模式，逗号分隔，如 /admin*,/api/secret*",
-	"HERALD_TOTP_HMAC_SECRET":             "Stargate 调用 herald-totp 的 HMAC 密钥（可选）",
+	"HERALD_TOTP_HMAC_SECRET":             "Herald 调用 herald-totp 的 HMAC 密钥（可选）",
 	"AUDIT_LOG_ENABLED":                   "是否启用审计日志",
 	"AUDIT_LOG_FORMAT":                    "审计日志格式 (json/text)",
 	"OTLP_ENABLED":                        "是否启用 OpenTelemetry 导出",
@@ -209,9 +156,9 @@ var envComments = map[string]string{
 	"DINGTALK_AGENT_ID":                   "herald-dingtalk：钉钉应用 AgentId（工作通知）",
 	"DINGTALK_LOOKUP_MODE":                "herald-dingtalk：none=to 仅 userid；mobile=to 可为 userid 或 11 位手机号",
 	"HERALD_DINGTALK_IDEMPOTENCY_TTL":     "herald-dingtalk 幂等缓存 TTL（秒）",
-	"HERALD_TOTP_ENABLED":                 "是否启用 herald-totp（TOTP 2FA）",
-	"HERALD_TOTP_BASE_URL":                "Stargate 调用 herald-totp 的地址",
-	"HERALD_TOTP_API_KEY":                 "herald-totp API 密钥（与 herald-totp 容器 API_KEY 一致）",
+	"HERALD_TOTP_ENABLED":                 "是否启用 herald-totp（TOTP 2FA）；Stargate 仅此一项，BASE_URL/API_KEY 在 Herald 侧",
+	"HERALD_TOTP_BASE_URL":                "Herald 调用 herald-totp 的地址",
+	"HERALD_TOTP_API_KEY":                 "herald-totp API 密钥（Herald 调用时用，与 herald-totp 容器 API_KEY 一致）",
 	"HERALD_TOTP_IMAGE":                   "herald-totp 服务镜像",
 	"HERALD_TOTP_ENCRYPTION_KEY":          "herald-totp 32 字节 AES-256 加密密钥",
 	"HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL": "herald-totp enroll/start 是否返回 secret_base32",
@@ -229,6 +176,51 @@ var envComments = map[string]string{
 	"HERALD_SMTP_IDEMPOTENCY_TTL":         "herald-smtp 幂等缓存 TTL（秒）",
 	"PROTECTED_IMAGE":                     "受保护服务（whoami）镜像，E2E/演示用",
 	"DEBUG":                               "调试模式",
+	// Herald built-in SMTP / SMS / TLS / session / audit / OTLP (container env names)
+	"SMS_PROVIDER":                       "Herald 短信供应商名称",
+	"SMS_API_BASE_URL":                   "Herald 短信 HTTP API base URL",
+	"SMS_API_KEY":                        "Herald 短信 API 密钥",
+	"TLS_CERT_FILE":                      "Herald 服务端 TLS 证书路径",
+	"TLS_KEY_FILE":                       "Herald 服务端 TLS 私钥路径",
+	"TLS_CA_CERT_FILE":                   "Herald 客户端 CA（mTLS）",
+	"TLS_CLIENT_CA_FILE":                 "Herald 客户端 CA 别名",
+	"HERALD_SESSION_STORAGE_ENABLED":     "Herald Redis 会话存储",
+	"HERALD_SESSION_DEFAULT_TTL":         "Herald 会话默认 TTL",
+	"HERALD_SESSION_KEY_PREFIX":          "Herald 会话 Redis 键前缀",
+	"AUDIT_ENABLED":                      "Herald 审计开关",
+	"AUDIT_MASK_DESTINATION":             "Herald 审计脱敏目标地址",
+	"AUDIT_TTL":                          "Herald 审计记录 TTL",
+	"AUDIT_STORAGE_TYPE":                 "Herald 审计存储类型",
+	"AUDIT_DATABASE_URL":                 "Herald 审计数据库 URL",
+	"AUDIT_TABLE_NAME":                   "Herald 审计表名",
+	"AUDIT_FILE_PATH":                    "Herald 审计文件路径",
+	"AUDIT_LOKI_URL":                     "Herald 审计 Loki URL",
+	"AUDIT_WRITER_QUEUE_SIZE":            "Herald 审计写入队列大小",
+	"AUDIT_WRITER_WORKERS":               "Herald 审计写入 worker 数",
+	"TEMPLATE_DIR":                       "Herald 邮件/短信模板目录",
+	// herald-totp (container env names; REDIS_PASSWORD/REDIS_DB reuse comment from Herald above)
+	"TOTP_ISSUER":                        "herald-totp TOTP Issuer",
+	"TOTP_PERIOD":                        "herald-totp TOTP 周期（秒）",
+	"TOTP_DIGITS":                        "herald-totp TOTP 位数",
+	"TOTP_SKEW":                          "herald-totp 时间步长偏移",
+	"ENROLL_TTL":                         "herald-totp 绑定流程临时状态 TTL",
+	"HERALD_TOTP_HMAC_KEYS":              "herald-totp 多密钥 HMAC JSON",
+	"RATE_LIMIT_PER_SUBJECT":             "herald-totp 每 subject 每小时限流",
+	// Warden (container env names)
+	"DATA_DIR":                           "Warden 本地用户数据目录",
+	"RESPONSE_FIELDS":                    "Warden API 响应字段白名单",
+	"REMOTE_DECRYPT_ENABLED":             "Warden 远程响应 RSA 解密",
+	"REMOTE_RSA_PRIVATE_KEY_FILE":        "Warden RSA 私钥文件路径",
+	"REMOTE_RSA_PRIVATE_KEY":             "Warden RSA 私钥内联 PEM",
+	"TRUSTED_PROXY_IPS":                  "Warden 信任的代理 IP",
+	"HEALTH_CHECK_IP_WHITELIST":          "Warden 健康检查 IP 白名单",
+	"IP_WHITELIST":                       "Warden 全局 IP 白名单",
+	"WARDEN_HMAC_KEYS":                   "Warden HMAC 密钥 JSON",
+	"WARDEN_HMAC_TIMESTAMP_TOLERANCE":    "Warden HMAC 时间戳容差（秒）",
+	"WARDEN_TLS_CERT":                    "Warden 服务端 TLS 证书路径",
+	"WARDEN_TLS_KEY":                     "Warden 服务端 TLS 私钥路径",
+	"WARDEN_TLS_CA":                      "Warden 客户端 CA（mTLS）",
+	"WARDEN_TLS_REQUIRE_CLIENT_CERT":     "Warden 是否要求客户端证书",
 }
 
 // LoadCompose 读取并解析 compose 文件为 map。
@@ -364,40 +356,65 @@ func ExtractEnvVars(compose map[string]interface{}) map[string]string {
 	return vars
 }
 
-// EnvBodyFromVars 根据变量映射生成 .env 文件内容；optionalOverride 可覆盖或追加（每行 KEY=VALUE）。
-func EnvBodyFromVars(vars map[string]string, optionalOverride string) string {
-	// 常用顺序（镜像与域名优先，再按服务分组；Herald 当前使用 REDIS_ADDR，HERALD_REDIS_URL 为规范建议，待 Herald 支持后可启用）
-	order := []string{
-		"HERALD_IMAGE", "WARDEN_IMAGE", "STARGATE_IMAGE",
-		"HERALD_REDIS_IMAGE", "WARDEN_REDIS_IMAGE", "STARGATE_REDIS_IMAGE",
-		"HERALD_REDIS_ADDR", "HERALD_REDIS_PASSWORD", "HERALD_REDIS_DB",
-		"WARDEN_REDIS_ADDR", "WARDEN_REDIS_PASSWORD", "WARDEN_REDIS_PASSWORD_FILE", "WARDEN_REDIS_ENABLED", "WARDEN_DATA_FILE",
-		"HERALD_REDIS_DATA_PATH", "WARDEN_REDIS_DATA_PATH",
-		"PROTECTED_IMAGE",
-		"AUTH_HOST", "WARDEN_URL", "HERALD_URL", "STARGATE_DOMAIN", "PROTECTED_DOMAIN",
-		"STARGATE_PREFIX", "PROTECTED_PREFIX", "USER_HEADER_NAME",
-		"LOGIN_PAGE_TITLE", "LOGIN_PAGE_FOOTER_TEXT", "COOKIE_DOMAIN",
-		"LANGUAGE", "PASSWORDS", "PORT",
-		"HERALD_API_KEY", "HERALD_HMAC_SECRET", "WARDEN_API_KEY",
-		"WARDEN_ENABLED", "HERALD_ENABLED", "WARDEN_OTP_ENABLED", "WARDEN_OTP_SECRET_KEY",
-		"LOGIN_SMS_ENABLED", "LOGIN_EMAIL_ENABLED", "SESSION_STORAGE_ENABLED",
-		"SESSION_STORAGE_REDIS_ADDR", "SESSION_STORAGE_REDIS_PASSWORD", "SESSION_STORAGE_REDIS_DB", "SESSION_STORAGE_REDIS_KEY_PREFIX",
-		"HERALD_TLS_CA_CERT_FILE", "HERALD_TLS_CLIENT_CERT_FILE", "HERALD_TLS_CLIENT_KEY_FILE", "HERALD_TLS_SERVER_NAME",
-		"STEP_UP_ENABLED", "STEP_UP_PATHS", "HERALD_TOTP_HMAC_SECRET",
-		"WARDEN_CACHE_TTL", "AUDIT_LOG_ENABLED", "AUDIT_LOG_FORMAT",
-		"OTLP_ENABLED", "OTLP_ENDPOINT", "AUTH_REFRESH_ENABLED", "AUTH_REFRESH_INTERVAL", "DEBUG",
-		"MODE", "LOG_LEVEL", "INTERVAL", "WARDEN_REMOTE_CONFIG", "WARDEN_REMOTE_KEY",
-		"WARDEN_HTTP_TIMEOUT", "WARDEN_HTTP_MAX_IDLE_CONNS", "WARDEN_HTTP_INSECURE_TLS",
-		"HERALD_TEST_MODE", "CHALLENGE_EXPIRY", "CODE_LENGTH", "MAX_ATTEMPTS",
-		"PROVIDER_FAILURE_POLICY", "RESEND_COOLDOWN", "LOCKOUT_DURATION",
-		"IDEMPOTENCY_KEY_TTL", "ALLOWED_PURPOSES", "SERVICE_NAME", "HERALD_HMAC_KEYS",
-		"RATE_LIMIT_PER_USER", "RATE_LIMIT_PER_IP", "RATE_LIMIT_PER_DESTINATION",
-		"HERALD_DINGTALK_IMAGE", "HERALD_DINGTALK_API_URL", "HERALD_DINGTALK_API_KEY",
-		"DINGTALK_APP_KEY", "DINGTALK_APP_SECRET", "DINGTALK_AGENT_ID", "DINGTALK_LOOKUP_MODE", "HERALD_DINGTALK_IDEMPOTENCY_TTL",
-		"HERALD_SMTP_IMAGE", "HERALD_SMTP_API_URL", "HERALD_SMTP_API_KEY",
-		"SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "SMTP_USE_STARTTLS", "HERALD_SMTP_IDEMPOTENCY_TTL",
-		"HERALD_TOTP_ENABLED", "HERALD_TOTP_BASE_URL", "HERALD_TOTP_API_KEY",
-		"HERALD_TOTP_IMAGE", "HERALD_TOTP_ENCRYPTION_KEY", "HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL", "HERALD_TOTP_REDIS_ADDR", "HERALD_TOTP_PORT",
+// builtinEnvOrder 是未使用 env-meta 时的 .env 键顺序。
+var builtinEnvOrder = []string{
+	"HERALD_IMAGE", "WARDEN_IMAGE", "STARGATE_IMAGE",
+	"HERALD_REDIS_IMAGE", "WARDEN_REDIS_IMAGE", "STARGATE_REDIS_IMAGE",
+	"HERALD_REDIS_ADDR", "HERALD_REDIS_PASSWORD", "HERALD_REDIS_DB",
+	"WARDEN_REDIS_ADDR", "WARDEN_REDIS_PASSWORD", "WARDEN_REDIS_PASSWORD_FILE", "WARDEN_REDIS_ENABLED", "WARDEN_DATA_FILE",
+	"HERALD_REDIS_DATA_PATH", "WARDEN_REDIS_DATA_PATH",
+	"PROTECTED_IMAGE",
+	"AUTH_HOST", "WARDEN_URL", "HERALD_URL", "STARGATE_DOMAIN", "PROTECTED_DOMAIN",
+	"STARGATE_PREFIX", "PROTECTED_PREFIX", "USER_HEADER_NAME",
+	"LOGIN_PAGE_TITLE", "LOGIN_PAGE_FOOTER_TEXT", "COOKIE_DOMAIN",
+	"LANGUAGE", "PASSWORDS", "PORT",
+	"HERALD_API_KEY", "HERALD_HMAC_SECRET", "WARDEN_API_KEY",
+	"WARDEN_ENABLED", "HERALD_ENABLED", "WARDEN_OTP_ENABLED", "WARDEN_OTP_SECRET_KEY",
+	"LOGIN_SMS_ENABLED", "LOGIN_EMAIL_ENABLED", "SESSION_STORAGE_ENABLED",
+	"SESSION_STORAGE_REDIS_ADDR", "SESSION_STORAGE_REDIS_PASSWORD", "SESSION_STORAGE_REDIS_DB", "SESSION_STORAGE_REDIS_KEY_PREFIX",
+	"HERALD_TLS_CA_CERT_FILE", "HERALD_TLS_CLIENT_CERT_FILE", "HERALD_TLS_CLIENT_KEY_FILE", "HERALD_TLS_SERVER_NAME",
+	"STEP_UP_ENABLED", "STEP_UP_PATHS", "HERALD_TOTP_HMAC_SECRET",
+	"WARDEN_CACHE_TTL", "AUDIT_LOG_ENABLED", "AUDIT_LOG_FORMAT",
+	"OTLP_ENABLED", "OTLP_ENDPOINT", "AUTH_REFRESH_ENABLED", "AUTH_REFRESH_INTERVAL", "DEBUG",
+	"MODE", "LOG_LEVEL", "INTERVAL", "WARDEN_REMOTE_CONFIG", "WARDEN_REMOTE_KEY",
+	"WARDEN_HTTP_TIMEOUT", "WARDEN_HTTP_MAX_IDLE_CONNS", "WARDEN_HTTP_INSECURE_TLS",
+	"HERALD_TEST_MODE", "CHALLENGE_EXPIRY", "CODE_LENGTH", "MAX_ATTEMPTS",
+	"PROVIDER_FAILURE_POLICY", "RESEND_COOLDOWN", "LOCKOUT_DURATION",
+	"IDEMPOTENCY_KEY_TTL", "ALLOWED_PURPOSES", "SERVICE_NAME", "HERALD_HMAC_KEYS",
+	"RATE_LIMIT_PER_USER", "RATE_LIMIT_PER_IP", "RATE_LIMIT_PER_DESTINATION",
+	"HERALD_DINGTALK_IMAGE", "HERALD_DINGTALK_API_URL", "HERALD_DINGTALK_API_KEY",
+	"DINGTALK_APP_KEY", "DINGTALK_APP_SECRET", "DINGTALK_AGENT_ID", "DINGTALK_LOOKUP_MODE", "HERALD_DINGTALK_IDEMPOTENCY_TTL",
+	"HERALD_SMTP_IMAGE", "HERALD_SMTP_API_URL", "HERALD_SMTP_API_KEY",
+	"SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "SMTP_USE_STARTTLS", "HERALD_SMTP_IDEMPOTENCY_TTL",
+	"HERALD_TOTP_ENABLED", "HERALD_TOTP_BASE_URL", "HERALD_TOTP_API_KEY",
+	"HERALD_TOTP_IMAGE", "HERALD_TOTP_ENCRYPTION_KEY", "HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL", "HERALD_TOTP_REDIS_ADDR", "HERALD_TOTP_REDIS_PASSWORD", "HERALD_TOTP_REDIS_DB", "HERALD_TOTP_PORT",
+	"HERALD_TOTP_ISSUER", "HERALD_TOTP_PERIOD", "HERALD_TOTP_DIGITS", "HERALD_TOTP_SKEW", "HERALD_TOTP_ENROLL_TTL", "HERALD_TOTP_HMAC_KEYS", "HERALD_TOTP_SERVICE_NAME", "HERALD_TOTP_RATE_LIMIT_PER_SUBJECT", "HERALD_TOTP_RATE_LIMIT_PER_IP",
+	"HERALD_BUILTIN_SMTP_HOST", "HERALD_BUILTIN_SMTP_PORT", "HERALD_BUILTIN_SMTP_USER", "HERALD_BUILTIN_SMTP_PASSWORD", "HERALD_BUILTIN_SMTP_FROM",
+	"SMS_PROVIDER", "SMS_API_BASE_URL", "SMS_API_KEY",
+	"HERALD_TLS_CERT_FILE", "HERALD_TLS_KEY_FILE", "HERALD_TLS_CA_CERT_FILE", "HERALD_TLS_CLIENT_CA_FILE",
+	"HERALD_SESSION_STORAGE_ENABLED", "HERALD_SESSION_DEFAULT_TTL", "HERALD_SESSION_KEY_PREFIX",
+	"HERALD_AUDIT_ENABLED", "HERALD_AUDIT_MASK_DESTINATION", "HERALD_AUDIT_TTL", "HERALD_AUDIT_STORAGE_TYPE", "HERALD_AUDIT_DATABASE_URL", "HERALD_AUDIT_TABLE_NAME", "HERALD_AUDIT_FILE_PATH", "HERALD_AUDIT_LOKI_URL", "HERALD_AUDIT_WRITER_QUEUE_SIZE", "HERALD_AUDIT_WRITER_WORKERS",
+	"HERALD_TEMPLATE_DIR", "HERALD_OTLP_ENABLED", "HERALD_OTLP_ENDPOINT",
+	"WARDEN_DATA_DIR", "WARDEN_RESPONSE_FIELDS", "WARDEN_REMOTE_DECRYPT_ENABLED", "WARDEN_REMOTE_RSA_PRIVATE_KEY_FILE", "WARDEN_REMOTE_RSA_PRIVATE_KEY",
+	"WARDEN_OTLP_ENABLED", "WARDEN_OTLP_ENDPOINT", "WARDEN_TRUSTED_PROXY_IPS", "WARDEN_HEALTH_CHECK_IP_WHITELIST", "WARDEN_IP_WHITELIST",
+	"WARDEN_HMAC_KEYS", "WARDEN_HMAC_TIMESTAMP_TOLERANCE", "WARDEN_TLS_CERT", "WARDEN_TLS_KEY", "WARDEN_TLS_CA", "WARDEN_TLS_REQUIRE_CLIENT_CERT",
+}
+
+// getComments returns the comment map to use for compose/.env; when meta is nil uses built-in envComments.
+func getComments(meta *EnvMeta) map[string]string {
+	if meta != nil {
+		if c := meta.Comments(); len(c) > 0 {
+			return c
+		}
+	}
+	return envComments
+}
+
+// EnvBodyFromVars 根据变量映射生成 .env 文件内容；optionalOverride 可覆盖或追加（每行 KEY=VALUE）。meta 为 nil 时使用内置 order。
+func EnvBodyFromVars(vars map[string]string, optionalOverride string, meta *EnvMeta) string {
+	order := builtinEnvOrder
+	if meta != nil && len(meta.OrderKeys()) > 0 {
+		order = meta.OrderKeys()
 	}
 	seen := make(map[string]bool)
 	var lines []string
@@ -427,7 +444,7 @@ func EnvBodyFromVars(vars map[string]string, optionalOverride string) string {
 				smtpCommentAdded = true
 			}
 			if k == "HERALD_TOTP_IMAGE" {
-				lines = append(lines, "# TOTP 2FA (optional): Stargate calls herald-totp for enroll/verify")
+				lines = append(lines, "# TOTP 2FA (optional): Herald proxies to herald-totp; Stargate uses Herald client for enroll/verify")
 			}
 			lines = append(lines, k+"="+v)
 		}
@@ -444,18 +461,44 @@ func EnvBodyFromVars(vars map[string]string, optionalOverride string) string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
-// DefaultEnvBody 返回与现有 defaultEnvBody 一致的默认 .env 内容（当未从 compose 推断时使用）。
-func DefaultEnvBody() string {
-	return `# Container Image Version Configuration
+// DefaultEnvBody 返回默认 .env 内容（当未从 compose 推断时使用）。meta 非 nil 时用 env-meta 的默认值生成；否则返回内置字符串。
+func DefaultEnvBody(meta *EnvMeta) string {
+	if meta != nil {
+		defaults := meta.Defaults()
+		if len(defaults) > 0 {
+			// 补充 canonical 中常见的无默认值键，避免生成 .env 过短
+			if _, ok := defaults["HERALD_REDIS_ADDR"]; !ok {
+				defaults["HERALD_REDIS_ADDR"] = "herald-redis:6379"
+			}
+			if _, ok := defaults["HERALD_REDIS_PASSWORD"]; !ok {
+				defaults["HERALD_REDIS_PASSWORD"] = ""
+			}
+			if _, ok := defaults["HERALD_REDIS_DB"]; !ok {
+				defaults["HERALD_REDIS_DB"] = "0"
+			}
+			if _, ok := defaults["WARDEN_REDIS_ADDR"]; !ok {
+				defaults["WARDEN_REDIS_ADDR"] = "warden-redis:6379"
+			}
+			if _, ok := defaults["WARDEN_REDIS_PASSWORD"]; !ok {
+				defaults["WARDEN_REDIS_PASSWORD"] = ""
+			}
+			return EnvBodyFromVars(defaults, "", meta)
+		}
+	}
+	return defaultEnvBodyBuiltin
+}
+
+// defaultEnvBodyBuiltin 是未使用 env-meta 时的默认 .env 内容。
+const defaultEnvBodyBuiltin = `# Container Image Version Configuration
 
 # Herald Service Image
-HERALD_IMAGE=ghcr.io/soulteary/herald:v0.6.1
+HERALD_IMAGE=ghcr.io/soulteary/herald:v0.9.0
 
 # Warden Service Image
-WARDEN_IMAGE=ghcr.io/soulteary/warden:v0.10.0
+WARDEN_IMAGE=ghcr.io/soulteary/warden:v0.13.0
 
 # Stargate Service Image
-STARGATE_IMAGE=ghcr.io/soulteary/stargate:v0.9.2
+STARGATE_IMAGE=ghcr.io/soulteary/stargate:v0.11.0
 
 # Redis Image Version
 HERALD_REDIS_IMAGE=redis:8.4-alpine
@@ -502,7 +545,7 @@ WARDEN_REDIS_PASSWORD=
 # HERALD_HMAC_KEYS=
 
 # DingTalk channel (optional): Herald calls herald-dingtalk via HTTP for verification code push
-# HERALD_DINGTALK_IMAGE=ghcr.io/soulteary/herald-dingtalk:latest
+# HERALD_DINGTALK_IMAGE=ghcr.io/soulteary/herald-dingtalk:v0.5.0
 # HERALD_DINGTALK_API_URL=http://herald-dingtalk:8083
 # HERALD_DINGTALK_API_KEY=
 # DINGTALK_APP_KEY=
@@ -511,7 +554,7 @@ WARDEN_REDIS_PASSWORD=
 # DINGTALK_LOOKUP_MODE=none
 
 # Email channel (optional): Herald calls herald-smtp via HTTP for email verification codes
-# HERALD_SMTP_IMAGE=ghcr.io/soulteary/herald-smtp:latest
+# HERALD_SMTP_IMAGE=ghcr.io/soulteary/herald-smtp:v0.2.0
 # HERALD_SMTP_API_URL=http://herald-smtp:8085
 # HERALD_SMTP_API_KEY=
 # SMTP_HOST=
@@ -526,13 +569,12 @@ WARDEN_REDIS_PASSWORD=
 # HERALD_TOTP_ENABLED=false
 # HERALD_TOTP_BASE_URL=http://herald-totp:8084
 # HERALD_TOTP_API_KEY=
-# HERALD_TOTP_IMAGE=ghcr.io/soulteary/herald-totp:latest
+# HERALD_TOTP_IMAGE=ghcr.io/soulteary/herald-totp:v0.3.0
 # HERALD_TOTP_ENCRYPTION_KEY=   # 32-byte AES-256 key, required when herald-totp runs
 # HERALD_TOTP_PORT=:8084
 # HERALD_TOTP_REDIS_ADDR=herald-redis:6379
 # HERALD_TOTP_EXPOSE_SECRET_IN_ENROLL=true
 `
-}
 
 func copyMap(m map[string]interface{}) map[string]interface{} {
 	out := make(map[string]interface{}, len(m))
@@ -820,7 +862,8 @@ func stripStargateTotpEnvAndDependsOn(svcs map[string]interface{}) {
 		var kept []interface{}
 		for _, e := range env {
 			s, _ := e.(string)
-			if s != "" && !strings.HasPrefix(s, "HERALD_TOTP_ENABLED=") && !strings.HasPrefix(s, "HERALD_TOTP_BASE_URL=") && !strings.HasPrefix(s, "HERALD_TOTP_API_KEY=") {
+			// Remove all HERALD_TOTP_* from Stargate when herald-totp service is not included
+			if s != "" && !strings.HasPrefix(s, "HERALD_TOTP_ENABLED=") && !strings.HasPrefix(s, "HERALD_TOTP_BASE_URL=") && !strings.HasPrefix(s, "HERALD_TOTP_API_KEY=") && !strings.HasPrefix(s, "HERALD_TOTP_HMAC_SECRET=") {
 				kept = append(kept, e)
 			}
 		}
@@ -837,8 +880,39 @@ func stripStargateTotpEnvAndDependsOn(svcs map[string]interface{}) {
 			}
 			stargate["depends_on"] = kept
 		case map[string]interface{}:
-			delete(d, "herald-totp")
+			// 使用新 map 避免修改共享的 full，否则后续 mode（如 traefik）会丢失 herald-totp 依赖
+			newDep := make(map[string]interface{}, len(d))
+			for k, v := range d {
+				if k != "herald-totp" {
+					newDep[k] = v
+				}
+			}
+			stargate["depends_on"] = newDep
 		}
+	}
+}
+
+// removeDependsOnService 从指定服务的 depends_on 中移除 target。
+func removeDependsOnService(svcs map[string]interface{}, serviceName, target string) {
+	svc, ok := svcs[serviceName].(map[string]interface{})
+	if !ok {
+		return
+	}
+	dep, ok := svc["depends_on"]
+	if !ok {
+		return
+	}
+	switch d := dep.(type) {
+	case []interface{}:
+		var kept []interface{}
+		for _, v := range d {
+			if s, _ := v.(string); s != target {
+				kept = append(kept, v)
+			}
+		}
+		svc["depends_on"] = kept
+	case map[string]interface{}:
+		delete(d, target)
 	}
 }
 
@@ -1020,8 +1094,8 @@ func applyStargateSplitOverrides(svc map[string]interface{}, containerNamePrefix
 	}
 }
 
-// generateImageOrBuild 生成 image 或 build 模式的 compose：仅核心服务 + the-gate-network（bridge），无 Traefik；build 模式将 herald/warden/stargate 的 image 替换为 build。
-func generateImageOrBuild(full map[string]interface{}, mode string, opts *Options) ([]byte, error) {
+// generateImageOrBuild 生成 image 或 build 模式的 compose：仅核心服务 + the-gate-network（bridge），无 Traefik；build 模式将 herald/warden/stargate 的 image 替换为 build。meta 用于 .env 注释映射。
+func generateImageOrBuild(full map[string]interface{}, mode string, opts *Options, meta *EnvMeta) ([]byte, error) {
 	services, _ := full["services"].(map[string]interface{})
 	if services == nil {
 		return nil, fmt.Errorf("compose missing services")
@@ -1040,6 +1114,8 @@ func generateImageOrBuild(full map[string]interface{}, mode string, opts *Option
 		}
 	}
 	out["services"] = outSvcs
+	// image/build 不包含 herald-totp 服务，必须从 stargate 的 depends_on 与 environment 中移除 TOTP 相关项，否则 docker compose config 会报 "depends on undefined service herald-totp"
+	stripStargateTotpEnvAndDependsOn(outSvcs)
 	outVol := make(map[string]interface{})
 	for _, vn := range imageBuildVolumes {
 		if v, ok := volumes[vn]; ok {
@@ -1083,13 +1159,18 @@ func generateImageOrBuild(full map[string]interface{}, mode string, opts *Option
 	if bytes.HasPrefix(outData, []byte("---\n")) {
 		outData = outData[4:]
 	}
-	outData = injectEnvComments(outData, envComments)
+	outData = injectEnvComments(outData, getComments(meta))
 	header := splitComposeComment(mode)
 	return append([]byte(header), outData...), nil
 }
 
-// GenerateOne 根据 mode 从完整 compose 生成一份 compose YAML；mode 为 traefik | traefik-herald | traefik-warden | traefik-stargate | image | build。opts 为 nil 时使用默认行为。
+// GenerateOne 根据 mode 从完整 compose 生成一份 compose YAML；opts 为 nil 时使用默认行为。保留用于兼容，无 meta 时使用内置注释。
 func GenerateOne(full map[string]interface{}, mode string, opts *Options) ([]byte, error) {
+	return generateOneImpl(full, mode, opts, nil)
+}
+
+// generateOneImpl 实现 GenerateOne 逻辑；meta 可选，用于注释与 .env 顺序。
+func generateOneImpl(full map[string]interface{}, mode string, opts *Options, meta *EnvMeta) ([]byte, error) {
 	services, _ := full["services"].(map[string]interface{})
 	if services == nil {
 		return nil, fmt.Errorf("compose missing services")
@@ -1102,7 +1183,7 @@ func GenerateOne(full map[string]interface{}, mode string, opts *Options) ([]byt
 
 	// image / build 模式：仅核心服务，无 Traefik 网络
 	if mode == "image" || mode == "build" {
-		return generateImageOrBuild(full, mode, opts)
+		return generateImageOrBuild(full, mode, opts, meta)
 	}
 
 	var def *splitDef
@@ -1204,6 +1285,16 @@ func GenerateOne(full map[string]interface{}, mode string, opts *Options) ([]byt
 	if (mode == "traefik" || mode == "traefik-stargate") && opts != nil && opts.StargateSessionRedisUseBuiltin {
 		injectStargateRedisService(out, opts)
 	}
+	// Warden 无 Redis 场景：可选移除 warden-redis 服务（适用于 traefik / traefik-warden）。
+	if opts != nil && opts.DisableWardenRedisService && (mode == "traefik" || mode == "traefik-warden") {
+		if svcs, ok := out["services"].(map[string]interface{}); ok {
+			delete(svcs, "warden-redis")
+			removeDependsOnService(svcs, "warden", "warden-redis")
+		}
+		if vols, ok := out["volumes"].(map[string]interface{}); ok {
+			delete(vols, "warden-redis-data")
+		}
+	}
 
 	applyOptionsToCompose(out, opts)
 
@@ -1223,7 +1314,7 @@ func GenerateOne(full map[string]interface{}, mode string, opts *Options) ([]byt
 	if bytes.HasPrefix(outData, []byte("---\n")) {
 		outData = outData[4:]
 	}
-	outData = injectEnvComments(outData, envComments)
+	outData = injectEnvComments(outData, getComments(meta))
 	header := splitComposeComment(mode)
 	return append([]byte(header), outData...), nil
 }
@@ -1263,11 +1354,21 @@ type Generated struct {
 	Env      []byte            // .env 内容
 }
 
-// Generate 从完整 compose 生成指定 modes 的 compose 与 .env；envOverride 可选覆盖 .env 内容（为空则从 compose 推断）；opts 为 nil 时使用默认（健康检查开、Traefik 开、暴露端口开、前缀 the-gate-、无 env 覆盖）。
-func Generate(full map[string]interface{}, modes []string, envOverride string, opts *Options) (*Generated, error) {
+// Generate 从完整 compose 生成指定 modes 的 compose 与 .env；envOverride 可选覆盖 .env 内容（为空则从 compose 推断）；opts 为 nil 时使用默认；meta 可选，为 nil 时使用内置 order/注释/默认 .env。
+func Generate(full map[string]interface{}, modes []string, envOverride string, opts *Options, meta *EnvMeta) (*Generated, error) {
+	if err := ValidateOptions(opts); err != nil {
+		return nil, err
+	}
+	if meta != nil && opts != nil && len(opts.EnvOverrides) > 0 {
+		if errs := ValidateEnvOverrides(opts.EnvOverrides, meta.ServiceAllowedEnvKeys()); len(errs) > 0 {
+			for _, e := range errs {
+				fmt.Fprintf(os.Stderr, "validate env: %s\n", e)
+			}
+		}
+	}
 	out := &Generated{Composes: make(map[string][]byte), Env: nil}
 	for _, mode := range modes {
-		yml, err := GenerateOne(full, mode, opts)
+		yml, err := generateOneImpl(full, mode, opts, meta)
 		if err != nil {
 			return nil, err
 		}
@@ -1282,6 +1383,15 @@ func Generate(full map[string]interface{}, modes []string, envOverride string, o
 	if opts != nil && opts.StargateSessionRedisUseBuiltin {
 		vars["SESSION_STORAGE_ENABLED"] = "true"
 		vars["SESSION_STORAGE_REDIS_ADDR"] = "stargate-redis:6379"
+	}
+	if opts != nil && opts.DisableWardenRedisService {
+		for _, k := range []string{
+			"WARDEN_REDIS_ADDR", "WARDEN_REDIS_PASSWORD", "WARDEN_REDIS_PASSWORD_FILE",
+			"WARDEN_REDIS_DATA_PATH",
+		} {
+			delete(vars, k)
+		}
+		vars["WARDEN_REDIS_ENABLED"] = "false"
 	}
 	if opts != nil && !opts.IncludeDingTalk {
 		for _, k := range []string{
@@ -1321,10 +1431,10 @@ func Generate(full map[string]interface{}, modes []string, envOverride string, o
 	if envOverride != "" {
 		out.Env = []byte(envOverride)
 	} else {
-		out.Env = []byte(EnvBodyFromVars(vars, ""))
+		out.Env = []byte(EnvBodyFromVars(vars, "", meta))
 	}
 	if len(out.Env) == 0 {
-		out.Env = []byte(DefaultEnvBody())
+		out.Env = []byte(DefaultEnvBody(meta))
 	}
 	return out, nil
 }

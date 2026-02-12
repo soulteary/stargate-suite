@@ -326,6 +326,49 @@ services:
             type: checkbox
             labelKey: wardenHttpInsecureTlsLabel
             descKey: wardenHttpInsecureTlsDesc
+      - titleKey: wardenAdvancedSection
+        envVars:
+          - env: WARDEN_DATA_DIR
+            type: text
+            labelKey: wardenDataDirLabel
+            descKey: wardenDataDirDesc
+            placeholder: ""
+          - env: WARDEN_RESPONSE_FIELDS
+            type: text
+            labelKey: wardenResponseFieldsLabel
+            descKey: wardenResponseFieldsDesc
+            placeholder: ""
+          - env: WARDEN_REMOTE_DECRYPT_ENABLED
+            type: checkbox
+            labelKey: wardenRemoteDecryptLabel
+            descKey: wardenRemoteDecryptDesc
+            default: false
+          - env: WARDEN_REMOTE_RSA_PRIVATE_KEY_FILE
+            type: text
+            labelKey: wardenRemoteRsaKeyFileLabel
+            descKey: wardenRemoteRsaKeyFileDesc
+            placeholder: ""
+          - env: WARDEN_OTLP_ENABLED
+            type: checkbox
+            labelKey: wardenOtlpEnabledLabel
+            descKey: wardenOtlpEnabledDesc
+            default: false
+          - env: WARDEN_OTLP_ENDPOINT
+            type: text
+            labelKey: wardenOtlpEndpointLabel
+            descKey: wardenOtlpEndpointDesc
+            placeholder: "http://localhost:4317"
+            showWhenEnv: WARDEN_OTLP_ENABLED
+          - env: WARDEN_TRUSTED_PROXY_IPS
+            type: text
+            labelKey: wardenTrustedProxyIpsLabel
+            descKey: wardenTrustedProxyIpsDesc
+            placeholder: ""
+          - env: WARDEN_IP_WHITELIST
+            type: text
+            labelKey: wardenIpWhitelistLabel
+            descKey: wardenIpWhitelistDesc
+            placeholder: ""
   - id: herald
     name: Herald
     open: false
@@ -437,18 +480,57 @@ services:
             descKey: serviceNameDesc
             default: "herald"
             placeholder: "herald"
+      - titleKey: heraldAdvancedSection
+        envVars:
+          - env: HERALD_BUILTIN_SMTP_HOST
+            type: text
+            labelKey: heraldBuiltinSmptHostLabel
+            descKey: heraldBuiltinSmptHostDesc
+            placeholder: ""
+          - env: SMS_PROVIDER
+            type: text
+            labelKey: smsProviderLabel
+            descKey: smsProviderDesc
+            placeholder: ""
+          - env: SMS_API_BASE_URL
+            type: text
+            labelKey: smsApiBaseUrlLabel
+            descKey: smsApiBaseUrlDesc
+            placeholder: ""
+          - env: HERALD_SESSION_STORAGE_ENABLED
+            type: checkbox
+            labelKey: heraldSessionStorageLabel
+            descKey: heraldSessionStorageDesc
+            default: false
+          - env: HERALD_AUDIT_ENABLED
+            type: checkbox
+            labelKey: heraldAuditEnabledLabel
+            descKey: heraldAuditEnabledDesc
+            default: true
+          - env: HERALD_OTLP_ENABLED
+            type: checkbox
+            labelKey: heraldOtlpEnabledLabel
+            descKey: heraldOtlpEnabledDesc
+            default: false
+          - env: HERALD_OTLP_ENDPOINT
+            type: text
+            labelKey: heraldOtlpEndpointLabel
+            descKey: heraldOtlpEndpointDesc
+            placeholder: "http://localhost:4318"
+            showWhenEnv: HERALD_OTLP_ENABLED
   - id: herald-totp
     name: herald-totp
     nameKey: heraldTotpName
     open: false
     sections:
-      - envVars:
+      - titleKey: heraldTotpSection
+        envVars:
           - env: HERALD_TOTP_IMAGE
             type: text
             labelKey: heraldTotpImageLabel
             descKey: heraldTotpImageDesc
-            default: "ghcr.io/soulteary/herald-totp:v0.1.0"
-            placeholder: "ghcr.io/soulteary/herald-totp:v0.1.0"
+            default: "ghcr.io/soulteary/herald-totp:v0.3.0"
+            placeholder: "ghcr.io/soulteary/herald-totp:v0.3.0"
           - env: HERALD_TOTP_PORT
             type: text
             labelKey: heraldTotpPortLabel
@@ -461,6 +543,65 @@ services:
             descKey: heraldTotpRedisAddrDesc
             default: "herald-redis:6379"
             placeholder: "herald-redis:6379"
+          - env: HERALD_TOTP_REDIS_PASSWORD
+            type: text
+            labelKey: heraldTotpRedisPasswordLabel
+            descKey: heraldTotpRedisPasswordDesc
+            placeholder: ""
+          - env: HERALD_TOTP_REDIS_DB
+            type: number
+            labelKey: heraldTotpRedisDbLabel
+            descKey: heraldTotpRedisDbDesc
+            default: "0"
+            placeholder: "0"
+            min: 0
+          - env: HERALD_TOTP_ISSUER
+            type: text
+            labelKey: heraldTotpIssuerLabel
+            descKey: heraldTotpIssuerDesc
+            default: "Herald"
+            placeholder: "Herald"
+          - env: HERALD_TOTP_PERIOD
+            type: number
+            labelKey: heraldTotpPeriodLabel
+            descKey: heraldTotpPeriodDesc
+            default: "30"
+            placeholder: "30"
+            min: 1
+          - env: HERALD_TOTP_DIGITS
+            type: number
+            labelKey: heraldTotpDigitsLabel
+            descKey: heraldTotpDigitsDesc
+            default: "6"
+            placeholder: "6"
+            min: 6
+            max: 8
+          - env: HERALD_TOTP_ENROLL_TTL
+            type: text
+            labelKey: heraldTotpEnrollTtlLabel
+            descKey: heraldTotpEnrollTtlDesc
+            default: "10m"
+            placeholder: "10m"
+          - env: HERALD_TOTP_SERVICE_NAME
+            type: text
+            labelKey: heraldTotpServiceNameLabel
+            descKey: heraldTotpServiceNameDesc
+            default: "herald-totp"
+            placeholder: "herald-totp"
+          - env: HERALD_TOTP_RATE_LIMIT_PER_SUBJECT
+            type: number
+            labelKey: heraldTotpRateLimitSubjectLabel
+            descKey: heraldTotpRateLimitSubjectDesc
+            default: "20"
+            placeholder: "20"
+            min: 1
+          - env: HERALD_TOTP_RATE_LIMIT_PER_IP
+            type: number
+            labelKey: heraldTotpRateLimitIpLabel
+            descKey: heraldTotpRateLimitIpDesc
+            default: "30"
+            placeholder: "30"
+            min: 1
           - env: HERALD_TOTP_ENCRYPTION_KEY
             type: text
             labelKey: heraldTotpEncryptionKeyLabel

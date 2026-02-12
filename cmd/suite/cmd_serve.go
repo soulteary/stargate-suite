@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -39,6 +41,7 @@ type applyResponse struct {
 	Services       []string          `json:"services"`
 	EnvVars        map[string]string `json:"envVars"`
 	SuggestedModes []string          `json:"suggestedModes"`
+	SuggestedScene string            `json:"suggestedScene,omitempty"`
 	Errors         []string          `json:"errors,omitempty"`
 }
 
@@ -138,6 +141,45 @@ func suggestModes(services []string) []string {
 	return nil
 }
 
+func envBool(envVars map[string]string, key string) bool {
+	v, ok := envVars[key]
+	if !ok {
+		return false
+	}
+	v = strings.ToLower(strings.TrimSpace(v))
+	return v == "true" || v == "1" || v == "yes" || v == "on"
+}
+
+func suggestScene(services []string, envVars map[string]string) string {
+	set := make(map[string]bool)
+	for _, s := range services {
+		set[s] = true
+	}
+	hasStargate := set["stargate"]
+	hasWarden := set["warden"]
+	hasHerald := set["herald"]
+	if hasStargate && hasWarden && hasHerald {
+		hasPluginSignals := envBool(envVars, "HERALD_TOTP_ENABLED") ||
+			strings.TrimSpace(envVars["HERALD_SMTP_API_URL"]) != "" ||
+			strings.TrimSpace(envVars["HERALD_DINGTALK_API_URL"]) != "" ||
+			strings.TrimSpace(envVars["SMS_PROVIDER"]) != ""
+		if hasPluginSignals {
+			return "s5-gate-warden-herald-plugins"
+		}
+		return "s4-gate-warden-herald"
+	}
+	if hasStargate && hasWarden && !hasHerald {
+		return "s3-gate-warden"
+	}
+	if hasStargate && !hasWarden && !hasHerald {
+		if envBool(envVars, "SESSION_STORAGE_ENABLED") {
+			return "s2-solo-gate-session-redis"
+		}
+		return "s1-solo-gate"
+	}
+	return ""
+}
+
 func handleApply(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -173,18 +215,53 @@ func handleApply(w http.ResponseWriter, r *http.Request) {
 		envVars[k] = v
 	}
 	suggested := suggestModes(services)
+	suggestedScene := suggestScene(services, envVars)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(applyResponse{
 		OK:             true,
 		Services:       services,
 		EnvVars:        envVars,
 		SuggestedModes: suggested,
+		SuggestedScene: suggestedScene,
 	})
 }
 
 func cacheControlHandler(value string, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", value)
+		h.ServeHTTP(w, r)
+	})
+}
+
+// sessionMiddleware injects session (and new cookie if needed) into request context.
+func sessionMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var sid string
+		var data *SessionData
+		if c, err := r.Cookie(sessionCookieName); err == nil && c != nil && c.Value != "" {
+			if d, ok := defaultStore.Get(c.Value); ok {
+				sid, data = c.Value, d
+			}
+		}
+		if sid == "" {
+			newID, err := newSessionID()
+			if err != nil {
+				http.Error(w, "session error", http.StatusInternalServerError)
+				return
+			}
+			sid = newID
+			data = &SessionData{ExpiresAt: time.Now().Add(sessionTTL)}
+			defaultStore.Set(sid, data)
+			http.SetCookie(w, &http.Cookie{
+				Name:     sessionCookieName,
+				Value:    sid,
+				Path:     "/",
+				MaxAge:   int(sessionTTL.Seconds()),
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
+			})
+		}
+		r = r.WithContext(WithSessionID(WithSession(r.Context(), data), sid))
 		h.ServeHTTP(w, r)
 	})
 }
@@ -215,6 +292,7 @@ func loadPageData(yamlPath string) (*pageData, error) {
 		return nil, err
 	}
 	configDir := filepath.Dir(yamlPath)
+	rootDir := filepath.Dir(configDir)
 
 	// 拆分布局：从独立文件合并 configSections / i18n / services / providers
 	if len(raw.ConfigSections) == 0 {
@@ -274,6 +352,15 @@ func loadPageData(yamlPath string) (*pageData, error) {
 	if err != nil {
 		return nil, err
 	}
+	scenarios, err := loadScenarioPresets(rootDir)
+	if err != nil {
+		// 场景为增强能力：读取失败时回退为空，避免阻断 Web UI 启动
+		scenarios = map[string]scenarioPreset{}
+	}
+	jsonScenarios, err := json.Marshal(scenarios)
+	if err != nil {
+		return nil, err
+	}
 	title := "Stargate Suite - Compose 生成"
 	if raw.I18N != nil {
 		if t, ok := raw.I18N["zh"]["title"]; ok && t != "" {
@@ -282,6 +369,7 @@ func loadPageData(yamlPath string) (*pageData, error) {
 	}
 	return &pageData{
 		I18N:           template.JS(jsonI18N),
+		Scenarios:      template.JS(jsonScenarios),
 		Title:          title,
 		Lang:           "zh-CN",
 		Modes:          raw.Modes,
@@ -290,6 +378,239 @@ func loadPageData(yamlPath string) (*pageData, error) {
 		Providers:      raw.Providers,
 		KeysStepVars:   keysStepVars,
 	}, nil
+}
+
+// handleWizardStepPost parses POST body (form or JSON), updates session, redirects to next step or review.
+// isEnvVarKey returns true if key looks like an env var (e.g. AUTH_HOST, WARDEN_URL).
+func isEnvVarKey(key string) bool {
+	if key == "" {
+		return false
+	}
+	for _, c := range key {
+		if c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' {
+			continue
+		}
+		return false
+	}
+	return key[0] >= 'A' && key[0] <= 'Z'
+}
+
+func handleWizardStepPost(w http.ResponseWriter, r *http.Request, step int) {
+	sess, ok := GetSession(r.Context())
+	if !ok || sess == nil {
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	ct := r.Header.Get("Content-Type")
+	if strings.HasPrefix(ct, "application/json") {
+		r.Body = http.MaxBytesReader(w, r.Body, maxGenerateBodyBytes)
+		var payload struct {
+			Modes        []string               `json:"modes"`
+			Options      map[string]interface{} `json:"options"`
+			EnvOverrides map[string]string      `json:"envOverrides"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		if step == 1 && len(payload.Modes) > 0 {
+			sess.Modes = payload.Modes
+		}
+		if step >= 2 && payload.Options != nil {
+			if sess.Options == nil {
+				sess.Options = make(map[string]interface{})
+			}
+			for k, v := range payload.Options {
+				sess.Options[k] = v
+			}
+		}
+		if payload.EnvOverrides != nil {
+			if sess.EnvOverrides == nil {
+				sess.EnvOverrides = make(map[string]string)
+			}
+			for k, v := range payload.EnvOverrides {
+				sess.EnvOverrides[k] = v
+			}
+		}
+	} else {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "bad form", http.StatusBadRequest)
+			return
+		}
+		if step == 1 {
+			if modes := r.Form["mode"]; len(modes) > 0 {
+				sess.Modes = modes
+			}
+		}
+		if step >= 2 {
+			if sess.Options == nil {
+				sess.Options = make(map[string]interface{})
+			}
+			if sess.EnvOverrides == nil {
+				sess.EnvOverrides = make(map[string]string)
+			}
+			for k, v := range r.Form {
+				if k == "mode" || k == "scenario" {
+					continue
+				}
+				if len(v) == 0 {
+					continue
+				}
+				val := v[len(v)-1] // last value wins (checkbox override)
+				if isEnvVarKey(k) {
+					sess.EnvOverrides[k] = val
+				} else {
+					if val == "true" || val == "on" || val == "1" {
+						sess.Options[k] = true
+					} else if val == "false" || val == "off" || val == "0" {
+						sess.Options[k] = false
+					} else {
+						sess.Options[k] = val
+					}
+				}
+			}
+		}
+	}
+	SaveSession(r.Context(), sess)
+	next := fmt.Sprintf("/wizard/step-%d", step+1)
+	if step >= 5 {
+		next = "/review"
+	}
+	http.Redirect(w, r, next, http.StatusFound)
+}
+
+func handleKeysApply(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	sess, ok := GetSession(r.Context())
+	if !ok || sess == nil {
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxGenerateBodyBytes)
+	var payload map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if sess.KeysOverrides == nil {
+		sess.KeysOverrides = make(map[string]string)
+	}
+	for k, v := range payload {
+		sess.KeysOverrides[k] = v
+	}
+	SaveSession(r.Context(), sess)
+	http.Redirect(w, r, "/wizard/step-2", http.StatusFound)
+}
+
+func handleImportParse(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	// Reuse same logic as /api/parse
+	handleParse(w, r)
+}
+
+func handleImportApply(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxGenerateBodyBytes)
+	var req parseRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.Compose) == "" {
+		http.Redirect(w, r, "/import", http.StatusFound)
+		return
+	}
+	parsed, err := composegen.ParseCompose([]byte(req.Compose))
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(applyResponse{OK: false, Errors: []string{err.Error()}})
+		return
+	}
+	services := extractServiceNames(parsed)
+	envVars := composegen.ExtractEnvVars(parsed)
+	for k, v := range parseEnvText(req.Env) {
+		envVars[k] = v
+	}
+	sess, ok := GetSession(r.Context())
+	if !ok || sess == nil {
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	sess.ImportApplied = &ImportApplied{
+		EnvVars:        envVars,
+		SuggestedModes: suggestModes(services),
+		SuggestedScene: suggestScene(services, envVars),
+	}
+	SaveSession(r.Context(), sess)
+	http.Redirect(w, r, "/wizard/step-1", http.StatusFound)
+}
+
+func handleGeneratePost(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	sess, ok := GetSession(r.Context())
+	if !ok || sess == nil || len(sess.Modes) == 0 {
+		http.Redirect(w, r, "/wizard/step-1", http.StatusFound)
+		return
+	}
+	root := projectRoot()
+	fullPath := filepath.Join(root, canonicalCompose)
+	full, err := composegen.LoadCompose(fullPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "load compose: %v\n", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	opts := sessionToComposegenOptions(sess)
+	envBody := ""
+	for k, v := range sess.EnvOverrides {
+		envBody += k + "=" + v + "\n"
+	}
+	for k, v := range sess.KeysOverrides {
+		envBody += k + "=" + v + "\n"
+	}
+	envMeta, _ := composegen.LoadEnvMeta(filepath.Join(root, "config", "env-meta.yaml"))
+	gen, err := composegen.Generate(full, sess.Modes, envBody, opts, envMeta)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "generate: %v\n", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	// Return JSON for multi-page: composes + env (client can show download links)
+	res := map[string]interface{}{
+		"composes": make(map[string]string),
+		"env":      string(gen.Env),
+	}
+	for mode, yml := range gen.Composes {
+		res["composes"].(map[string]string)[mode] = string(yml)
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(res)
+}
+
+// sessionToComposegenOptions builds composegen.Options from session (options + env overrides + keys)；option 映射与 API 共用 optionToComposeGenJSONSetters。
+func sessionToComposegenOptions(sess *SessionData) *composegen.Options {
+	o := &composeGenOptionsJSON{EnvOverrides: make(map[string]string)}
+	for k, v := range sess.EnvOverrides {
+		o.EnvOverrides[k] = v
+	}
+	for k, v := range sess.KeysOverrides {
+		o.EnvOverrides[k] = v
+	}
+	FillComposeGenOptionsFromMap(o, sess.Options)
+	return reqOptionsToComposegen(o)
 }
 
 func cmdServe() error {
@@ -305,9 +626,20 @@ func cmdServe() error {
 			return fmt.Errorf("load page config (tried %s and ./%s): %w", pagePath, pageYAMLPath, err)
 		}
 	}
-	tmpl, err := template.ParseFS(staticFS, "static/index.html.tmpl")
+	tmpl, err := template.ParseFS(staticFS,
+		"static/layout.tmpl",
+		"static/pages/entry.tmpl",
+		"static/pages/wizard1.tmpl",
+		"static/pages/wizard2.tmpl",
+		"static/pages/wizard3.tmpl",
+		"static/pages/wizard4.tmpl",
+		"static/pages/wizard5.tmpl",
+		"static/pages/keys.tmpl",
+		"static/pages/import.tmpl",
+		"static/pages/review.tmpl",
+	)
 	if err != nil {
-		return fmt.Errorf("parse index template: %w", err)
+		return fmt.Errorf("parse templates: %w", err)
 	}
 	subFS, err := fs.Sub(staticFS, "static")
 	if err != nil {
@@ -316,19 +648,84 @@ func cmdServe() error {
 	cacheStatic := "public, max-age=3600"
 	staticHandler := cacheControlHandler(cacheStatic, http.FileServer(http.FS(subFS)))
 
+	// renderPage writes the layout template with PageContent and Session set (multi-page mode).
+	renderPage := func(w http.ResponseWriter, p *pageData, pageName string, sess *SessionData) {
+		clone := *p
+		clone.Page = pageName
+		clone.PageContent = "content-" + pageName
+		clone.Session = sess
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := tmpl.ExecuteTemplate(w, "base", &clone); err != nil {
+			fmt.Fprintf(os.Stderr, "template execute: %v\n", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
+	}
+
 	mux := http.NewServeMux()
+	// Multi-page: entry
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
 		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := tmpl.Execute(w, page); err != nil {
-			fmt.Fprintf(os.Stderr, "template execute: %v\n", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		sess, _ := GetSession(r.Context())
+		renderPage(w, page, "entry", sess)
 	})
+	// Wizard steps: GET render, POST save session and redirect next
+	for i := 1; i <= 5; i++ {
+		step := i
+		path := fmt.Sprintf("/wizard/step-%d", step)
+		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != path {
+				http.NotFound(w, r)
+				return
+			}
+			if r.Method == http.MethodPost {
+				handleWizardStepPost(w, r, step)
+				return
+			}
+			if r.Method != http.MethodGet {
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			sess, _ := GetSession(r.Context())
+			renderPage(w, page, fmt.Sprintf("wizard-%d", step), sess)
+		})
+	}
+	// Keys page
+	mux.HandleFunc("/keys", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/keys" || r.Method != http.MethodGet {
+			http.NotFound(w, r)
+			return
+		}
+		sess, _ := GetSession(r.Context())
+		renderPage(w, page, "keys", sess)
+	})
+	mux.HandleFunc("/keys/apply", handleKeysApply)
+	mux.HandleFunc("/import", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/import" || r.Method != http.MethodGet {
+			http.NotFound(w, r)
+			return
+		}
+		sess, _ := GetSession(r.Context())
+		renderPage(w, page, "import", sess)
+	})
+	mux.HandleFunc("/import/parse", handleImportParse)
+	mux.HandleFunc("/import/apply", handleImportApply)
+	mux.HandleFunc("/review", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/review" || r.Method != http.MethodGet {
+			http.NotFound(w, r)
+			return
+		}
+		sess, _ := GetSession(r.Context())
+		renderPage(w, page, "review", sess)
+	})
+	mux.HandleFunc("/generate", handleGeneratePost)
+
 	mux.Handle("/static/", http.StripPrefix("/static", staticHandler))
 	mux.HandleFunc("/api/parse", handleParse)
 	mux.HandleFunc("/api/apply", handleApply)
@@ -360,7 +757,8 @@ func cmdServe() error {
 			return
 		}
 		opts := reqOptionsToComposegen(req.Options)
-		gen, err := composegen.Generate(full, req.Modes, req.EnvOverride, opts)
+		envMeta, _ := composegen.LoadEnvMeta(filepath.Join(root, "config", "env-meta.yaml"))
+		gen, err := composegen.Generate(full, req.Modes, req.EnvOverride, opts, envMeta)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "generate: %v\n", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -377,9 +775,37 @@ func cmdServe() error {
 		_ = json.NewEncoder(w).Encode(res)
 	})
 	addr := ":" + servePort
-	srv := &http.Server{Addr: addr, Handler: mux}
+	srv := &http.Server{Addr: addr, Handler: sessionMiddleware(mux)}
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		if strings.Contains(err.Error(), "address already in use") {
+			start, _ := strconv.Atoi(servePort)
+			if start <= 0 {
+				start = 8085
+			}
+			for p := start + 1; p < start+10; p++ {
+				tryAddr := ":" + strconv.Itoa(p)
+				listener, err = net.Listen("tcp", tryAddr)
+				if err == nil {
+					fmt.Fprintf(os.Stderr, "Port %s in use, using %s instead.\n", addr, tryAddr)
+					addr = tryAddr
+					break
+				}
+			}
+		}
+		if err != nil {
+			return fmt.Errorf("listen %s: %w", addr, err)
+		}
+	}
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		tick := time.NewTicker(5 * time.Minute)
+		defer tick.Stop()
+		for range tick.C {
+			defaultStore.cleanupExpired()
+		}
+	}()
+	go func() {
+		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
 			fmt.Fprintf(os.Stderr, "serve: %v\n", err)
 		}
 	}()

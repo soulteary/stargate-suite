@@ -2,11 +2,11 @@
 
 # Traefik
 
-本目录**仅保留说明**。实际 Traefik compose 在 `build/traefik/`（三合一）与 `build/traefik-herald/`、`build/traefik-warden/`、`build/traefik-stargate/`（三分开），由 canonical 生成。使用前请先执行 `make gen` 或 `go run ./cmd/suite gen traefik`，否则 `build/traefik/` 不存在。
+本目录**仅保留说明**。实际 Traefik compose 在 `build/traefik/`（三合一）与 `build/traefik-herald/`、`build/traefik-warden/`、`build/traefik-stargate/`（三分开），由 canonical 生成。使用前请先执行 `make gen`（经 Web API 生成），否则 `build/traefik/` 不存在。
 
 Traefik 的 compose 位于 **build/traefik/**（三分开在 `build/traefik-herald/` 等）。均由 **canonical 生成** — 本目录仅保留说明，无手写 compose。Compose 见 [../README.zh-CN.md](../README.zh-CN.md)，项目见 [../../README.zh-CN.md](../../README.zh-CN.md)。
 
-**使用 Traefik 前必须先执行 `make gen`（或 `go run ./cmd/suite gen traefik`）**，否则 `build/traefik/` 不存在。
+**使用 Traefik 前必须先执行 `make gen`**，否则 `build/traefik/` 不存在。
 
 ## 三合一（build/traefik）
 
@@ -20,7 +20,7 @@ docker compose -f build/traefik/docker-compose.yml up -d
 
 ## 三分开
 
-由 canonical 生成，勿手改。修改 canonical 后：`go run ./cmd/suite gen traefik`。
+由 canonical 生成，勿手改。修改 canonical 后执行 `make gen`。
 
 | 目录 | 内容 |
 |------|------|

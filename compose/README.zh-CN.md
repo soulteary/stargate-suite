@@ -2,7 +2,7 @@
 
 # Compose
 
-单一数据源；所有输出由 CLI 或 Web UI 从 `canonical/docker-compose.yml` 生成到 `build/`。在项目根目录执行。总览见 [../README.zh-CN.md](../README.zh-CN.md)。
+单一数据源；所有输出由 Web UI 或 `make gen`（Web API）从 `canonical/docker-compose.yml` 生成到 `build/`。在项目根目录执行。总览见 [../README.zh-CN.md](../README.zh-CN.md)。
 
 ## 目录
 
@@ -24,9 +24,9 @@ make up    # 默认 build/image
 
 - **预构建：** `build/image/` → `docker compose -f build/image/docker-compose.yml up -d`
 - **源码构建：** `build/build/` → `docker compose -f build/build/docker-compose.yml up -d --build`
-- **Traefik：** 使用前先执行 `make gen`（或 `go run ./cmd/suite gen traefik`），以生成 `build/traefik/`。然后 `docker network create traefik` 再 `docker compose -f build/traefik/docker-compose.yml up -d`
+- **Traefik：** 使用前先执行 `make gen`，以生成 `build/traefik/`。然后 `docker network create traefik` 再 `docker compose -f build/traefik/docker-compose.yml up -d`
 
-三分开由 canonical 生成；修改 canonical 后执行 `go run ./cmd/suite gen traefik`。  
+三分开由 canonical 生成；修改 canonical 后执行 `make gen`。  
 Web UI：`go run ./cmd/suite serve` → 选择类型，下载 compose 与 .env。
 
 **环境变量：** 根目录 `.env`（或 canonical）写入各 `build/<mode>/.env`。常用：`AUTH_HOST`、`STARGATE_DOMAIN`、`*_API_KEY`、`*_IMAGE`；可选钉钉/SMTP/OwlMail 见根目录 `.env.example`。

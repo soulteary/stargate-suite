@@ -35,4 +35,4 @@ Traefik 部署：`export PROTECTED_URL=https://whoami.test.localhost` 后运行 
 - 验证码过期：可调整 Herald CHALLENGE_EXPIRY。
 - 受保护 whoami：未设置 PROTECTED_URL 时跳过（如无 Traefik 的 build/image）。
 
-参见 [../README.zh-CN](../README.zh-CN.md) · [../MANUAL_TESTING.zh-CN](../MANUAL_TESTING.zh-CN.md)。
+参见 [../README.zh-CN](../README.zh-CN.md)。

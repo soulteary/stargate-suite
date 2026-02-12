@@ -1,0 +1,107 @@
+{
+  "s1-solo-gate": {
+    "nameZh": "S1 Solo Gate",
+    "nameEn": "S1 Solo Gate",
+    "descriptionZh": "仅 Stargate 本地账号认证，最少依赖，快速上线。",
+    "descriptionEn": "Stargate-only local auth with minimum dependencies for quick startup.",
+    "riskNoteZh": "适用于小规模或临时环境；生产建议升级到 S4 及以上。",
+    "riskNoteEn": "Best for small or temporary setups; move to S4+ for production.",
+    "modes": ["traefik-stargate"],
+    "envOverrides": {
+      "WARDEN_ENABLED": "false",
+      "HERALD_ENABLED": "false",
+      "SESSION_STORAGE_ENABLED": "false"
+    },
+    "options": {
+      "includeDingTalk": false,
+      "includeSmtp": false,
+      "includeTotp": false,
+      "stargateSessionRedisUseBuiltin": false
+    }
+  },
+  "s2-solo-gate-session-redis": {
+    "nameZh": "S2 Solo Gate + Session Redis",
+    "nameEn": "S2 Solo Gate + Session Redis",
+    "descriptionZh": "Stargate + Redis 会话，提升多实例一致性。",
+    "descriptionEn": "Stargate with Redis-backed sessions for multi-instance consistency.",
+    "riskNoteZh": "仍为本地账号模式，建议仅用于过渡或内部场景。",
+    "riskNoteEn": "Still local-account mode; recommended for internal or transitional usage.",
+    "modes": ["traefik-stargate"],
+    "envOverrides": {
+      "WARDEN_ENABLED": "false",
+      "HERALD_ENABLED": "false",
+      "SESSION_STORAGE_ENABLED": "true"
+    },
+    "options": {
+      "includeDingTalk": false,
+      "includeSmtp": false,
+      "includeTotp": false,
+      "stargateSessionRedisUseBuiltin": true
+    }
+  },
+  "s3-gate-warden": {
+    "nameZh": "S3 Gate + Warden",
+    "nameEn": "S3 Gate + Warden",
+    "descriptionZh": "引入白名单与用户目录，认证与身份源解耦。",
+    "descriptionEn": "Use Warden for whitelist and identity source decoupling.",
+    "riskNoteZh": "未接入 Herald OTP，适合先完成用户源收敛的阶段。",
+    "riskNoteEn": "No Herald OTP yet; suitable when first unifying identity source.",
+    "modes": ["traefik"],
+    "envOverrides": {
+      "WARDEN_ENABLED": "true",
+      "HERALD_ENABLED": "false",
+      "WARDEN_REDIS_ENABLED": "true",
+      "SESSION_STORAGE_ENABLED": "true"
+    },
+    "options": {
+      "includeDingTalk": false,
+      "includeSmtp": false,
+      "includeTotp": false,
+      "stargateSessionRedisUseBuiltin": true
+    }
+  },
+  "s4-gate-warden-herald": {
+    "nameZh": "S4 Gate + Warden + Herald",
+    "nameEn": "S4 Gate + Warden + Herald",
+    "descriptionZh": "OTP 主链路完整拆分，Stargate 专注 session。",
+    "descriptionEn": "Full OTP split architecture: Stargate focuses on session validation.",
+    "riskNoteZh": "生产推荐基线；请替换所有密钥并启用审计/限流。",
+    "riskNoteEn": "Recommended production baseline; replace all keys and enable audit/rate limits.",
+    "modes": ["traefik"],
+    "envOverrides": {
+      "WARDEN_ENABLED": "true",
+      "HERALD_ENABLED": "true",
+      "WARDEN_REDIS_ENABLED": "true",
+      "SESSION_STORAGE_ENABLED": "true"
+    },
+    "options": {
+      "includeDingTalk": false,
+      "includeSmtp": false,
+      "includeTotp": false,
+      "stargateSessionRedisUseBuiltin": true
+    }
+  },
+  "s5-gate-warden-herald-plugins": {
+    "nameZh": "S5 Gate + Warden + Herald Plugins",
+    "nameEn": "S5 Gate + Warden + Herald Plugins",
+    "descriptionZh": "在 S4 基础上启用 SMTP/SMS/DingTalk/TOTP 插件。",
+    "descriptionEn": "S4 plus SMTP/SMS/DingTalk/TOTP plugin capabilities.",
+    "riskNoteZh": "插件模式涉及外部通道，需重点关注幂等、限流与审计。",
+    "riskNoteEn": "Plugin mode introduces external channels; enforce idempotency, rate limits and audit.",
+    "modes": ["traefik"],
+    "envOverrides": {
+      "WARDEN_ENABLED": "true",
+      "HERALD_ENABLED": "true",
+      "WARDEN_REDIS_ENABLED": "true",
+      "SESSION_STORAGE_ENABLED": "true",
+      "HERALD_TOTP_ENABLED": "true",
+      "SMS_PROVIDER": "httpapi"
+    },
+    "options": {
+      "includeDingTalk": true,
+      "includeSmtp": true,
+      "includeTotp": true,
+      "stargateSessionRedisUseBuiltin": true
+    }
+  }
+}

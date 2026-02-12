@@ -1,0 +1,32 @@
+{{define "content-entry"}}
+<div id="view-choice" class="main-view main-view-entry">
+	<h2 class="choice-heading" data-i18n="choiceHeading">请选择</h2>
+	<p class="choice-lead text-body-secondary mb-4" data-i18n="subtitle">选择场景预设与参数，生成 docker-compose 与 .env。</p>
+	<div class="choice-cards row g-4">
+		<div class="col-12 col-md-4">
+			<a href="/wizard/step-1" class="choice-card card h-100 text-start text-decoration-none border" id="btn-choice-create">
+				<div class="card-body p-4">
+					<h3 class="choice-card-title h5 mb-2" data-i18n="choiceCreate">创建配置</h3>
+					<p class="choice-card-desc text-body-secondary mb-0 small" data-i18n="choiceCreateDesc">基于场景预设与各项参数，生成 docker-compose 与 .env。</p>
+				</div>
+			</a>
+		</div>
+		<div class="col-12 col-md-4">
+			<a href="/import" class="choice-card card h-100 text-start text-decoration-none border" id="btn-choice-import">
+				<div class="card-body p-4">
+					<h3 class="choice-card-title h5 mb-2" data-i18n="choiceImport">导入配置</h3>
+					<p class="choice-card-desc text-body-secondary mb-0 small" data-i18n="choiceImportDesc">粘贴已有 docker-compose 或 .env，解析并查看或加载到生成配置。</p>
+				</div>
+			</a>
+		</div>
+		<div class="col-12 col-md-4">
+			<a href="/keys" class="choice-card card h-100 text-start text-decoration-none border" id="btn-choice-keys">
+				<div class="card-body p-4">
+					<h3 class="choice-card-title h5 mb-2" data-i18n="keysTitle">密钥与 API Key 生成</h3>
+					<p class="choice-card-desc text-body-secondary mb-0 small" data-i18n="keysDesc">生成适用于「生成部署配置」的各类密钥与 API Key。</p>
+				</div>
+			</a>
+		</div>
+	</div>
+</div>
+{{end}}

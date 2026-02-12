@@ -70,3 +70,18 @@ keysStepVars:
     labelKey: heraldSmtpApiKeyLabel
     descKey: heraldSmtpApiKeyDesc
     placeholder: ""
+  - env: HERALD_TOTP_REDIS_PASSWORD
+    type: text
+    labelKey: heraldTotpRedisPasswordLabel
+    descKey: heraldTotpRedisPasswordDesc
+    placeholder: ""
+  - env: WARDEN_REMOTE_RSA_PRIVATE_KEY
+    type: text
+    labelKey: wardenRemoteRsaPrivateKeyLabel
+    descKey: wardenRemoteRsaPrivateKeyDesc
+    placeholder: ""
+  - env: WARDEN_HMAC_KEYS
+    type: text
+    labelKey: wardenHmacKeysLabel
+    descKey: wardenHmacKeysDesc
+    placeholder: '{"key-id":"secret"}'

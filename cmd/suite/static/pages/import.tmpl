@@ -1,0 +1,21 @@
+{{define "content-import"}}
+<div id="panel-import-parse" class="main-view main-view-standalone">
+	<h2 class="page-heading mb-2" data-i18n="choiceImport">导入配置</h2>
+	<p class="page-lead text-body-secondary mb-4" data-i18n="importParseDesc">粘贴 docker-compose.yml 与可选的 .env 内容，解析后可查看服务与环境变量摘要，或加载到生成配置。</p>
+	<div class="import-parse-form form p-4 rounded border bg-light bg-opacity-50 mb-4">
+		<div class="mb-4">
+			<label for="input-compose" class="form-label fw-semibold" data-i18n="importComposeLabel">docker-compose.yml</label>
+			<textarea id="input-compose" class="form-control font-monospace" rows="16" data-i18n-placeholder="importComposePlaceholder" placeholder="粘贴 docker-compose 内容（YAML）…"></textarea>
+		</div>
+		<details class="import-env-details mb-4">
+			<summary class="fw-semibold mb-2" data-i18n="importEnvSummary">可选：粘贴 .env 内容</summary>
+			<textarea id="input-env" class="form-control font-monospace mt-2" rows="8" data-i18n-placeholder="importEnvPlaceholder" placeholder="KEY=VALUE 每行一条…"></textarea>
+		</details>
+		<div class="form-actions">
+			<button type="button" id="btn-parse" class="btn btn-primary btn-lg" data-i18n="btnParse">解析</button>
+		</div>
+	</div>
+	<div id="parse-result" class="parse-result-area" role="status" aria-live="polite"></div>
+	<p class="mb-0 mt-4"><a href="/" class="btn btn-link px-0" data-i18n="backToChoice">← 返回选择</a></p>
+</div>
+{{end}}

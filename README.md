@@ -2,7 +2,7 @@ English | [中文](README.zh-CN.md)
 
 # stargate-suite
 
-End-to-end integration test environment for **Stargate + Warden + Herald**: Compose setups, CLI/Web UI for config generation, and 50+ E2E tests (normal flow, errors, auth, idempotency, audit, metrics). Optional: **herald-totp**, **herald-dingtalk**, **herald-smtp**.
+End-to-end integration test environment for **Stargate + Warden + Herald**: Compose setups, Web UI for config generation, and 50+ E2E tests (normal flow, errors, auth, idempotency, audit, metrics). Optional: **herald-totp**, **herald-dingtalk**, **herald-smtp**.
 
 Go module: `github.com/soulteary/the-gate`. Repo name: **stargate-suite**.
 
@@ -11,21 +11,21 @@ Go module: `github.com/soulteary/the-gate`. Repo name: **stargate-suite**.
 | Doc | Description |
 |-----|-------------|
 | [README](README.md) | This file — overview, quick start |
+| [SCENARIOS](SCENARIOS.md) | Scenario presets (`scene:<id>`) and usage |
 | [compose/README](compose/README.md) | Compose usage; [中文](compose/README.zh-CN.md) |
-| [config/README](config/README.md) | Web UI & gen config; [中文](config/README.zh-CN.md) |
+| [config/README](config/README.md) | Web UI config; [中文](config/README.zh-CN.md) |
 | [compose/traefik/README](compose/traefik/README.md) | Traefik all-in-one / split; [中文](compose/traefik/README.zh-CN.md) |
 | [e2e/README](e2e/README.md) | E2E tests; [中文](e2e/README.zh-CN.md) |
-| [MANUAL_TESTING](MANUAL_TESTING.md) | Browser manual check; [中文](MANUAL_TESTING.zh-CN.md) |
 
 ## Structure
 
 ```
 stargate-suite/
 ├── compose/example/   # optional; image | build generated from canonical
-├── compose/canonical/ # single source → gen traefik / split
-├── build/             # generated (gen or Web UI)
-├── config/             # page.yaml, presets.json
-├── cmd/suite/          # CLI + Web UI
+├── compose/canonical/ # single source → Web UI / make gen
+├── build/             # generated (make gen via Web API or Web UI)
+├── config/             # page.yaml, scenarios
+├── cmd/suite/          # Web UI (serve) + validate
 ├── e2e/                # E2E tests
 ├── fixtures/warden/    # test users (data.json)
 └── scripts/run-e2e.sh
@@ -38,12 +38,12 @@ stargate-suite/
 **Generate then start:**
 
 ```bash
-make gen
+make gen    # generates into build/ via Web API (no CLI gen command)
 make up
 # or: make up-build | make up-traefik
 ```
 
-**CLI:** `go run ./cmd/suite help` — `gen`, `gen-split`, `serve`.  
+**CLI:** `go run ./cmd/suite help` — `validate`, `serve`. Config generation is **Web UI only** (or `make gen` which calls the Web API).  
 **Web UI:** `go run ./cmd/suite serve` (default http://localhost:8085). No auth — localhost only.
 
 **Test:**
@@ -77,16 +77,16 @@ Run one: `go test -v ./e2e/... -run TestCompleteLoginFlow`
 
 ## Makefile (see `make help`)
 
-Common: `make gen`, `make up` / `make up-image` / `make up-build` / `make up-traefik`, `make down`, `make ps`, `make logs`, `make test-wait`, `make health`, `make serve`, `make suite-build`.
+Common: `make gen` (via Web API), `make up` / `make up-image` / `make up-build` / `make up-traefik`, `make down`, `make ps`, `make logs`, `make test-wait`, `make health`, `make serve`, `make suite-build`.
 
 ## Services (brief)
 
 - **Stargate:** forwardAuth, session, login flow. `GET /_auth`, `POST /_send_verify_code`, `POST /_login`
 - **Warden:** whitelist user lookup. `GET /user?phone=...|mail=...|user_id=...`
 - **Herald:** OTP challenge/verify/revoke, rate limits, audit. `POST /v1/otp/challenges`, `POST /v1/otp/verifications`, `GET /v1/test/code/{id}` (test mode)
-- **herald-totp (optional):** TOTP 2FA. Set `HERALD_TOTP_ENABLED=true` and base URL/API key in Stargate.
+- **herald-totp (optional):** TOTP 2FA. Set `HERALD_TOTP_ENABLED=true` in Stargate; configure Herald with `HERALD_TOTP_BASE_URL` and API key so Herald proxies to herald-totp.
 
-Full login example: see [MANUAL_TESTING](MANUAL_TESTING.md).
+Full login flow is covered by e2e tests; see [e2e/README](e2e/README.md).
 
 ## Troubleshooting
 

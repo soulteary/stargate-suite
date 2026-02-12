@@ -1,0 +1,15 @@
+{{define "content-keys"}}
+<div id="panel-keys" class="main-view main-view-standalone">
+	<h2 class="page-heading mb-2" data-i18n="keysTitle">密钥与 API Key 生成</h2>
+	<p class="page-lead text-body-secondary mb-4" data-i18n="keysDesc">生成适用于「生成部署配置」的各类密钥与 API Key。生成后可一键填入向导配置。</p>
+	<div id="keys-copy-status" role="status" aria-live="polite" class="keys-copy-status mb-3"></div>
+	<div class="keys-tool p-4 rounded border bg-light bg-opacity-50 mb-4">
+		<div class="keys-grid" id="keys-grid"></div>
+		<div class="form-actions keys-actions mt-4 pt-3 border-top">
+			<button type="button" id="btn-generate-all-keys" class="btn btn-primary" data-i18n="btnGenerateAllKeys">全部重新生成</button>
+			<button type="button" id="btn-fill-keys-into-generate" class="btn btn-outline-primary" data-i18n="btnFillKeysIntoGenerate">填入生成配置</button>
+		</div>
+	</div>
+	<p class="mb-0"><a href="/" class="btn btn-link px-0" data-i18n="backToChoice">← 返回选择</a></p>
+</div>
+{{end}}

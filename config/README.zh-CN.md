@@ -2,7 +2,7 @@
 
 # 配置
 
-CLI 预设（`presets.json`）与 Web UI 页面配置。总览见 [../README.zh-CN.md](../README.zh-CN.md)。
+Web UI 页面配置与场景预设（scenarios.json）。总览见 [../README.zh-CN.md](../README.zh-CN.md)，场景预设说明见 [../SCENARIOS.zh-CN.md](../SCENARIOS.zh-CN.md)。
 
 ## 页面配置（Web UI）
 
@@ -10,8 +10,13 @@ CLI 预设（`presets.json`）与 Web UI 页面配置。总览见 [../README.zh-
 
 ## 预设与 compose 路径
 
-- **CLI/Makefile/E2E 默认使用的 compose 文件**：`COMPOSE_FILE` 默认为 `build/image/docker-compose.yml`；所有 compose 均由 canonical 生成到 `build/`。
-- **presets.json 语义**：`default`、`image`、`build`、`traefik`、`traefik-herald`、`traefik-warden`、`traefik-stargate` 均为 `build/` 下生成产物路径（需先执行 `make gen` 或 `./suite gen all`）。
+- **Makefile/E2E 默认 compose**：`COMPOSE_FILE` 默认为 `build/image/docker-compose.yml`；所有 compose 由 canonical 生成到 `build/`。
+- **生成仅通过 Web UI**（或 `make gen`，内部调用 Web API 脚本 `scripts/gen-via-api.sh`）。无 CLI 的 `gen` / `gen-split` 子命令。
+- **模式**：`image`、`build`、`traefik`、`traefik-herald`、`traefik-warden`、`traefik-stargate`，输出在 `build/<mode>/`。
+- **scenarios.json**：定义场景预设（`modes` + `options` + `envOverrides`），仅在 Web UI 中选择预设并生成；不提供 CLI 按场景生成。
+- **canonical**：`compose/canonical/docker-compose.yml` 为生成基础模板；Web UI 场景 S1~S5 选择模式与选项。
+- **Web UI**：第一步选择场景预设自动填充选项与 env 覆盖；生成类型由场景模式决定。
+- **导入**：在「导入并解析配置」中加载后，会推荐并套用最匹配场景预设，再叠加导入值。
 
 ## 敏感项与生产环境
 
@@ -24,20 +29,24 @@ CLI 预设（`presets.json`）与 Web UI 页面配置。总览见 [../README.zh-
 
 1. **compose 源**：在 `compose/canonical/docker-compose.yml` 中为该服务添加或修改 `environment` 项（如 `- VAR=${VAR:-default}`）。
 2. **Web UI 配置**：在 `services.yaml` 或 `providers.yaml` 中对应服务的 `sections[].envVars` 增加条目（`env`、`type`、`labelKey`、`descKey` 等）。
-3. **composegen 白名单**：在 `internal/composegen/composegen.go` 的 `serviceAllowedEnvKeys` 中，为该服务名对应的 map 添加新变量名。
-4. **可选**：在 `envComments` 中补充注释；在 `EnvBodyFromVars` 的 `order` 切片中加入新 key，以控制生成 .env 中的顺序。
+3. **env-meta**：在 `config/env-meta.yaml` 的 `order` 中加入新 key，并在 `vars` 下为该 key 配置 `comment`、`services`（所属服务列表）及可选 `default`。由此统一 .env 顺序、注释与默认内容，无需再改 `internal/composegen/composegen.go`。
+
+## 新增场景或全局选项
+
+- **新增场景**：在 `config/scenarios.json` 中增加一项，填写 `modes`、`envOverrides`、`options`（options 的键须已在 `cmd/suite/cmd_gen.go` 的 `scenarioOptionSetters` 中定义）。
+- **新增场景选项键**：在 `cmd/suite/cmd_gen.go` 的 `scenarioOptionSetters` 中增加该键，若 Web UI 也使用则需同步加入 `optionToComposeGenJSONSetters` 及 `composeGenOptionsJSON`/`composegen.Options` 对应字段，再在 `scenarios.json` 的预设中按需使用。
 
 ## 配置校验（可选）
 
-运行 `./suite validate` 可检查 `page.yaml` 与合并后的 config（config-sections、services、providers、i18n）是否能正确加载；用于 CI 或本地快速检查。若需更严格校验，可后续为 config 增加 JSON Schema 或各 type（imageEnv、redisPaths、checkbox 等）的必填/可选字段校验。
+运行 `./suite validate` 可检查 `page.yaml` 与合并后的 config 是否能正确加载，并在存在 `config/env-meta.yaml` 与 `config/scenarios.json` 时做一致性检查（canonical compose 与 env-meta、场景 options 键集合）；用于 CI 或本地快速检查。
 
 ## 命令
 
 ```bash
-./suite validate                        # 校验 config 是否可加载
-./suite gen [image|build|traefik|all]   # 默认 all → build/
-./suite -o dist gen traefik
-./suite serve   # http://localhost:8085，-port 或 SERVE_PORT
+./suite validate   # 校验 config 是否可加载
+./suite serve     # Web UI，http://localhost:8085（-port 或 SERVE_PORT）
 ```
+
+生成 compose：在 Web UI 中操作，或执行 `make gen`（经 `scripts/gen-via-api.sh` 调用 Web API）。
 
 参见 [../README.zh-CN](../README.zh-CN.md) · [../compose/README.zh-CN](../compose/README.zh-CN.md)。

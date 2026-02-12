@@ -2,7 +2,7 @@
 
 # stargate-suite
 
-**Stargate + Warden + Herald** 三服务的端到端集成测试环境：多种 Compose、CLI/Web UI 配置生成、50+ E2E 测试（正常流程、异常、鉴权、幂等、审计、监控）。可选：**herald-totp**、**herald-dingtalk**、**herald-smtp**。
+**Stargate + Warden + Herald** 三服务的端到端集成测试环境：多种 Compose、Web UI 配置生成、50+ E2E 测试（正常流程、异常、鉴权、幂等、审计、监控）。可选：**herald-totp**、**herald-dingtalk**、**herald-smtp**。
 
 Go 模块：`github.com/soulteary/the-gate`。仓库名：**stargate-suite**。
 
@@ -11,21 +11,21 @@ Go 模块：`github.com/soulteary/the-gate`。仓库名：**stargate-suite**。
 | 文档 | 说明 |
 |------|------|
 | [README.zh-CN](README.zh-CN.md) | 本文件 — 总览与快速开始 |
+| [SCENARIOS.zh-CN](SCENARIOS.zh-CN.md) | 场景预设（scene）用法与场景说明 |
 | [compose/README.zh-CN](compose/README.zh-CN.md) | Compose 用法；[EN](compose/README.md) |
-| [config/README.zh-CN](config/README.zh-CN.md) | Web UI 与 gen 配置；[EN](config/README.md) |
+| [config/README.zh-CN](config/README.zh-CN.md) | Web UI 配置；[EN](config/README.md) |
 | [compose/traefik/README.zh-CN](compose/traefik/README.zh-CN.md) | Traefik 三合一/三分开；[EN](compose/traefik/README.md) |
 | [e2e/README.zh-CN](e2e/README.zh-CN.md) | E2E 测试；[EN](e2e/README.md) |
-| [MANUAL_TESTING.zh-CN](MANUAL_TESTING.zh-CN.md) | 浏览器手动验证；[EN](MANUAL_TESTING.md) |
 
 ## 结构
 
 ```
 stargate-suite/
 ├── compose/example/   # 可选；image | build 由 canonical 生成
-├── compose/canonical/ # 单一数据源 → 生成 traefik / 三分开
-├── build/             # 生成输出（gen 或 Web UI）
-├── config/            # page.yaml, presets.json
-├── cmd/suite/         # CLI + Web UI
+├── compose/canonical/ # 单一数据源 → Web UI / make gen
+├── build/             # 生成输出（make gen 经 Web API 或 Web UI）
+├── config/            # page.yaml, scenarios
+├── cmd/suite/         # Web UI（serve）+ validate
 ├── e2e/               # E2E 测试
 ├── fixtures/warden/   # 测试用户 data.json
 └── scripts/run-e2e.sh
@@ -38,12 +38,12 @@ stargate-suite/
 **生成并启动：**
 
 ```bash
-make gen
+make gen    # 经 Web API 生成到 build/（无 CLI gen 子命令）
 make up
 # 或：make up-build | make up-traefik
 ```
 
-**CLI：** `go run ./cmd/suite help` — `gen`、`gen-split`、`serve`。  
+**CLI：** `go run ./cmd/suite help` — `validate`、`serve`。配置生成**仅通过 Web UI**（或使用 `make gen` 调用 Web API）。  
 **Web UI：** `go run ./cmd/suite serve`（默认 http://localhost:8085）。无鉴权，仅限本地。
 
 **测试：**
@@ -77,16 +77,16 @@ make up
 
 ## Makefile（见 `make help`）
 
-常用：`make gen`，`make up` / `make up-image` / `make up-build` / `make up-traefik`，`make down`，`make ps`，`make logs`，`make test-wait`，`make health`，`make serve`，`make suite-build`。
+常用：`make gen`（经 Web API）、`make up` / `make up-image` / `make up-build` / `make up-traefik`，`make down`，`make ps`，`make logs`，`make test-wait`，`make health`，`make serve`，`make suite-build`。
 
 ## 服务简述
 
 - **Stargate：** forwardAuth、会话、登录流程。`GET /_auth`，`POST /_send_verify_code`，`POST /_login`
 - **Warden：** 白名单用户查询。`GET /user?phone=...|mail=...|user_id=...`
 - **Herald：** OTP 创建/验证/撤销、限流、审计。`POST /v1/otp/challenges`，`POST /v1/otp/verifications`，`GET /v1/test/code/{id}`（测试模式）
-- **herald-totp（可选）：** TOTP 双因素。在 Stargate 中设置 `HERALD_TOTP_ENABLED=true` 及 base URL/API key。
+- **herald-totp（可选）：** TOTP 双因素。Stargate 仅设置 `HERALD_TOTP_ENABLED=true`；在 Herald 中配置 `HERALD_TOTP_BASE_URL` 与 API key，由 Herald 代理至 herald-totp。
 
-完整登录示例见 [MANUAL_TESTING.zh-CN](MANUAL_TESTING.zh-CN.md)。
+完整登录流程由 e2e 测试覆盖，见 [e2e/README.zh-CN](e2e/README.zh-CN.md)。
 
 ## 故障排查
 
