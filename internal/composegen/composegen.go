@@ -4,6 +4,7 @@ package composegen
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"os"
 	"regexp"
 	"strings"
@@ -231,6 +232,15 @@ var envComments = map[string]string{
 // LoadCompose 读取并解析 compose 文件为 map。
 func LoadCompose(path string) (map[string]interface{}, error) {
 	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read compose: %w", err)
+	}
+	return ParseCompose(data)
+}
+
+// LoadComposeFS 从 fs.FS 读取并解析 compose 文件为 map，用于嵌入资产（go:embed）或只读根文件系统场景。
+func LoadComposeFS(fsys fs.FS, path string) (map[string]interface{}, error) {
+	data, err := fs.ReadFile(fsys, path)
 	if err != nil {
 		return nil, fmt.Errorf("read compose: %w", err)
 	}

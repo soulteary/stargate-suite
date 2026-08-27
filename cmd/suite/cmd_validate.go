@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/soulteary/the-gate/internal/composegen"
 )
@@ -20,15 +19,7 @@ func knownScenarioOptionKeys() map[string]bool {
 }
 
 func cmdValidate() error {
-	root := projectRoot()
-	pagePath := filepath.Join(root, pageYAMLPath)
-	page, err := loadPageData(pagePath)
-	if err != nil {
-		if cwd, e := os.Getwd(); e == nil {
-			fallback := filepath.Join(cwd, pageYAMLPath)
-			page, err = loadPageData(fallback)
-		}
-	}
+	page, err := loadPageData(pageYAMLPath)
 	if err != nil {
 		return fmt.Errorf("config validation failed: %w", err)
 	}
@@ -48,14 +39,12 @@ func cmdValidate() error {
 	}
 
 	// 一致性：canonical compose 与 env-meta
-	envMetaPath := filepath.Join(root, "config", "env-meta.yaml")
-	meta, err := composegen.LoadEnvMeta(envMetaPath)
+	meta, err := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
 	if err != nil {
 		return fmt.Errorf("env-meta: %w", err)
 	}
 	if meta != nil {
-		canonicalPath := filepath.Join(root, canonicalCompose)
-		full, err := composegen.LoadCompose(canonicalPath)
+		full, err := composegen.LoadComposeFS(assetFS(), canonicalCompose)
 		if err != nil {
 			return fmt.Errorf("canonical compose: %w", err)
 		}
@@ -75,8 +64,7 @@ func cmdValidate() error {
 	}
 
 	// 一致性：scenarios.json options 键集合
-	scenariosPath := filepath.Join(root, "config", "scenarios.json")
-	b, err := os.ReadFile(scenariosPath)
+	b, err := readAsset("config/scenarios.json")
 	if err == nil {
 		var scenes map[string]struct {
 			Options map[string]interface{} `json:"options"`

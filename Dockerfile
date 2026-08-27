@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.25-alpine3.22 AS builder
+FROM golang:1.27-alpine AS builder
 RUN apk add --no-cache git
 WORKDIR /app
 ENV CGO_ENABLED=0 GOOS=linux
@@ -16,7 +16,12 @@ RUN BUILD_DATE=${BUILD_DATE:-$(date +%FT%T%z)} && \
 
 # Runtime stage
 FROM alpine:3.22
-RUN apk add --no-cache ca-certificates
+# curl is used by the container HEALTHCHECK and by compose-level health probes.
+RUN apk add --no-cache ca-certificates curl
 COPY --from=builder /app/stargate-suite /bin/stargate-suite
+# Config and the canonical compose file are embedded in the binary (go:embed),
+# so the runtime image is self-contained and needs no source tree mounted.
 EXPOSE 8085
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8085/ >/dev/null || exit 1
 CMD ["stargate-suite", "serve"]

@@ -33,7 +33,7 @@ stargate-suite/
 
 ## Quick start
 
-**Prerequisites:** Docker & Compose, Go 1.25+, ~1GB disk.
+**Prerequisites:** Docker & Compose, Go 1.27+, ~1GB disk.
 
 **Generate then start:**
 
@@ -43,8 +43,17 @@ make up
 # or: make up-build | make up-traefik
 ```
 
-**CLI:** `go run ./cmd/suite help` — `validate`, `serve`. Config generation is **Web UI only** (or `make gen` which calls the Web API).  
+**CLI:** `go run ./cmd/suite help` — `validate`, `serve`. Config generation is **Web UI only** (or `make gen` which calls the Web API). The default config and canonical compose are **embedded in the binary** (`go:embed`), so `serve`/`validate` run without the repo source tree (e.g. from a release binary or the container). Use `--config-dir=<dir>` (or `CONFIG_DIR`) to override the embedded `config/` with an on-disk directory; anything missing there falls back to the embedded assets.
+
 **Web UI:** `go run ./cmd/suite serve` (default http://localhost:8085). No auth — localhost only.
+
+**Container (self-contained, no source mount):**
+
+```bash
+docker build -t stargate-suite:local .
+docker run --rm -p 8085:8085 stargate-suite:local        # Web UI, no repo mount
+docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local  # read-only root fs
+```
 
 **Test:**
 

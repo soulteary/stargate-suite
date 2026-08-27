@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html/template"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -290,27 +289,6 @@ func cmdHelp() error {
 	return nil
 }
 
-func projectRoot() string {
-	wd, err := os.Getwd()
-	if err != nil {
-		return "."
-	}
-	dir := wd
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "compose")); err == nil {
-			if _, err := os.Stat(filepath.Join(dir, "config")); err == nil {
-				return dir
-			}
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return wd
-}
-
 func findCommand(name string) *command {
 	list := getCommands()
 	for i := range list {
@@ -325,6 +303,7 @@ func main() {
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	_ = fs.String("port", "8085", "port for serve command (default: 8085)")
+	fs.StringVar(&configDirOverride, "config-dir", "", "override embedded config assets with an on-disk config directory (default: use embedded assets)")
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		if err == flag.ErrHelp {
@@ -332,6 +311,8 @@ func main() {
 		}
 		os.Exit(1)
 	}
+
+	configDirOverride = strings.TrimSpace(configutil.ResolveString(fs, "config-dir", "CONFIG_DIR", "", true))
 
 	args := fs.Args()
 	cmdName := "help"
