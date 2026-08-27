@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -268,8 +268,8 @@ func sessionMiddleware(h http.Handler) http.Handler {
 }
 
 // loadI18nFragment 加载单语言文案，如 config/i18n/zh.yaml，返回 map[string]string（顶层 key 为 zh/en）。
-func loadI18nFragment(path string) (lang string, entries map[string]string, err error) {
-	data, err := os.ReadFile(path)
+func loadI18nFragment(assetPath string) (lang string, entries map[string]string, err error) {
+	data, err := readAsset(assetPath)
 	if err != nil {
 		return "", nil, err
 	}
@@ -280,11 +280,12 @@ func loadI18nFragment(path string) (lang string, entries map[string]string, err 
 	for k, v := range out {
 		return k, v, nil
 	}
-	return "", nil, fmt.Errorf("empty i18n file: %s", path)
+	return "", nil, fmt.Errorf("empty i18n file: %s", assetPath)
 }
 
+// loadPageData 从嵌入/覆盖资产读取页面配置及其拆分片段。yamlPath 为仓库相对路径（斜杠分隔），如 "config/page.yaml"。
 func loadPageData(yamlPath string) (*pageData, error) {
-	data, err := os.ReadFile(yamlPath)
+	data, err := readAsset(yamlPath)
 	if err != nil {
 		return nil, err
 	}
@@ -292,13 +293,12 @@ func loadPageData(yamlPath string) (*pageData, error) {
 	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return nil, err
 	}
-	configDir := filepath.Dir(yamlPath)
-	rootDir := filepath.Dir(configDir)
+	configDir := path.Dir(yamlPath)
 
 	// 拆分布局：从独立文件合并 configSections / i18n / services / providers
 	if len(raw.ConfigSections) == 0 {
-		path := filepath.Join(configDir, "config-sections.yaml")
-		if b, err := os.ReadFile(path); err == nil {
+		p := path.Join(configDir, "config-sections.yaml")
+		if b, err := readAsset(p); err == nil {
 			var frag struct {
 				ConfigSections []configOptionSection `yaml:"configSections"`
 			}
@@ -310,16 +310,16 @@ func loadPageData(yamlPath string) (*pageData, error) {
 	if len(raw.I18N) == 0 {
 		raw.I18N = make(map[string]map[string]string)
 		for _, name := range []string{"zh", "en"} {
-			path := filepath.Join(configDir, "i18n", name+".yaml")
-			lang, entries, err := loadI18nFragment(path)
+			p := path.Join(configDir, "i18n", name+".yaml")
+			lang, entries, err := loadI18nFragment(p)
 			if err == nil && lang != "" {
 				raw.I18N[lang] = entries
 			}
 		}
 	}
 	if len(raw.Services) == 0 {
-		path := filepath.Join(configDir, "services.yaml")
-		if b, err := os.ReadFile(path); err == nil {
+		p := path.Join(configDir, "services.yaml")
+		if b, err := readAsset(p); err == nil {
 			var frag struct {
 				Services []pageService `yaml:"services"`
 			}
@@ -329,8 +329,8 @@ func loadPageData(yamlPath string) (*pageData, error) {
 		}
 	}
 	if len(raw.Providers) == 0 {
-		path := filepath.Join(configDir, "providers.yaml")
-		if b, err := os.ReadFile(path); err == nil {
+		p := path.Join(configDir, "providers.yaml")
+		if b, err := readAsset(p); err == nil {
 			var frag struct {
 				Providers []pageService `yaml:"providers"`
 			}
@@ -341,8 +341,8 @@ func loadPageData(yamlPath string) (*pageData, error) {
 	}
 
 	var keysStepVars []envVar
-	keysStepPath := filepath.Join(configDir, "keys-step.yaml")
-	if b, err := os.ReadFile(keysStepPath); err == nil {
+	keysStepPath := path.Join(configDir, "keys-step.yaml")
+	if b, err := readAsset(keysStepPath); err == nil {
 		var frag keysStepYAML
 		if err := yaml.Unmarshal(b, &frag); err == nil && len(frag.KeysStepVars) > 0 {
 			keysStepVars = frag.KeysStepVars
@@ -353,7 +353,7 @@ func loadPageData(yamlPath string) (*pageData, error) {
 	if err != nil {
 		return nil, err
 	}
-	scenarios, err := loadScenarioPresets(rootDir)
+	scenarios, err := loadScenarioPresets()
 	if err != nil {
 		// 场景为增强能力：读取失败时回退为空，避免阻断 Web UI 启动
 		scenarios = map[string]scenarioPreset{}
@@ -369,8 +369,8 @@ func loadPageData(yamlPath string) (*pageData, error) {
 		}
 	}
 	var portsList []portDef
-	portsPath := filepath.Join(configDir, "ports.yaml")
-	if b, err := os.ReadFile(portsPath); err == nil {
+	portsPath := path.Join(configDir, "ports.yaml")
+	if b, err := readAsset(portsPath); err == nil {
 		var frag struct {
 			Ports []portDef `yaml:"ports"`
 		}
@@ -606,20 +606,18 @@ func handleGeneratePost(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/wizard/step-1", http.StatusFound)
 		return
 	}
-	root := projectRoot()
-	fullPath := filepath.Join(root, canonicalCompose)
-	full, err := composegen.LoadCompose(fullPath)
+	full, err := composegen.LoadComposeFS(assetFS(), canonicalCompose)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "load compose: %v\n", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	opts := sessionToComposegenOptions(sess)
-	if portsList, err := loadPortsConfig(root); err == nil && len(portsList) > 0 {
+	if portsList, err := loadPortsConfig(); err == nil && len(portsList) > 0 {
 		applyPortsConfigToOptions(opts, portsList)
 	}
 	// 向导原生表单已通过 hidden+uncheckValue 写入 EnvOverrides；此处再兜底一次，避免漏传导致 WARDEN_REDIS_ENABLED 回落到 canonical 默认 true。
-	if pageSections, err := loadConfigSections(root); err == nil && opts != nil && opts.EnvOverrides != nil {
+	if pageSections, err := loadConfigSections(); err == nil && opts != nil && opts.EnvOverrides != nil {
 		applyUncheckEnvDefaults(opts.EnvOverrides, pageSections)
 	}
 	envBody := ""
@@ -629,7 +627,7 @@ func handleGeneratePost(w http.ResponseWriter, r *http.Request) {
 	for k, v := range sess.KeysOverrides {
 		envBody += k + "=" + v + "\n"
 	}
-	envMeta, _ := composegen.LoadEnvMeta(filepath.Join(root, "config", "env-meta.yaml"))
+	envMeta, _ := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
 	gen, err := composegen.Generate(full, sess.Modes, envBody, opts, envMeta)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "generate: %v\n", err)
@@ -666,7 +664,7 @@ func applyScenarioToSession(sess *SessionData, scenarioID string) {
 	if sess == nil || scenarioID == "" {
 		return
 	}
-	presets, err := loadScenarioPresets(projectRoot())
+	presets, err := loadScenarioPresets()
 	if err != nil || presets == nil {
 		return
 	}
@@ -692,9 +690,8 @@ func applyScenarioToSession(sess *SessionData, scenarioID string) {
 }
 
 // loadPortsConfig 从 config/ports.yaml 加载端口配置，用于生成时与 ports 表一致。
-func loadPortsConfig(root string) ([]portDef, error) {
-	portsPath := filepath.Join(root, "config", "ports.yaml")
-	b, err := os.ReadFile(portsPath)
+func loadPortsConfig() ([]portDef, error) {
+	b, err := readAsset("config/ports.yaml")
 	if err != nil {
 		return nil, err
 	}
@@ -708,9 +705,8 @@ func loadPortsConfig(root string) ([]portDef, error) {
 }
 
 // loadConfigSections 从 config/config-sections.yaml 加载向导 step-2 配置块（含 uncheckValue 等元数据）。
-func loadConfigSections(root string) ([]configOptionSection, error) {
-	path := filepath.Join(root, "config", "config-sections.yaml")
-	b, err := os.ReadFile(path)
+func loadConfigSections() ([]configOptionSection, error) {
+	b, err := readAsset("config/config-sections.yaml")
 	if err != nil {
 		return nil, err
 	}
@@ -743,17 +739,9 @@ func applyPortsConfigToOptions(opts *composegen.Options, ports []portDef) {
 }
 
 func cmdServe() error {
-	root := projectRoot()
-	pagePath := filepath.Join(root, pageYAMLPath)
-	page, err := loadPageData(pagePath)
+	page, err := loadPageData(pageYAMLPath)
 	if err != nil {
-		if cwd, e := os.Getwd(); e == nil {
-			fallback := filepath.Join(cwd, pageYAMLPath)
-			page, err = loadPageData(fallback)
-		}
-		if err != nil {
-			return fmt.Errorf("load page config (tried %s and ./%s): %w", pagePath, pageYAMLPath, err)
-		}
+		return fmt.Errorf("load page config (%s): %w", pageYAMLPath, err)
 	}
 	tmpl, err := template.New("root").Funcs(template.FuncMap{
 		"dict": func(values ...interface{}) (map[string]interface{}, error) {
@@ -902,9 +890,7 @@ func cmdServe() error {
 			http.Error(w, "modes required", http.StatusBadRequest)
 			return
 		}
-		root := projectRoot()
-		fullPath := filepath.Join(root, canonicalCompose)
-		full, err := composegen.LoadCompose(fullPath)
+		full, err := composegen.LoadComposeFS(assetFS(), canonicalCompose)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "load compose: %v\n", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -922,7 +908,7 @@ func cmdServe() error {
 			}
 			applyUncheckEnvDefaults(opts.EnvOverrides, page.ConfigSections)
 		}
-		envMeta, _ := composegen.LoadEnvMeta(filepath.Join(root, "config", "env-meta.yaml"))
+		envMeta, _ := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
 		gen, err := composegen.Generate(full, req.Modes, req.EnvOverride, opts, envMeta)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "generate: %v\n", err)

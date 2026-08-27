@@ -33,7 +33,7 @@ stargate-suite/
 
 ## 快速开始
 
-**前置：** Docker 与 Compose、Go 1.25+、约 1GB 磁盘。
+**前置：** Docker 与 Compose、Go 1.27+、约 1GB 磁盘。
 
 **生成并启动：**
 
@@ -43,8 +43,17 @@ make up
 # 或：make up-build | make up-traefik
 ```
 
-**CLI：** `go run ./cmd/suite help` — `validate`、`serve`。配置生成**仅通过 Web UI**（或使用 `make gen` 调用 Web API）。  
+**CLI：** `go run ./cmd/suite help` — `validate`、`serve`。配置生成**仅通过 Web UI**（或使用 `make gen` 调用 Web API）。默认配置与 canonical compose 已通过 `go:embed` **嵌入二进制**，因此 `serve`/`validate` 无需仓库源码目录即可运行（如 release 二进制或容器内）。可用 `--config-dir=<目录>`（或环境变量 `CONFIG_DIR`）以磁盘目录覆盖内置 `config/`；覆盖目录中缺失的文件会回退到嵌入资产。
+
 **Web UI：** `go run ./cmd/suite serve`（默认 http://localhost:8085）。无鉴权，仅限本地。
+
+**容器（自包含，无需挂载源码）：**
+
+```bash
+docker build -t stargate-suite:local .
+docker run --rm -p 8085:8085 stargate-suite:local        # Web UI，无需挂载仓库
+docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local  # 只读根文件系统
+```
 
 **测试：**
 

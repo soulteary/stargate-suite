@@ -3,6 +3,7 @@ package composegen
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -30,6 +31,23 @@ func LoadEnvMeta(path string) (*EnvMeta, error) {
 		}
 		return nil, fmt.Errorf("read env-meta: %w", err)
 	}
+	return parseEnvMeta(data)
+}
+
+// LoadEnvMetaFS reads and parses env-meta.yaml from an fs.FS (embedded assets or
+// read-only override). Returns nil, nil if the file does not exist.
+func LoadEnvMetaFS(fsys fs.FS, path string) (*EnvMeta, error) {
+	data, err := fs.ReadFile(fsys, path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read env-meta: %w", err)
+	}
+	return parseEnvMeta(data)
+}
+
+func parseEnvMeta(data []byte) (*EnvMeta, error) {
 	var meta EnvMeta
 	if err := yaml.Unmarshal(data, &meta); err != nil {
 		return nil, fmt.Errorf("parse env-meta: %w", err)

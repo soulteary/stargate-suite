@@ -4,8 +4,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/soulteary/the-gate/internal/composegen"
@@ -79,9 +77,8 @@ func toBool(v interface{}) (bool, bool) {
 	}
 }
 
-func loadScenarioPresets(root string) (map[string]scenarioPreset, error) {
-	path := filepath.Join(root, "config", "scenarios.json")
-	b, err := os.ReadFile(path)
+func loadScenarioPresets() (map[string]scenarioPreset, error) {
+	b, err := readAsset("config/scenarios.json")
 	if err != nil {
 		return nil, fmt.Errorf("read scenarios file: %w", err)
 	}
