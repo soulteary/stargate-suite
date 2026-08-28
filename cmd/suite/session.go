@@ -77,20 +77,90 @@ func (s *sessionStore) Get(id string) (*SessionData, bool) {
 	if time.Now().After(data.ExpiresAt) {
 		return nil, false
 	}
-	return data, true
+	return cloneSessionData(data), true
 }
 
 func (s *sessionStore) Set(id string, data *SessionData) {
 	if data == nil {
 		return
 	}
-	data.ExpiresAt = time.Now().Add(sessionTTL)
+	stored := cloneSessionData(data)
+	stored.ExpiresAt = time.Now().Add(sessionTTL)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.sessions == nil {
 		s.sessions = make(map[string]*SessionData)
 	}
-	s.sessions[id] = data
+	s.sessions[id] = stored
+}
+
+// cloneSessionData keeps pointers owned by request handlers separate from the
+// store's immutable snapshots. Without this boundary, Get releases the store
+// lock before handlers mutate nested maps, racing with cleanup and concurrent
+// requests that share the same session cookie.
+func cloneSessionData(data *SessionData) *SessionData {
+	if data == nil {
+		return nil
+	}
+	cloned := *data
+	cloned.Modes = append([]string(nil), data.Modes...)
+	if data.Options != nil {
+		cloned.Options = make(map[string]interface{}, len(data.Options))
+		for key, value := range data.Options {
+			cloned.Options[key] = cloneSessionValue(value)
+		}
+	}
+	if data.EnvOverrides != nil {
+		cloned.EnvOverrides = make(map[string]string, len(data.EnvOverrides))
+		for key, value := range data.EnvOverrides {
+			cloned.EnvOverrides[key] = value
+		}
+	}
+	if data.KeysOverrides != nil {
+		cloned.KeysOverrides = make(map[string]string, len(data.KeysOverrides))
+		for key, value := range data.KeysOverrides {
+			cloned.KeysOverrides[key] = value
+		}
+	}
+	if data.ImportApplied != nil {
+		applied := *data.ImportApplied
+		applied.SuggestedModes = append([]string(nil), data.ImportApplied.SuggestedModes...)
+		if data.ImportApplied.EnvVars != nil {
+			applied.EnvVars = make(map[string]string, len(data.ImportApplied.EnvVars))
+			for key, value := range data.ImportApplied.EnvVars {
+				applied.EnvVars[key] = value
+			}
+		}
+		cloned.ImportApplied = &applied
+	}
+	return &cloned
+}
+
+func cloneSessionValue(value interface{}) interface{} {
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		cloned := make(map[string]interface{}, len(typed))
+		for key, item := range typed {
+			cloned[key] = cloneSessionValue(item)
+		}
+		return cloned
+	case []interface{}:
+		cloned := make([]interface{}, len(typed))
+		for index, item := range typed {
+			cloned[index] = cloneSessionValue(item)
+		}
+		return cloned
+	case []string:
+		return append([]string(nil), typed...)
+	case map[string]string:
+		cloned := make(map[string]string, len(typed))
+		for key, item := range typed {
+			cloned[key] = item
+		}
+		return cloned
+	default:
+		return value
+	}
 }
 
 func (s *sessionStore) Delete(id string) {
