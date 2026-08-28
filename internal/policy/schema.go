@@ -1,9 +1,7 @@
-// Package policy: schema-level validation primitives shared by the four-layer
-// validator (see validate.go). Layer 1 checks field TYPES (bool / duration /
-// CIDR / host list); layer 2 checks single-field SAFETY (secret length, banned
-// placeholder values, no plaintext). Higher layers (cross-field, cross-service)
-// live in validate.go. All findings carry a stable Code so `validate --strict
-// --json` is scriptable.
+// Package policy: validation primitives shared by the four-layer validator
+// (see validate.go). These Go definitions are the runtime source of truth for
+// field shapes, secret strength, and stable finding codes. Layer 1 checks field
+// types; layer 2 checks single-field safety; higher layers live in validate.go.
 package policy
 
 import (
