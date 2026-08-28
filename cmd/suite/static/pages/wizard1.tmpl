@@ -6,7 +6,24 @@
 	{{template "step-nav" .}}
 	<form id="form-step-1" class="form wizard-form" method="post" action="/wizard/step-1">
 		<section class="config-step-block" data-step="1">
-			<h2 class="step-heading mb-2" data-i18n="step1ComposeType">1. 选择场景预设</h2>
+			<h2 class="step-heading mb-2" data-i18n="step1ProfileTitle">1. 选择部署 Profile</h2>
+			<p class="step-desc text-body-secondary mb-4" data-i18n="step1ProfileDesc">Profile 是安全与运行策略（端口绑定、密钥来源、密码算法、Cookie Secure 等），不只是预填表单。production 为实验特性，其严格规则违规将阻止生成。</p>
+			<div class="config-item mb-4">
+				<span class="form-label d-block mb-2" data-i18n="profileSelectLabel">部署 Profile</span>
+				<div id="profile-list-group" class="list-group list-group-radio d-grid gap-2 border-0">
+					{{$sessProfile := ""}}{{if .Session}}{{$sessProfile = .Session.Profile}}{{end}}
+					{{range $i, $p := .Profiles}}
+					<div class="position-relative">
+						<input class="form-check-input position-absolute top-50 end-0 me-3 fs-5" type="radio" name="profile" id="profile-radio-{{$p.Name}}" value="{{$p.Name}}"{{if or (eq $sessProfile $p.Name) (and (eq $sessProfile "") (eq $p.Name "development"))}} checked{{end}}>
+						<label class="list-group-item py-3 pe-5" for="profile-radio-{{$p.Name}}">
+							<strong class="fw-semibold">{{$p.Name}}{{if $p.Experimental}} <span class="badge text-bg-warning" data-i18n="profileExperimental">实验特性</span>{{end}}{{if $p.Strict}} <span class="badge text-bg-secondary" data-i18n="profileStrict">strict</span>{{end}}</strong>
+							<span class="d-block small text-body-secondary mt-1">{{$p.Description}}</span>
+						</label>
+					</div>
+					{{end}}
+				</div>
+			</div>
+			<h2 class="step-heading mb-2 mt-4" data-i18n="step1ComposeType">2. 选择场景预设</h2>
 			<p class="step-desc text-body-secondary mb-4" data-i18n="step1ComposeTypeDesc">选择场景预设以自动应用推荐配置。</p>
 			<div class="config-item mb-4">
 				<span class="form-label d-block mb-2" data-i18n="scenarioPresetLabel">场景预设</span>

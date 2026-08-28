@@ -10,6 +10,15 @@ Web UI page config and scenario presets (`scenarios.json`). Overview: [../README
 
 - **ports.yaml**: Centralized port config for all services (service name, container port, default host port, i18n keys). The wizard step-2 "exposed ports" table is generated from it; port-type inputs in the UI (e.g. step-5 `HERALD_TOTP_PORT`, Herald `PORT`) have their defaults/placeholders overridden from this file on load, kept consistent with the port table. Container ports, `HERALD_TOTP_PORT`, and compose port mappings in the generation logic all follow `ports.yaml`.
 
+## Component manifest (single source of truth)
+
+- **components.yaml**: The authoritative registry of component **versions, images, container ports, health paths, and contract versions**. It fixes version/port drift (M-01): `env-meta.yaml`, `.env.example`, `compose/canonical`, and `composegen` container-port defaults must all match it, and `suite version` reads its `verifiedCombo` for the validated target combination.
+  - `components.*` registers the **current running values** (pre-migration). Bumping images to v1 is done atomically in a later PR; only then do `components.*` and `verifiedCombo` converge.
+  - `verifiedCombo` is the validated **target v1** combo shown by `suite version` (kept separate from `components.*` on purpose while the two differ).
+  - `dependencies` registers non-suite images (Redis, whoami) so they are not re-hardcoded elsewhere.
+  - Drift is enforced by tests in `internal/contract` (`manifest_test.go`). Generated `build/*` is a gitignored artifact and is **not** a source of truth: a non-failing advisory flags stale `build/*` image pins so they can be regenerated.
+- **components.lock.yaml**: Placeholder structure for image content-address digests (`sha256:...`), filled at release time so deployments are reproducible.
+
 ## Presets & compose path
 
 - **Default compose file used by Makefile/E2E**: `COMPOSE_FILE` defaults to `build/image/docker-compose.yml`; all compose output is generated under `build/` from canonical.
@@ -33,7 +42,8 @@ When adding or changing a service’s environment variables, keep these in sync 
 1. **Compose source**: In `compose/canonical/docker-compose.yml`, add or update `environment` entries (e.g. `- VAR=${VAR:-default}`) for that service.
 2. **Web UI config**: In `services.yaml` or `providers.yaml`, add an entry under the service’s `sections[].envVars` (`env`, `type`, `labelKey`, `descKey`, etc.).
 3. **env-meta** (single source for .env order/comments/defaults): In `config/env-meta.yaml`, add the key to `order` and under `vars` with `comment`, `services`, and optional `default`.
-4. See also: **Adding a scenario or global option** below for `scenarios.json` and `scenarioOptionSetters` / `optionToComposeGenJSONSetters`.
+4. **components.yaml** (for version/image/port changes only): Component versions, images, container ports, and health paths must be updated in `config/components.yaml`; the drift tests in `internal/contract` fail if `env-meta.yaml`, `.env.example`, `compose/canonical`, or `ports.yaml` diverge from it.
+5. See also: **Adding a scenario or global option** below for `scenarios.json` and `scenarioOptionSetters` / `optionToComposeGenJSONSetters`.
 
 ## Adding a scenario or global option
 

@@ -12,7 +12,11 @@ ARG VERSION=dev
 ARG COMMIT=unknown
 ARG BUILD_DATE
 RUN BUILD_DATE=${BUILD_DATE:-$(date +%FT%T%z)} && \
-    go build -ldflags "-w -s" -o stargate-suite ./cmd/suite
+    go build -ldflags "-w -s \
+      -X main.Version=${VERSION} \
+      -X main.Commit=${COMMIT} \
+      -X main.BuildDate=${BUILD_DATE}" \
+      -o stargate-suite ./cmd/suite
 
 # Runtime stage
 FROM alpine:3.22

@@ -6,11 +6,24 @@
 
 ## 使用方式
 
-场景生成**仅支持 Web UI**。在 Web UI（`go run ./cmd/suite serve`）第一步选择场景预设（S1–S5），生成器会按该场景的 modes/options/env 填充并生成 compose，在「回顾」步骤下载或复制即可。
+场景生成支持 **Web UI** 与 **CLI**。在 Web UI（`go run ./cmd/suite serve`）第一步先选择**部署 Profile**（`development` / `test` / `production`），再选择场景预设（S1–S5）；生成器会按该场景的 modes/options/env 填充，并叠加 Profile 的安全与运行策略，最终生成 compose，在「回顾」步骤下载或复制即可。
 
-若只需生成默认模式集合（image、build、traefik 等）而不指定场景，可执行 `make gen`（经 Web API）。
+若只需生成默认模式集合（image、build、traefik 等）而不指定场景，可执行 `make gen`（经 Web API），或用 CLI `generate --profile <profile> --output <目录>`。
 
-无 CLI 的 `gen "scene:<id>"` 或 `make gen-scenarios`，场景产物仅通过 Web UI 生成。
+## 部署 Profile（策略，而非单纯预设）
+
+Profile 来自 `config/profiles.yaml`，由共享的 `internal/policy` 模型应用（CLI 与 Web UI 一致）���关键差异：
+
+| 策略 | development | test | production |
+|---|---|---|---|
+| 端口绑定 | loopback（`127.0.0.1`） | loopback（`127.0.0.1`） | 仅反向代理入口（内部服务/Redis 不发布宿主端口） |
+| 密钥 | 自动生成或输入 | 隔离的确定性测试值 | 必须用户提供 / secret file |
+| 密码算法 | 允许 plaintext | 测试密码 | 禁止 plaintext |
+| Cookie Secure | 可选 | 可选 | 必须开启 |
+| HMAC v1 | 禁止 | 禁止 | 禁止 |
+| 校验 | warning + error | strict | strict（错误为硬错误，不可绕过） |
+
+`production` 初期为实验特性，但其严格规则均为真实错误：弱/测试密钥、plaintext 密码、发布内部端口、Cookie Secure 关闭、启用 HMAC v1 都会阻止生成。请通过进程环境变量或 `--set KEY=VALUE` 提供真实密钥。dev/test 若需字节稳定输出，可传 `--seed <种子>`（仅限 dev/test，切勿用作真实种子）。
 
 ## 场景列表
 

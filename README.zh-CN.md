@@ -4,7 +4,9 @@
 
 **Stargate + Warden + Herald** 三服务的端到端集成测试环境：多种 Compose、Web UI 配置生成、50+ E2E 测试（正常流程、异常、鉴权、幂等、审计、监控）。可选：**herald-totp**、**herald-dingtalk**、**herald-smtp**。
 
-Go 模块：`github.com/soulteary/the-gate`。仓库名：**stargate-suite**。
+Go 模块：`github.com/soulteary/stargate-suite`。仓库名：**stargate-suite**。
+
+> **模块改名：** Go module 路径已由 `github.com/soulteary/the-gate` 改为 `github.com/soulteary/stargate-suite`。本模块承载内部工具（`cmd/suite`），并非用于对外导入的库；若有外部代码引用了旧路径，请将其 import 更新为新路径。
 
 ## 文档
 
@@ -25,7 +27,7 @@ stargate-suite/
 ├── compose/canonical/ # 单一数据源 → Web UI / make gen
 ├── build/             # 生成输出（make gen 经 Web API 或 Web UI）
 ├── config/            # page.yaml, scenarios
-├── cmd/suite/         # Web UI（serve）+ validate
+├── cmd/suite/         # Web UI（serve）+ generate + validate
 ├── e2e/               # E2E 测试
 ├── fixtures/warden/   # 测试用户 data.json
 └── scripts/run-e2e.sh
@@ -43,7 +45,27 @@ make up
 # 或：make up-build | make up-traefik
 ```
 
-**CLI：** `go run ./cmd/suite help` — `validate`、`serve`。配置生成**仅通过 Web UI**（或使用 `make gen` 调用 Web API）。默认配置与 canonical compose 已通过 `go:embed` **嵌入二进制**，因此 `serve`/`validate` 无需仓库源码目录即可运行（如 release 二进制或容器内）。可用 `--config-dir=<目录>`（或环境变量 `CONFIG_DIR`）以磁盘目录覆盖内置 `config/`；覆盖目录中缺失的文件会回退到嵌入资产。
+**CLI：** `go run ./cmd/suite help` — `generate`、`validate`、`serve`。默认配置与 canonical compose 已通过 `go:embed` **嵌入二进制**，因此各子命令无需仓库源码目录即可运行（如 release 二进制或容器内）。可用 `--config-dir=<目录>`（或环境变量 `CONFIG_DIR`）以磁盘目录覆盖内置 `config/`；覆盖目录中缺失的文件会回退到嵌入资产。
+
+**部署 Profile**（`config/profiles.yaml`）：`development` / `test` / `production` 是**安全与运行策略**，而非单纯预填表单——涵盖端口绑定、密钥来源、密码算法、Herald 认证、Redis 密码、Cookie Secure、HMAC v1、容器权限与校验模式（见 [docs/upgrade/00-overview.md](docs/upgrade/00-overview.md) §5.4）。CLI 与 Web UI 共用同一模型（`internal/policy` + `internal/composegen`）：
+
+```bash
+# development：当前默认（loopback 端口、plaintext 测试密码、dev 密钥）。
+# --seed 让自动生成的 dev 密钥字节稳定（仅限 dev/test，切勿用作真实种子）。
+go run ./cmd/suite generate --profile development --output build/dev --seed pr5-golden
+
+# production 为实验特性且 STRICT：plaintext 密码、测试/占位密钥、
+# 发布内部端口、Cookie Secure 关闭、启用 HMAC v1 均为硬错误（不可绕过）。
+# 通过进程环境变量或可重复的 --set KEY=VALUE 提供真实密钥：
+go run ./cmd/suite generate --profile production --output build/prod \
+  --set PASSWORDS=bcrypt:... --set HERALD_API_KEY=... --set WARDEN_API_KEY=... \
+  --set HERALD_HMAC_SECRET=... --set HERALD_REDIS_PASSWORD=... --set WARDEN_REDIS_PASSWORD=...
+
+# 校验某个 Profile 的策略；production/test 为 strict（错误而非警告）：
+go run ./cmd/suite validate --profile production --strict
+```
+
+配置生成也可经 **Web UI**（第一步选择 Profile）或 `make gen`（Web API）。
 
 **Web UI：** `go run ./cmd/suite serve`（默认 http://localhost:8085）。无鉴权，仅限本地。
 

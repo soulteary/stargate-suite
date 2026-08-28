@@ -56,7 +56,10 @@ jobs:
       - name: Build multi-platform binaries
         run: |
           mkdir -p dist
-          LDFLAGS="-s -w"
+          LDFLAGS="-s -w \
+            -X main.Version=${{ steps.version.outputs.version }} \
+            -X main.Commit=${{ steps.version.outputs.commit }} \
+            -X main.BuildDate=${{ steps.version.outputs.build_date }}"
 
           GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "${LDFLAGS}" -o dist/stargate-suite-linux-amd64 ./cmd/suite
           GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "${LDFLAGS}" -o dist/stargate-suite-linux-arm64 ./cmd/suite

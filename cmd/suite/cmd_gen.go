@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/soulteary/the-gate/internal/composegen"
+	"github.com/soulteary/stargate-suite/internal/composegen"
 )
 
 type scenarioPreset struct {

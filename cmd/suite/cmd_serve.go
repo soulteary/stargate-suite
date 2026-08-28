@@ -18,7 +18,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/soulteary/the-gate/internal/composegen"
+	"github.com/soulteary/stargate-suite/internal/composegen"
+	"github.com/soulteary/stargate-suite/internal/policy"
 	"gopkg.in/yaml.v3"
 )
 
@@ -378,6 +379,18 @@ func loadPageData(yamlPath string) (*pageData, error) {
 			portsList = frag.Ports
 		}
 	}
+	var profilesList []pageProfile
+	if ps, err := loadProfiles(); err == nil && ps != nil {
+		for _, name := range ps.Names() {
+			p, _ := ps.Get(name)
+			profilesList = append(profilesList, pageProfile{
+				Name:         p.Name,
+				Description:  p.Description,
+				Experimental: p.Experimental,
+				Strict:       p.Strict(),
+			})
+		}
+	}
 	return &pageData{
 		I18N:           template.JS(jsonI18N),
 		Scenarios:      template.JS(jsonScenarios),
@@ -389,6 +402,7 @@ func loadPageData(yamlPath string) (*pageData, error) {
 		Providers:      raw.Providers,
 		KeysStepVars:   keysStepVars,
 		Ports:          portsList,
+		Profiles:       profilesList,
 		PortValues:     nil, // 由 renderPage 在渲染时按 Session 填写
 	}, nil
 }
@@ -418,6 +432,7 @@ func handleWizardStepPost(w http.ResponseWriter, r *http.Request, step int) {
 	if strings.HasPrefix(ct, "application/json") {
 		r.Body = http.MaxBytesReader(w, r.Body, maxGenerateBodyBytes)
 		var payload struct {
+			Profile      string                 `json:"profile"`
 			Modes        []string               `json:"modes"`
 			Options      map[string]interface{} `json:"options"`
 			EnvOverrides map[string]string      `json:"envOverrides"`
@@ -425,6 +440,9 @@ func handleWizardStepPost(w http.ResponseWriter, r *http.Request, step int) {
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
 			return
+		}
+		if step == 1 && strings.TrimSpace(payload.Profile) != "" {
+			sess.Profile = strings.TrimSpace(payload.Profile)
 		}
 		if step == 1 && len(payload.Modes) > 0 {
 			sess.Modes = payload.Modes
@@ -451,6 +469,9 @@ func handleWizardStepPost(w http.ResponseWriter, r *http.Request, step int) {
 			return
 		}
 		if step == 1 {
+			if p := strings.TrimSpace(r.FormValue("profile")); p != "" {
+				sess.Profile = p
+			}
 			if modes := r.Form["mode"]; len(modes) > 0 {
 				sess.Modes = modes
 			}
@@ -628,6 +649,45 @@ func handleGeneratePost(w http.ResponseWriter, r *http.Request) {
 		envBody += k + "=" + v + "\n"
 	}
 	envMeta, _ := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
+
+	// Profile-aware path: when a deployment profile is selected, route through
+	// the SAME shared policy + composegen model the CLI uses (generateForProfile),
+	// enforcing policy first. production strict violations are hard errors.
+	if strings.TrimSpace(sess.Profile) != "" && policyKnownProfile(sess.Profile) {
+		prof, perr := resolveProfile(sess.Profile)
+		if perr != nil {
+			fmt.Fprintf(os.Stderr, "profile: %v\n", perr)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		userEnv := map[string]string{}
+		for k, v := range sess.EnvOverrides {
+			userEnv[k] = v
+		}
+		for k, v := range sess.KeysOverrides {
+			userEnv[k] = v
+		}
+		findings := validateForProfile(prof, opts, userEnv)
+		if profileFindingsHaveError(findings) {
+			writeProfileGenError(w, prof, findings)
+			return
+		}
+		pgen, _, gerr := generateForProfile(profileGenInput{
+			Profile:  prof,
+			Modes:    sess.Modes,
+			BaseOpts: opts,
+			UserEnv:  userEnv,
+			// Web UI uses crypto/rand (KeyReader nil => crypto/rand).
+		})
+		if gerr != nil {
+			fmt.Fprintf(os.Stderr, "generate: %v\n", gerr)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		writeGenerateJSON(w, pgen, findings)
+		return
+	}
+
 	gen, err := composegen.Generate(full, sess.Modes, envBody, opts, envMeta)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "generate: %v\n", err)
@@ -641,6 +701,51 @@ func handleGeneratePost(w http.ResponseWriter, r *http.Request) {
 	}
 	for mode, yml := range gen.Composes {
 		res["composes"].(map[string]string)[mode] = string(yml)
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(res)
+}
+
+// policyKnownProfile reports whether name is one of the three canonical profiles.
+func policyKnownProfile(name string) bool { return policy.KnownProfile(name) }
+
+// profileFindingsHaveError reports whether any policy finding is a hard error.
+func profileFindingsHaveError(findings []policy.Finding) bool { return policy.HasErrors(findings) }
+
+// writeProfileGenError returns a 422 with the policy findings so the Web UI can
+// show the operator exactly which strict rules blocked generation (production
+// is never bypassable). Secrets are never echoed — only rule keys/messages.
+func writeProfileGenError(w http.ResponseWriter, prof policy.Profile, findings []policy.Finding) {
+	msgs := make([]string, 0, len(findings))
+	for _, f := range findings {
+		msgs = append(msgs, f.String())
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusUnprocessableEntity)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok":       false,
+		"profile":  prof.Name,
+		"findings": msgs,
+		"error":    fmt.Sprintf("profile %q policy violations must be resolved before generation", prof.Name),
+	})
+}
+
+// writeGenerateJSON writes the standard generate response (composes + env) plus
+// any advisory findings (warnings) for the Web UI.
+func writeGenerateJSON(w http.ResponseWriter, gen *composegen.Generated, findings []policy.Finding) {
+	res := map[string]interface{}{
+		"composes": make(map[string]string),
+		"env":      string(gen.Env),
+	}
+	for mode, yml := range gen.Composes {
+		res["composes"].(map[string]string)[mode] = string(yml)
+	}
+	if len(findings) > 0 {
+		msgs := make([]string, 0, len(findings))
+		for _, f := range findings {
+			msgs = append(msgs, f.String())
+		}
+		res["findings"] = msgs
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(res)
@@ -869,6 +974,35 @@ func cmdServe() error {
 	mux.HandleFunc("/generate", handleGeneratePost)
 
 	mux.Handle("/static/", http.StripPrefix("/static", staticHandler))
+	mux.HandleFunc("/api/profiles", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		ps, err := loadProfiles()
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		type profileInfo struct {
+			Name         string `json:"name"`
+			Description  string `json:"description"`
+			Experimental bool   `json:"experimental"`
+			Strict       bool   `json:"strict"`
+		}
+		out := make([]profileInfo, 0, len(ps.Names()))
+		for _, name := range ps.Names() {
+			p, _ := ps.Get(name)
+			out = append(out, profileInfo{
+				Name:         p.Name,
+				Description:  p.Description,
+				Experimental: p.Experimental,
+				Strict:       p.Strict(),
+			})
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"profiles": out})
+	})
 	mux.HandleFunc("/api/parse", handleParse)
 	mux.HandleFunc("/api/apply", handleApply)
 	mux.HandleFunc("/api/generate", func(w http.ResponseWriter, r *http.Request) {

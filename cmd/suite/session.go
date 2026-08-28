@@ -17,6 +17,9 @@ const (
 
 // SessionData holds wizard state across page refreshes.
 type SessionData struct {
+	// Wizard step 0: deployment profile (development/test/production). Empty
+	// means the current default (development semantics). See internal/policy.
+	Profile string `json:"profile,omitempty"`
 	// Wizard step 1
 	Modes []string `json:"modes"`
 	// Wizard step 2+ (options and env overrides)

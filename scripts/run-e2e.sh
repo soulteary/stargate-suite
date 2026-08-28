@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# the-gate End-to-End Test Runner Script
+# stargate-suite End-to-End Test Runner Script
 
 set -e
 
@@ -14,7 +14,7 @@ COMPOSE_FILE="${COMPOSE_FILE:-$PROJECT_DIR/build/image/docker-compose.yml}"
 export COMPOSE_FILE
 
 echo "=========================================="
-echo "the-gate End-to-End Integration Tests"
+echo "stargate-suite End-to-End Integration Tests"
 echo "=========================================="
 echo "Using compose: $COMPOSE_FILE"
 echo ""
