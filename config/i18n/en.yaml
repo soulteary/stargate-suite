@@ -478,7 +478,6 @@ en:
   loadIntoGenerate: "Load into generate config"
   applying: "Loading…"
   applyFailed: "Load failed"
-  importComposeRequired: "Please paste docker-compose content."
   parseServicesLabel: "Services"
   parseEnvVarsLabel: "Environment variables"
   parseEnvNameLabel: "Parsed item name"

@@ -71,25 +71,30 @@ func cmdValidate() error {
 		}
 		for k := range vars {
 			if !orderSet[k] {
-				fmt.Fprintf(os.Stderr, "warning: canonical compose env %q not in env-meta (add to config/env-meta.yaml)\n", k)
+				return fmt.Errorf("canonical compose env %q is not declared in config/env-meta.yaml", k)
 			}
 		}
 	}
 
 	// 一致性：scenarios.json options 键集合
 	b, err := readAsset("config/scenarios.json")
-	if err == nil {
-		var scenes map[string]struct {
-			Options map[string]interface{} `json:"options"`
-		}
-		if err := json.Unmarshal(b, &scenes); err == nil {
-			known := knownScenarioOptionKeys()
-			for id, scene := range scenes {
-				for optKey := range scene.Options {
-					if !known[optKey] {
-						fmt.Fprintf(os.Stderr, "warning: scenario %q has unknown option %q (add to scenarioOptionSetters in cmd_gen.go)\n", id, optKey)
-					}
-				}
+	if err != nil {
+		return fmt.Errorf("scenarios: %w", err)
+	}
+	var scenes map[string]struct {
+		Options map[string]interface{} `json:"options"`
+	}
+	if err := json.Unmarshal(b, &scenes); err != nil {
+		return fmt.Errorf("scenarios: parse config/scenarios.json: %w", err)
+	}
+	if len(scenes) == 0 {
+		return fmt.Errorf("scenarios: config/scenarios.json must not be empty")
+	}
+	known := knownScenarioOptionKeys()
+	for id, scene := range scenes {
+		for optKey := range scene.Options {
+			if !known[optKey] {
+				return fmt.Errorf("scenario %q has unknown option %q (add it to scenarioOptionSetters)", id, optKey)
 			}
 		}
 	}

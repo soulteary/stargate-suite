@@ -325,6 +325,17 @@ func loadI18nFragment(assetPath string) (lang string, entries map[string]string,
 	return "", nil, fmt.Errorf("empty i18n file: %s", assetPath)
 }
 
+func loadYAMLAsset(assetPath string, out interface{}) error {
+	data, err := readAsset(assetPath)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", assetPath, err)
+	}
+	if err := yaml.Unmarshal(data, out); err != nil {
+		return fmt.Errorf("parse %s: %w", assetPath, err)
+	}
+	return nil
+}
+
 // loadPageData 从嵌入/覆盖资产读取页面配置及其拆分片段。yamlPath 为仓库相对路径（斜杠分隔），如 "config/page.yaml"。
 func loadPageData(yamlPath string) (*pageData, error) {
 	data, err := readAsset(yamlPath)
@@ -340,56 +351,68 @@ func loadPageData(yamlPath string) (*pageData, error) {
 	// 拆分布局：从独立文件合并 configSections / i18n / services / providers
 	if len(raw.ConfigSections) == 0 {
 		p := path.Join(configDir, "config-sections.yaml")
-		if b, err := readAsset(p); err == nil {
-			var frag struct {
-				ConfigSections []configOptionSection `yaml:"configSections"`
-			}
-			if err := yaml.Unmarshal(b, &frag); err == nil && len(frag.ConfigSections) > 0 {
-				raw.ConfigSections = frag.ConfigSections
-			}
+		var frag struct {
+			ConfigSections []configOptionSection `yaml:"configSections"`
 		}
+		if err := loadYAMLAsset(p, &frag); err != nil {
+			return nil, err
+		}
+		if len(frag.ConfigSections) == 0 {
+			return nil, fmt.Errorf("%s: configSections must not be empty", p)
+		}
+		raw.ConfigSections = frag.ConfigSections
 	}
 	if len(raw.I18N) == 0 {
 		raw.I18N = make(map[string]map[string]string)
 		for _, name := range []string{"zh", "en"} {
 			p := path.Join(configDir, "i18n", name+".yaml")
 			lang, entries, err := loadI18nFragment(p)
-			if err == nil && lang != "" {
-				raw.I18N[lang] = entries
+			if err != nil {
+				return nil, fmt.Errorf("load %s: %w", p, err)
 			}
+			if lang == "" || len(entries) == 0 {
+				return nil, fmt.Errorf("%s: language entries must not be empty", p)
+			}
+			raw.I18N[lang] = entries
 		}
 	}
 	if len(raw.Services) == 0 {
 		p := path.Join(configDir, "services.yaml")
-		if b, err := readAsset(p); err == nil {
-			var frag struct {
-				Services []pageService `yaml:"services"`
-			}
-			if err := yaml.Unmarshal(b, &frag); err == nil && len(frag.Services) > 0 {
-				raw.Services = frag.Services
-			}
+		var frag struct {
+			Services []pageService `yaml:"services"`
 		}
+		if err := loadYAMLAsset(p, &frag); err != nil {
+			return nil, err
+		}
+		if len(frag.Services) == 0 {
+			return nil, fmt.Errorf("%s: services must not be empty", p)
+		}
+		raw.Services = frag.Services
 	}
 	if len(raw.Providers) == 0 {
 		p := path.Join(configDir, "providers.yaml")
-		if b, err := readAsset(p); err == nil {
-			var frag struct {
-				Providers []pageService `yaml:"providers"`
-			}
-			if err := yaml.Unmarshal(b, &frag); err == nil {
-				raw.Providers = frag.Providers
-			}
+		var frag struct {
+			Providers []pageService `yaml:"providers"`
 		}
+		if err := loadYAMLAsset(p, &frag); err != nil {
+			return nil, err
+		}
+		if len(frag.Providers) == 0 {
+			return nil, fmt.Errorf("%s: providers must not be empty", p)
+		}
+		raw.Providers = frag.Providers
 	}
 
 	var keysStepVars []envVar
 	keysStepPath := path.Join(configDir, "keys-step.yaml")
-	if b, err := readAsset(keysStepPath); err == nil {
-		var frag keysStepYAML
-		if err := yaml.Unmarshal(b, &frag); err == nil && len(frag.KeysStepVars) > 0 {
-			keysStepVars = frag.KeysStepVars
-		}
+	var keysFrag keysStepYAML
+	if err := loadYAMLAsset(keysStepPath, &keysFrag); err != nil {
+		return nil, err
 	}
+	if len(keysFrag.KeysStepVars) == 0 {
+		return nil, fmt.Errorf("%s: keysStepVars must not be empty", keysStepPath)
+	}
+	keysStepVars = keysFrag.KeysStepVars
 
 	jsonI18N, err := json.Marshal(raw.I18N)
 	if err != nil {
@@ -397,8 +420,10 @@ func loadPageData(yamlPath string) (*pageData, error) {
 	}
 	scenarios, err := loadScenarioPresets()
 	if err != nil {
-		// 场景为增强能力：读取失败时回退为空，避免阻断 Web UI 启动
-		scenarios = map[string]scenarioPreset{}
+		return nil, fmt.Errorf("load scenarios: %w", err)
+	}
+	if len(scenarios) == 0 {
+		return nil, fmt.Errorf("config/scenarios.json: scenarios must not be empty")
 	}
 	jsonScenarios, err := json.Marshal(scenarios)
 	if err != nil {
@@ -412,25 +437,32 @@ func loadPageData(yamlPath string) (*pageData, error) {
 	}
 	var portsList []portDef
 	portsPath := path.Join(configDir, "ports.yaml")
-	if b, err := readAsset(portsPath); err == nil {
-		var frag struct {
-			Ports []portDef `yaml:"ports"`
-		}
-		if err := yaml.Unmarshal(b, &frag); err == nil && len(frag.Ports) > 0 {
-			portsList = frag.Ports
-		}
+	var portsFrag struct {
+		Ports []portDef `yaml:"ports"`
 	}
+	if err := loadYAMLAsset(portsPath, &portsFrag); err != nil {
+		return nil, err
+	}
+	if len(portsFrag.Ports) == 0 {
+		return nil, fmt.Errorf("%s: ports must not be empty", portsPath)
+	}
+	portsList = portsFrag.Ports
 	var profilesList []pageProfile
-	if ps, err := loadProfiles(); err == nil && ps != nil {
-		for _, name := range ps.Names() {
-			p, _ := ps.Get(name)
-			profilesList = append(profilesList, pageProfile{
-				Name:         p.Name,
-				Description:  p.Description,
-				Experimental: p.Experimental,
-				Strict:       p.Strict(),
-			})
-		}
+	ps, err := loadProfiles()
+	if err != nil {
+		return nil, fmt.Errorf("load profiles: %w", err)
+	}
+	if ps == nil || len(ps.Names()) == 0 {
+		return nil, fmt.Errorf("config/profiles.yaml: profiles must not be empty")
+	}
+	for _, name := range ps.Names() {
+		p, _ := ps.Get(name)
+		profilesList = append(profilesList, pageProfile{
+			Name:         p.Name,
+			Description:  p.Description,
+			Experimental: p.Experimental,
+			Strict:       p.Strict(),
+		})
 	}
 	return &pageData{
 		I18N:           template.JS(jsonI18N),
