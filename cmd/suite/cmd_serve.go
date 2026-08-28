@@ -721,7 +721,12 @@ func handleGeneratePost(w http.ResponseWriter, r *http.Request) {
 	for k, v := range sess.KeysOverrides {
 		envBody += k + "=" + v + "\n"
 	}
-	envMeta, _ := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
+	envMeta, err := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "load env-meta: %v\n", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 
 	// Profile-aware path: when a deployment profile is selected, route through
 	// the SAME shared policy + composegen model the CLI uses (generateForProfile),
@@ -1138,7 +1143,12 @@ func cmdServe() error {
 			}
 			applyUncheckEnvDefaults(opts.EnvOverrides, page.ConfigSections)
 		}
-		envMeta, _ := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
+		envMeta, err := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "load env-meta: %v\n", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
 		gen, err := composegen.Generate(full, req.Modes, req.EnvOverride, opts, envMeta)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "generate: %v\n", err)
