@@ -90,6 +90,7 @@ func cmdGenerate() error {
 	force := fs.Bool("force", false, "generate even if a non-production profile has policy violations (production is never bypassable)")
 	jsonOut := fs.Bool("json", false, "emit a structured result (profile, modes, outputs, findings) as JSON")
 	canonical := fs.Bool("canonical", false, "generate raw canonical compose(s) with NO profile policy applied, one subdir per mode (reproduces `make gen`; --modes selects modes, default: all build modes)")
+	lockPath := fs.String("lock", "", "path to a release components.lock.yaml; pin generated images to immutable digests")
 	seed := fs.String("seed", "", "deterministic seed for auto-generated dev/test keys (byte-stable output; leave empty for crypto/rand). Never use a real seed for real deployments.")
 	var sets stringSliceFlag
 	fs.Var(&sets, "set", "override an env value as KEY=VALUE (repeatable); also read from process env for known secret keys")
@@ -100,13 +101,21 @@ func cmdGenerate() error {
 	if strings.TrimSpace(*output) == "" {
 		return fmt.Errorf("generate: --output directory is required")
 	}
+	lockedEnv := map[string]string(nil)
+	if strings.TrimSpace(*lockPath) != "" {
+		var err error
+		lockedEnv, err = loadLockedImageEnv(*lockPath)
+		if err != nil {
+			return fmt.Errorf("generate: lock: %w", err)
+		}
+	}
 
 	// Canonical path: reproduce the historical `make gen` output (raw canonical
 	// compose, options:null, no profile policy) entirely in-process — no Web
 	// server, no jq. This shares composegen.Generate with the Web /api/generate
 	// (options:null) path, so CLI and Web produce identical bytes.
 	if *canonical {
-		return generateCanonical(*output, *modesCSV, *jsonOut)
+		return generateCanonicalWithEnv(*output, *modesCSV, *jsonOut, lockedEnv)
 	}
 
 	prof, err := resolveProfile(*profileName)
@@ -115,6 +124,9 @@ func cmdGenerate() error {
 	}
 
 	userEnv := collectUserEnv(sets)
+	for key, value := range lockedEnv {
+		userEnv[key] = value
+	}
 
 	modes := defaultModesForProfile(prof)
 	if strings.TrimSpace(*modesCSV) != "" {
@@ -248,6 +260,10 @@ var canonicalBuildModes = []string{"image", "build", "traefik", "traefik-herald"
 // composegen.Generate path as the Web /api/generate handler, so output is
 // byte-identical without starting a Web server.
 func generateCanonical(output, modesCSV string, jsonOut bool) error {
+	return generateCanonicalWithEnv(output, modesCSV, jsonOut, nil)
+}
+
+func generateCanonicalWithEnv(output, modesCSV string, jsonOut bool, lockedEnv map[string]string) error {
 	modes := canonicalBuildModes
 	if strings.TrimSpace(modesCSV) != "" {
 		modes = splitCSV(modesCSV)
@@ -262,7 +278,7 @@ func generateCanonical(output, modesCSV string, jsonOut bool) error {
 	envMeta, _ := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
 	// options:null + empty envOverride == the canonical defaults the Web API
 	// uses for `make gen`.
-	gen, err := composegen.Generate(full, modes, "", nil, envMeta)
+	gen, err := composegen.Generate(full, modes, envBodyFromMap(lockedEnv), nil, envMeta)
 	if err != nil {
 		return fmt.Errorf("generate: %w", err)
 	}

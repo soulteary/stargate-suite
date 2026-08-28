@@ -27,6 +27,21 @@ successful `Main` workflow run.
 - Keyless **Cosign** signatures for the image and for `checksums.txt`.
 - GitHub **build-provenance attestations** for the image and the binaries.
 
+### Deploy with immutable images
+
+Download `components.lock.yaml` from the same GitHub Release as the suite
+binary, then pass it to generation:
+
+```bash
+go run ./cmd/suite generate --profile development --output build/locked \
+  --lock ./components.lock.yaml
+```
+
+Production uses the same flag in addition to its required secret inputs. The
+command rejects placeholder digests or a lock whose image tags/schema do not
+match the embedded component manifest. Locked image references override image
+values from the environment or `--set`.
+
 ### Tagging policy
 
 - Stable tags update `latest` and the `{major}` alias.
@@ -75,6 +90,20 @@ tag 对应 commit 必须是 `main` 的祖先，并且该 commit 的 `Main` workf
   `components.lock.yaml` 快照。
 - 镜像与 `checksums.txt` 的 keyless **Cosign** 签名。
 - 镜像与二进制的 GitHub **构建来源证明（attestation）**。
+
+### 使用不可变镜像部署
+
+从同一个 GitHub Release 下载 `components.lock.yaml` 与 suite 二进制，并在生成时
+传入锁文件：
+
+```bash
+go run ./cmd/suite generate --profile development --output build/locked \
+  --lock ./components.lock.yaml
+```
+
+production 同样使用该参数，并额外提供所需机密。命令会拒绝空 digest，或
+image tag/schema 与内嵌组件清单不匹配的锁；锁定的镜像引用优先于环境变量和
+`--set` 中的镜像值。
 
 ### 打标签策略
 
