@@ -8,12 +8,14 @@ import (
 func TestDockerBuildContextExcludesSecrets(t *testing.T) {
 	root := repoRoot(t)
 	ignore := readFile(t, root, ".dockerignore")
-	for _, required := range []string{".git", ".env", ".env.*", "*.pem", "*.key", "*.crt", "secrets"} {
+	for _, required := range []string{
+		".git", "**/.env", "**/.env.*", "**/*.pem", "**/*.key", "**/*.crt", "**/secrets", "**/secrets/**",
+	} {
 		if !hasExactLine(ignore, required) {
 			t.Errorf(".dockerignore does not exclude %q", required)
 		}
 	}
-	if !hasExactLine(ignore, "!.env.example") {
+	if !hasExactLine(ignore, "!**/.env.example") {
 		t.Error(".dockerignore must retain the non-secret .env.example documentation")
 	}
 }

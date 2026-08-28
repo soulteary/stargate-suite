@@ -1,11 +1,11 @@
-# Component lock — 镜像内容寻址 digest 的占位结构（PR 4）。
+# Component lock — manifest 版本快照与发布时的内容寻址 digest。
 #
-# 由 components.yaml 的 image:version 派生；正式发布时（release 流程）填入 digest
-# （sha256:...），使部署可复现且可离线校验。本 PR 仅落地结构，digest 暂留空。
+# image/version 必须与 components.yaml 一致。开发分支允许 digest 为空；
+# release 流程通过 cmd/lock-images 解析并要求每项均为 sha256 digest。
 #
-# 生成/填充约定（后续 PR / release）：
-#   digest 通过 `docker buildx imagetools inspect <image>:<version>` 或
-#   `crane digest <image>:<version>` 获取，写入对应 digest 字段。
+# 生成/填充约定：
+#   `go run ./cmd/lock-images` 调用 `docker buildx imagetools inspect`
+#   解析每个 image:version，并写入对应 digest 字段。
 #   校验时以 image@digest 覆盖 image:version 拉取，确保内容一致。
 
 schemaVersion: 1
@@ -13,27 +13,27 @@ schemaVersion: 1
 images:
   stargate:
     image: ghcr.io/soulteary/stargate
-    version: v0.11.0
+    version: 1.0.0
     digest: ""
   warden:
     image: ghcr.io/soulteary/warden
-    version: v0.13.0
+    version: 1.1.0
     digest: ""
   herald:
     image: ghcr.io/soulteary/herald
-    version: v0.9.0
+    version: 1.1.0
     digest: ""
   herald-totp:
     image: ghcr.io/soulteary/herald-totp
-    version: v0.3.0
+    version: 1.1.0
     digest: ""
   herald-dingtalk:
     image: ghcr.io/soulteary/herald-dingtalk
-    version: v0.5.0
+    version: 1.1.0
     digest: ""
   herald-smtp:
     image: ghcr.io/soulteary/herald-smtp
-    version: v0.2.0
+    version: 1.1.0
     digest: ""
   redis:
     image: redis
