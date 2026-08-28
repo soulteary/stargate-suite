@@ -6,20 +6,19 @@ import (
 )
 
 func TestEncodeEnvValue(t *testing.T) {
-	tests := map[string]string{
-		"":                           "",
-		"plain-value_1":              "plain-value_1",
-		"$argon2id$v=19$m=65536":     "'$argon2id$v=19$m=65536'",
-		"value # not a comment":       "'value # not a comment'",
-		"line one\nline two":          "'line one\nline two'",
-		"operator's secret":           `'operator\'s secret'`,
-		`C:\\path\\with\\slashes`:     `'C:\\path\\with\\slashes'`,
-	}
-	for input, want := range tests {
+	check := func(input, want string) {
+		t.Helper()
 		if got := EncodeEnvValue(input); got != want {
 			t.Errorf("EncodeEnvValue(%q)=%q, want %q", input, got, want)
 		}
 	}
+	check("", "")
+	check("plain-value_1", "plain-value_1")
+	check("$argon2id$v=19$m=65536", "'$argon2id$v=19$m=65536'")
+	check("value # not a comment", "'value # not a comment'")
+	check("line one\nline two", "'line one\nline two'")
+	check("operator's secret", `'operator\'s secret'`)
+	check(`C:\\path\\with\\slashes`, `'C:\\path\\with\\slashes'`)
 }
 
 func TestGenerateRejectsInvalidOverrideKey(t *testing.T) {
