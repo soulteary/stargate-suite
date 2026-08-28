@@ -39,6 +39,10 @@ make test-wait && go test -v ./e2e/...  # E2E after services are ready
 go test -v ./e2e/... -run TestCompleteLoginFlow
 ```
 
+PR and main-branch CI require at least 30.0% total non-E2E statement coverage.
+To check the same floor locally, generate an atomic coverage profile and run
+`COVERAGE_MINIMUM=30.0 ./scripts/check-coverage.sh coverage.out`.
+
 Test data lives in `fixtures/warden/data.json`; after edits run
 `make restart-warden`. New E2E tests go under `e2e/` and use
 `ensureServicesReady(t)` + `test_helpers.go`.
@@ -91,6 +95,10 @@ go test ./... -short                    # 单元（排除重型 E2E）
 make test-wait && go test -v ./e2e/...  # 服务就绪后跑 E2E
 go test -v ./e2e/... -run TestCompleteLoginFlow
 ```
+
+PR 与主分支 CI 要求非 E2E 代码的总语句覆盖率至少为 30.0%。本地可先生成 atomic
+覆盖率文件，再运行
+`COVERAGE_MINIMUM=30.0 ./scripts/check-coverage.sh coverage.out` 检查相同下限。
 
 测试数据在 `fixtures/warden/data.json`，改后执行 `make restart-warden`。新增 E2E
 测试放在 `e2e/` 下，使用 `ensureServicesReady(t)` + `test_helpers.go`。

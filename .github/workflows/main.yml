@@ -72,6 +72,11 @@ jobs:
         if: success()
         run: go tool cover -func=coverage.out 2>/dev/null || true
 
+      - name: Enforce coverage floor
+        env:
+          COVERAGE_MINIMUM: "30.0"
+        run: ./scripts/check-coverage.sh coverage.out
+
   e2e:
     name: Full E2E
     runs-on: ubuntu-latest
