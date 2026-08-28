@@ -59,6 +59,9 @@ jobs:
       - name: Config validation
         run: go run ./cmd/suite validate
 
+      - name: Release version contract
+        run: ./scripts/semver-prerelease.sh --test
+
       - name: Run tests (exclude e2e, with race + coverage)
         run: |
           pkgs=$(go list ./... | grep -v '/e2e$' || true)
