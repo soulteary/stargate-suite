@@ -117,12 +117,12 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 			}
 
 			// PR 8 invariants shared by all profiles: core images pinned to the
-			// v1 contract line, Stargate on 8080 (not 80), and the split health
-			// probes (Stargate /healthz, Warden /healthcheck, Herald /healthz).
+			// v1 contract line, Stargate on 8080 (not 80), and component-specific
+			// health probes that are available in each runtime image.
 			for _, img := range []string{
-				"ghcr.io/soulteary/stargate:v1.0.0",
-				"ghcr.io/soulteary/warden:v1.0.0",
-				"ghcr.io/soulteary/herald:v1.1.0",
+				"ghcr.io/soulteary/stargate:1.0.0",
+				"ghcr.io/soulteary/warden:1.0.0",
+				"ghcr.io/soulteary/herald:1.1.0",
 			} {
 				if !strings.Contains(compose, img) {
 					t.Errorf("%q compose should pin core image %q (PR8)", tc.profile, img)
@@ -137,8 +137,8 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 			if !strings.Contains(compose, "8080/healthz") {
 				t.Errorf("%q compose Stargate healthcheck must probe :8080/healthz (PR8)", tc.profile)
 			}
-			if !strings.Contains(compose, "8082/healthz") {
-				t.Errorf("%q compose Herald healthcheck must probe :8082/healthz (PR8)", tc.profile)
+			if !strings.Contains(compose, "/bin/herald") || !strings.Contains(compose, "-healthcheck") {
+				t.Errorf("%q compose Herald healthcheck must use the built-in checker (PR8)", tc.profile)
 			}
 			if !strings.Contains(compose, "8081/healthcheck") {
 				t.Errorf("%q compose Warden healthcheck must probe :8081/healthcheck (PR8)", tc.profile)
@@ -151,7 +151,7 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 
 			switch tc.profile {
 			case policy.Development, policy.Test:
-				if !strings.Contains(compose, "127.0.0.1:") {
+				if !strings.Contains(compose, "- 127.0.0.1:") {
 					t.Errorf("%q compose should bind exposed ports to loopback (127.0.0.1)", tc.profile)
 				}
 				if !strings.Contains(env, "ENVIRONMENT="+tc.profile) {
@@ -177,7 +177,7 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 				}
 				// No core-service host port publishing: the only "ports:" entry
 				// should be the reverse-proxy/whoami; core services carry none.
-				if strings.Contains(compose, "127.0.0.1:") {
+				if strings.Contains(compose, "- 127.0.0.1:") {
 					t.Errorf("production compose must not publish loopback host ports")
 				}
 				// production hardens further with a read-only root filesystem

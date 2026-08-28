@@ -7,12 +7,6 @@ keysStepVars:
     labelKey: wardenApiKeyLabel
     descKey: wardenApiKeyDesc
     placeholder: "test-warden-api-key"
-  - env: WARDEN_OTP_SECRET_KEY
-    type: text
-    genType: apiKey
-    labelKey: wardenOtpSecretKeyLabel
-    descKey: wardenOtpSecretKeyDesc
-    placeholder: ""
   - env: HERALD_API_KEY
     type: text
     genType: apiKey

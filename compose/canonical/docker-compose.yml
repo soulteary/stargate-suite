@@ -14,7 +14,7 @@
 services:
   # Herald（传令）- OTP/验证码服务，负责 challenge 创建、发送、校验与限流
   herald:
-    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v1.1.0}
+    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:1.1.0}
     container_name: the-gate-herald
     ports:
       - "8082:8082"
@@ -103,7 +103,7 @@ services:
     networks:
       - the-gate-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8082/healthz || exit 1"]
+      test: ["CMD", "/bin/herald", "-healthcheck"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -114,6 +114,8 @@ services:
   herald-redis:
     image: ${HERALD_REDIS_IMAGE:-redis:8.4-alpine}
     container_name: the-gate-herald-redis
+    environment:
+      HERALD_REDIS_PASSWORD: ${HERALD_REDIS_PASSWORD:?HERALD_REDIS_PASSWORD is required}
     command:
       - redis-server
       - --requirepass
@@ -223,7 +225,7 @@ services:
 
   # Warden（看守）- 白名单用户服务，提供 user_id、email/phone 等供 Stargate 与 Herald 使用
   warden:
-    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v1.0.0}
+    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:1.0.0}
     container_name: the-gate-warden
     ports:
       - "8081:8081"
@@ -284,6 +286,8 @@ services:
   warden-redis:
     image: ${WARDEN_REDIS_IMAGE:-redis:8.4-alpine}
     container_name: the-gate-warden-redis
+    environment:
+      WARDEN_REDIS_PASSWORD: ${WARDEN_REDIS_PASSWORD:?WARDEN_REDIS_PASSWORD is required}
     command:
       - redis-server
       - --requirepass
@@ -303,9 +307,10 @@ services:
 
   # Stargate（门）- Forward Auth 鉴权与登录编排，依赖 Warden、Herald（内网）
   stargate:
-    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v1.0.0}
+    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:1.0.0}
     container_name: the-gate-stargate
-    ports: []
+    ports:
+      - "8080:8080"
     environment:
       - AUTH_HOST=${AUTH_HOST:-auth.test.localhost}
       - PORT=${PORT:-8080}
@@ -319,8 +324,6 @@ services:
       - WARDEN_ENABLED=${WARDEN_ENABLED:-true}
       - WARDEN_API_KEY=${WARDEN_API_KEY:-test-warden-api-key}
       - WARDEN_CACHE_TTL=${WARDEN_CACHE_TTL:-300}
-      - WARDEN_OTP_ENABLED=${WARDEN_OTP_ENABLED:-false}
-      - WARDEN_OTP_SECRET_KEY=${WARDEN_OTP_SECRET_KEY:-}
       - HERALD_URL=${HERALD_URL:-http://herald:8082}
       - HERALD_ENABLED=${HERALD_ENABLED:-true}
       - HERALD_API_KEY=${HERALD_API_KEY:-test-herald-api-key}
@@ -380,7 +383,7 @@ services:
       - "traefik.http.middlewares.stargate-auth.forwardauth.authResponseHeadersRegex=^(X-Forwarded-.*|X-Auth-.*)$"
       - "traefik.http.middlewares.stargate-auth.forwardauth.trustForwardHeader=true"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/healthz || exit 1"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/healthz"]
       interval: 10s
       timeout: 3s
       retries: 3

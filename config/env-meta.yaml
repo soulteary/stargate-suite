@@ -39,8 +39,6 @@ order:
   - WARDEN_API_KEY
   - WARDEN_ENABLED
   - HERALD_ENABLED
-  - WARDEN_OTP_ENABLED
-  - WARDEN_OTP_SECRET_KEY
   - LOGIN_SMS_ENABLED
   - LOGIN_EMAIL_ENABLED
   - SESSION_STORAGE_ENABLED
@@ -193,9 +191,9 @@ order:
 
 # Per-key: comment (for .env and compose), services (which compose service may use this env), default (optional)
 vars:
-  HERALD_IMAGE: { comment: "Herald Service Image", services: [], default: "ghcr.io/soulteary/herald:v1.1.0" }
-  WARDEN_IMAGE: { comment: "Warden Service Image", services: [], default: "ghcr.io/soulteary/warden:v1.0.0" }
-  STARGATE_IMAGE: { comment: "Stargate Service Image", services: [], default: "ghcr.io/soulteary/stargate:v1.0.0" }
+  HERALD_IMAGE: { comment: "Herald Service Image", services: [], default: "ghcr.io/soulteary/herald:1.1.0" }
+  WARDEN_IMAGE: { comment: "Warden Service Image", services: [], default: "ghcr.io/soulteary/warden:1.0.0" }
+  STARGATE_IMAGE: { comment: "Stargate Service Image", services: [], default: "ghcr.io/soulteary/stargate:1.0.0" }
   HERALD_REDIS_IMAGE: { comment: "Herald Redis Image", services: [], default: "redis:8.4-alpine" }
   WARDEN_REDIS_IMAGE: { comment: "Warden Redis Image", services: [], default: "redis:8.4-alpine" }
   STARGATE_REDIS_IMAGE: { comment: "Stargate Redis Image", services: [], default: "redis:8.4-alpine" }
@@ -326,8 +324,6 @@ vars:
   WARDEN_URL: { comment: "Stargate 调用 Warden 的地址", services: [stargate], default: "http://warden:8081" }
   WARDEN_ENABLED: { comment: "是否启用 Warden", services: [stargate] }
   WARDEN_CACHE_TTL: { comment: "Warden 缓存 TTL（秒）", services: [stargate] }
-  WARDEN_OTP_ENABLED: { comment: "是否启用 Warden OTP（遗留/兼容）", services: [stargate] }
-  WARDEN_OTP_SECRET_KEY: { comment: "Warden OTP 密钥（遗留/兼容）", services: [stargate] }
   HERALD_URL: { comment: "Stargate 调用 Herald 的地址", services: [stargate], default: "http://herald:8082" }
   HERALD_ENABLED: { comment: "是否启用 Herald", services: [stargate] }
   HERALD_TLS_CA_CERT_FILE: { comment: "Herald mTLS：CA 证书（Stargate 校验 Herald；Herald 校验客户端）", services: [herald, stargate] }

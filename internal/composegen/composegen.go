@@ -131,8 +131,6 @@ var envComments = map[string]string{
 	"WARDEN_ENABLED":                      "是否启用 Warden",
 	"WARDEN_API_KEY":                      "Warden API 密钥",
 	"WARDEN_CACHE_TTL":                    "Warden 缓存 TTL（秒）",
-	"WARDEN_OTP_ENABLED":                  "是否启用 Warden OTP（遗留/兼容）",
-	"WARDEN_OTP_SECRET_KEY":               "Warden OTP 密钥（遗留/兼容）",
 	"HERALD_URL":                          "Stargate 调用 Herald 的地址",
 	"HERALD_ENABLED":                      "是否启用 Herald",
 	"HERALD_TLS_CA_CERT_FILE":             "Herald mTLS：CA 证书文件路径",
@@ -394,7 +392,7 @@ var builtinEnvOrder = []string{
 	"LOGIN_PAGE_TITLE", "LOGIN_PAGE_FOOTER_TEXT", "COOKIE_DOMAIN",
 	"LANGUAGE", "PASSWORDS", "PORT",
 	"HERALD_API_KEY", "HERALD_HMAC_SECRET", "WARDEN_API_KEY",
-	"WARDEN_ENABLED", "HERALD_ENABLED", "WARDEN_OTP_ENABLED", "WARDEN_OTP_SECRET_KEY",
+	"WARDEN_ENABLED", "HERALD_ENABLED",
 	"LOGIN_SMS_ENABLED", "LOGIN_EMAIL_ENABLED", "SESSION_STORAGE_ENABLED",
 	"SESSION_STORAGE_REDIS_ADDR", "SESSION_STORAGE_REDIS_PASSWORD", "SESSION_STORAGE_REDIS_DB", "SESSION_STORAGE_REDIS_KEY_PREFIX",
 	"HERALD_TLS_CA_CERT_FILE", "HERALD_TLS_CLIENT_CERT_FILE", "HERALD_TLS_CLIENT_KEY_FILE", "HERALD_TLS_SERVER_NAME",
@@ -1211,10 +1209,17 @@ func generateImageOrBuild(full map[string]interface{}, mode string, opts *Option
 	out["networks"] = map[string]interface{}{
 		"the-gate-network": map[string]interface{}{"driver": "bridge"},
 	}
-	if opts == nil {
-		opts = &Options{}
+	// Image/build modes keep the canonical runtime defaults but never join the
+	// Traefik network. A zero-value Options would incorrectly remove health
+	// checks and published ports, breaking service_healthy dependencies.
+	optsCopy := Options{
+		HealthCheck:    true,
+		ExposePorts:    true,
+		UseNamedVolume: true,
 	}
-	optsCopy := *opts
+	if opts != nil {
+		optsCopy = *opts
+	}
 	optsCopy.TraefikNetwork = false
 	applyOptionsToCompose(out, &optsCopy)
 	applyNetworkSegmentation(out, &optsCopy)

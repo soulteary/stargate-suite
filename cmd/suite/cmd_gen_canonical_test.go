@@ -27,6 +27,14 @@ func TestCanonicalGenerationMatchesComposegen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reference generate: %v", err)
 	}
+	for _, mode := range []string{"image", "build"} {
+		if !bytes.Contains(ref.Composes[mode], []byte("healthcheck:")) {
+			t.Errorf("mode %q must preserve canonical health checks when options are nil", mode)
+		}
+		if !bytes.Contains(ref.Composes[mode], []byte("8080:8080")) {
+			t.Errorf("mode %q must publish Stargate's default port when options are nil", mode)
+		}
+	}
 
 	// CLI path: write to a temp dir and read back.
 	dir := t.TempDir()

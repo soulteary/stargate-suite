@@ -14,13 +14,13 @@ func testManifestFS() fstest.MapFS {
 components:
   stargate:
     image: ghcr.io/soulteary/stargate
-    version: v1.0.0
+    version: 1.0.0
     containerPort: 8080
     livenessPath: /healthz
     readinessPath: /readyz
   herald:
     image: ghcr.io/soulteary/herald
-    version: v1.1.0
+    version: 1.1.0
     containerPort: 8082
     livenessPath: /healthz
 `)},
@@ -52,11 +52,11 @@ func countCode(rep *Report, code string) int {
 func TestRunParsesAndMatchesManifest(t *testing.T) {
 	compose := []byte(`services:
   stargate:
-    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v1.0.0}
+    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:1.0.0}
     ports:
       - "8080:8080"
   herald:
-    image: ghcr.io/soulteary/herald:v1.1.0
+    image: ghcr.io/soulteary/herald:1.1.0
 networks:
   auth-internal:
     internal: true
@@ -140,7 +140,7 @@ func TestRunNoServicesFails(t *testing.T) {
 // the image cross-check.
 func TestResolveComposeImage(t *testing.T) {
 	cases := map[string]string{
-		"${HERALD_IMAGE:-ghcr.io/soulteary/herald:v1.1.0}": "ghcr.io/soulteary/herald:v1.1.0",
+		"${HERALD_IMAGE:-ghcr.io/soulteary/herald:1.1.0}": "ghcr.io/soulteary/herald:1.1.0",
 		"${IMG-plain:tag}": "plain:tag",
 		"redis:8.4-alpine": "redis:8.4-alpine",
 		"${NO_DEFAULT}":    "${NO_DEFAULT}",
@@ -174,7 +174,7 @@ func TestExtractPorts(t *testing.T) {
 func TestNetworksWarningWhenAbsent(t *testing.T) {
 	compose := []byte(`services:
   herald:
-    image: ghcr.io/soulteary/herald:v1.1.0
+    image: ghcr.io/soulteary/herald:1.1.0
 `)
 	rep, err := Run(Options{ComposeBytes: compose, ManifestFS: testManifestFS(), ManifestPath: "config/components.yaml", dialTimeout: 10 * time.Millisecond})
 	if err != nil {

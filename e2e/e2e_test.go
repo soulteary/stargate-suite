@@ -86,8 +86,8 @@ func sendVerificationCode(t *testing.T, phone string) (string, error) {
 // be published to the host. Resolution order:
 //  1. HERALD_TEST_CODE_URL (explicit base, e.g. a reachable forwarder) — used
 //     directly when set.
-//  2. HERALD_COMPOSE_DIR set → `docker compose exec herald` curls the loopback
-//     listener from inside the container (the faithful path for v1.1.0).
+//  2. HERALD_COMPOSE_DIR set → `docker compose exec herald` uses the image's
+//     BusyBox wget against the loopback listener (the faithful v1.1.0 path).
 //  3. Fallback: heraldURL (works only if a legacy/main-listener test route is
 //     reachable, e.g. older Herald or a host-published listener).
 func getTestCode(t *testing.T, challengeID string) (string, error) {
@@ -107,11 +107,11 @@ func getTestCode(t *testing.T, challengeID string) (string, error) {
 		}
 		url := fmt.Sprintf("http://%s/v1/test/code/%s", addr, challengeID)
 		cmd := exec.Command("docker", "compose", "exec", "-T", "herald",
-			"curl", "-sf", "-H", "X-Test-Api-Key: "+testKey, url)
+			"/bin/busybox", "wget", "-q", "-O", "-", "--header", "X-Test-Api-Key: "+testKey, url)
 		cmd.Dir = dir
-		out, err := cmd.Output()
+		out, err := cmd.CombinedOutput()
 		if err != nil {
-			return "", fmt.Errorf("exec test-code fetch failed: %w", err)
+			return "", fmt.Errorf("exec test-code fetch failed: %w: %s", err, strings.TrimSpace(string(out)))
 		}
 		return parseTestCode(out)
 	}

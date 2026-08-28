@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -36,6 +37,8 @@ func sendVerificationCodeWithError(t *testing.T, phone string) (string, *ErrorRe
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
+	// Connect over loopback while presenting the configured auth virtual host.
+	req.Host = authHost
 	req.Header.Set("X-Forwarded-Host", authHost)
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -106,6 +109,8 @@ func loginWithError(t *testing.T, phone, challengeID, verifyCode string) (string
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
+	// Connect over loopback while presenting the configured auth virtual host.
+	req.Host = authHost
 	req.Header.Set("X-Forwarded-Host", authHost)
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -273,6 +278,8 @@ func sendVerificationCodeWithEmail(t *testing.T, email string) (string, *ErrorRe
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
+	// Connect over loopback while presenting the configured auth virtual host.
+	req.Host = authHost
 	req.Header.Set("X-Forwarded-Host", authHost)
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -445,14 +452,48 @@ func signHeraldReq(req *http.Request, body []byte) {
 	setHeraldV2Headers(req, sig)
 }
 
-// clearRateLimitKeys clears test state in Redis to avoid previous tests affecting current test
-// Clears: rate limit keys, cooldown keys, user lock keys, challenge keys
+// clearRateLimitKeys clears Herald's Redis-backed state and restarts Stargate
+// so one scenario cannot consume another scenario's Redis or in-process
+// rate-limit budget.
 func clearRateLimitKeys(t *testing.T) error {
-	// Connect to Herald's Redis (mapped to localhost:6379 per docker-compose.yml)
+	// Compose-based E2E runs intentionally do not publish Redis to the host.
+	// Execute FLUSHDB inside the isolated Redis container and reuse the password
+	// already injected into that container.
+	if dir := os.Getenv("HERALD_COMPOSE_DIR"); dir != "" {
+		cmd := exec.Command("docker", "compose", "exec", "-T", "herald-redis",
+			"sh", "-c", `REDISCLI_AUTH="$HERALD_REDIS_PASSWORD" redis-cli FLUSHDB`)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("failed to clear Herald Redis through Compose: %w: %s", err, strings.TrimSpace(string(out)))
+		}
+		t.Log("Cleared Herald Redis test state through Compose")
+
+		// Stargate v1.0.0 keeps the verification endpoint limiter in process,
+		// independently of Herald Redis. Restart only the Stargate container to
+		// give each isolated scenario a fresh five-request budget.
+		restart := exec.Command("docker", "compose", "restart", "stargate")
+		restart.Dir = dir
+		restartOut, restartErr := restart.CombinedOutput()
+		if restartErr != nil {
+			return fmt.Errorf("failed to reset Stargate rate limiter: %w: %s", restartErr, strings.TrimSpace(string(restartOut)))
+		}
+		if !waitForService(t, stargateURL+"/healthz", 30*time.Second) {
+			return fmt.Errorf("stargate did not become ready after rate-limit reset")
+		}
+		t.Log("Reset Stargate in-process rate limiter through Compose")
+		return nil
+	}
+
+	// Local fallback for an explicitly published Redis.
+	addr := os.Getenv("HERALD_REDIS_ADDR")
+	if addr == "" {
+		addr = "localhost:6379"
+	}
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // No password per docker-compose.yml
-		DB:       0,  // Herald uses DB 0
+		Addr:     addr,
+		Password: os.Getenv("HERALD_REDIS_PASSWORD"),
+		DB:       0,
 	})
 	defer func() {
 		if err := redisClient.Close(); err != nil {
@@ -462,58 +503,10 @@ func clearRateLimitKeys(t *testing.T) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
-	// Test connection
-	if err := redisClient.Ping(ctx).Err(); err != nil {
-		return fmt.Errorf("failed to connect to Redis: %w", err)
+	if err := redisClient.FlushDB(ctx).Err(); err != nil {
+		return fmt.Errorf("failed to clear Herald Redis at %s: %w", addr, err)
 	}
-
-	// Clear all test-related keys:
-	// - ratelimit:* - Rate limit keys
-	// - ratelimit:cooldown:* - Cooldown keys
-	// - otp:lock:* - User lock keys
-	// - otp:ch:* - Challenge keys (for test isolation)
-	patterns := []string{
-		"ratelimit:*",
-		"ratelimit:cooldown:*",
-		"otp:lock:*",
-		"otp:ch:*",
-	}
-
-	totalCleared := 0
-	for _, pattern := range patterns {
-		var keys []string
-		var cursor uint64
-
-		// Iterate all matching keys using SCAN
-		for {
-			var scanKeys []string
-			var err error
-			scanKeys, cursor, err = redisClient.Scan(ctx, cursor, pattern, 100).Result()
-			if err != nil {
-				return fmt.Errorf("failed to scan keys with pattern %s: %w", pattern, err)
-			}
-			keys = append(keys, scanKeys...)
-			if cursor == 0 {
-				break
-			}
-		}
-
-		if len(keys) > 0 {
-			if err := redisClient.Del(ctx, keys...).Err(); err != nil {
-				return fmt.Errorf("failed to delete keys with pattern %s: %w", pattern, err)
-			}
-			totalCleared += len(keys)
-			t.Logf("Cleared %d keys matching pattern %s", len(keys), pattern)
-		}
-	}
-
-	if totalCleared > 0 {
-		t.Logf("Total cleared %d test state keys", totalCleared)
-	} else {
-		t.Logf("No test state keys found to clear")
-	}
-
+	t.Log("Cleared Herald Redis test state")
 	return nil
 }
 

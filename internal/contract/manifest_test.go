@@ -95,12 +95,21 @@ func TestManifestIsAuthoritativeForPorts(t *testing.T) {
 			t.Errorf("config/ports.yaml containerPort for %q does not match manifest %s", comp, portStr)
 		}
 
-		// canonical healthcheck curls http://localhost:<port><livenessPath>.
+		// Herald ships a built-in health checker because its minimal runtime
+		// image intentionally has no HTTP client. Other components probe their
+		// manifest-declared port and liveness path over loopback.
 		if c.LivenessPath != "" {
-			want := "http://localhost:" + portStr + c.LivenessPath
-			if !regexp.MustCompile(regexp.QuoteMeta(want)).MatchString(canonical) {
-				t.Errorf("compose/canonical has no healthcheck %q for %q (manifest port %s path %s)",
-					want, comp, portStr, c.LivenessPath)
+			if comp == "herald" {
+				want := `["CMD", "/bin/herald", "-healthcheck"]`
+				if !regexp.MustCompile(regexp.QuoteMeta(want)).MatchString(canonical) {
+					t.Errorf("compose/canonical has no built-in healthcheck %q for %q", want, comp)
+				}
+				continue
+			}
+			want := `http://(?:localhost|127\.0\.0\.1):` + regexp.QuoteMeta(portStr+c.LivenessPath)
+			if !regexp.MustCompile(want).MatchString(canonical) {
+				t.Errorf("compose/canonical has no loopback HTTP healthcheck for %q (manifest port %s path %s)",
+					comp, portStr, c.LivenessPath)
 			}
 		}
 	}

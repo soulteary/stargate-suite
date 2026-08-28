@@ -107,11 +107,6 @@ services:
             default: "300"
             placeholder: "300"
             min: 1
-          - env: WARDEN_OTP_ENABLED
-            type: checkbox
-            labelKey: wardenOtpEnabledLabel
-            descKey: wardenOtpEnabledDesc
-            default: false
           - env: LOGIN_SMS_ENABLED
             type: checkbox
             labelKey: loginSmsEnabledLabel

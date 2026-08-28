@@ -77,15 +77,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Cache Go modules
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
 
       - name: Download dependencies
         run: go mod download
@@ -101,9 +92,9 @@ jobs:
         run: go vet ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: latest
+          version: v2.13.2
 
       - name: Config validation
         run: go run ./cmd/suite validate
@@ -112,6 +103,9 @@ jobs:
         run: make gen
 
       - name: docker compose config (syntax)
+        env:
+          HERALD_REDIS_PASSWORD: ci-herald-redis-password
+          WARDEN_REDIS_PASSWORD: ci-warden-redis-password
         run: docker compose -f build/image/docker-compose.yml config >/dev/null
 
       - name: Run tests (exclude e2e, with race + coverage)
@@ -138,10 +132,14 @@ jobs:
     timeout-minutes: 20
     env:
       COMPOSE_FILE: ${{ github.workspace }}/build/image/docker-compose.yml
+      ENVIRONMENT: test
       TEST_WAIT_TIMEOUT: 180
       HERALD_COMPOSE_DIR: ${{ github.workspace }}
+      HERALD_TEST_MODE: "true"
       HERALD_TEST_LISTENER_ADDR: 127.0.0.1:8092
       HERALD_TEST_API_KEY: test-herald-test-code-key
+      HERALD_REDIS_PASSWORD: test-herald-redis-password
+      WARDEN_REDIS_PASSWORD: test-warden-redis-password
     steps:
       - name: Checkout code
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -151,15 +149,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Cache Go modules
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
 
       - name: Download dependencies
         run: go mod download
@@ -227,15 +216,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Cache Go modules
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
 
       - name: Download dependencies
         run: go mod download
