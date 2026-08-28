@@ -78,8 +78,10 @@ jobs:
     timeout-minutes: 30
     env:
       COMPOSE_FILE: ${{ github.workspace }}/build/image/docker-compose.yml
+      ENVIRONMENT: test
       TEST_WAIT_TIMEOUT: 180
       HERALD_COMPOSE_DIR: ${{ github.workspace }}
+      HERALD_TEST_MODE: "true"
       HERALD_TEST_LISTENER_ADDR: 127.0.0.1:8092
       HERALD_TEST_API_KEY: test-herald-test-code-key
       HERALD_REDIS_PASSWORD: test-herald-redis-password
