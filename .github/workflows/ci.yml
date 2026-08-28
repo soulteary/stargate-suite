@@ -85,7 +85,7 @@ jobs:
         run: |
           unformatted=$(gofmt -l $(git ls-files '*.go'))
           if [ -n "$unformatted" ]; then
-            echo "The following files are not gofmt-formatted:"; echo "$unformatted"; gofmt -d $unformatted; exit 1
+            echo "The following files are not gofmt-formatted:"; echo "$unformatted"; exit 1
           fi
 
       - name: go vet

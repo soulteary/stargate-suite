@@ -9,8 +9,8 @@ import (
 func TestSessionStoreCopiesMutableState(t *testing.T) {
 	store := &sessionStore{sessions: make(map[string]*SessionData)}
 	original := &SessionData{
-		Modes:         []string{"traefik"},
-		Options:       map[string]interface{}{
+		Modes: []string{"traefik"},
+		Options: map[string]interface{}{
 			"healthCheck": true,
 			"nested":      map[string]interface{}{"value": "original"},
 		},
