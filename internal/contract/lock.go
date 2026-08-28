@@ -53,12 +53,9 @@ func NewResolvedLock(manifest *Manifest, resolve DigestResolver) (*ComponentLock
 	if resolve == nil {
 		return nil, fmt.Errorf("digest resolver is nil")
 	}
-	refs := make(map[string]LockedImage, len(manifest.Components)+len(manifest.Dependencies))
-	for name, component := range manifest.Components {
-		refs[name] = LockedImage{Image: component.Image, Version: component.Version}
-	}
-	for name, dependency := range manifest.Dependencies {
-		refs[name] = LockedImage{Image: dependency.Image, Version: dependency.Version}
+	refs, err := manifestImages(manifest)
+	if err != nil {
+		return nil, err
 	}
 	names := make([]string, 0, len(refs))
 	for name := range refs {
@@ -98,12 +95,9 @@ func ValidateLock(manifest *Manifest, lock *ComponentLock, requireDigests bool) 
 	if lock.SchemaVersion != manifest.SchemaVersion {
 		return fmt.Errorf("lock schemaVersion %d does not match manifest %d", lock.SchemaVersion, manifest.SchemaVersion)
 	}
-	want := make(map[string]LockedImage, len(manifest.Components)+len(manifest.Dependencies))
-	for name, component := range manifest.Components {
-		want[name] = LockedImage{Image: component.Image, Version: component.Version}
-	}
-	for name, dependency := range manifest.Dependencies {
-		want[name] = LockedImage{Image: dependency.Image, Version: dependency.Version}
+	want, err := manifestImages(manifest)
+	if err != nil {
+		return err
 	}
 	for name, expected := range want {
 		actual, ok := lock.Images[name]
@@ -121,4 +115,18 @@ func ValidateLock(manifest *Manifest, lock *ComponentLock, requireDigests bool) 
 		return fmt.Errorf("lock has %d images, manifest has %d", len(lock.Images), len(want))
 	}
 	return nil
+}
+
+func manifestImages(manifest *Manifest) (map[string]LockedImage, error) {
+	images := make(map[string]LockedImage, len(manifest.Components)+len(manifest.Dependencies))
+	for name, component := range manifest.Components {
+		images[name] = LockedImage{Image: component.Image, Version: component.Version}
+	}
+	for name, dependency := range manifest.Dependencies {
+		if _, exists := images[name]; exists {
+			return nil, fmt.Errorf("manifest name %q is shared by a component and dependency", name)
+		}
+		images[name] = LockedImage{Image: dependency.Image, Version: dependency.Version}
+	}
+	return images, nil
 }

@@ -72,3 +72,17 @@ func TestValidateLockAllowsEmptyDevelopmentDigests(t *testing.T) {
 		t.Fatal("release snapshot must require digests")
 	}
 }
+
+func TestLockRejectsComponentDependencyNameCollision(t *testing.T) {
+	manifest := lockTestManifest()
+	manifest.Dependencies["app"] = Dependency{Image: "example.invalid/dependency", Version: "latest"}
+
+	if _, err := NewResolvedLock(manifest, func(string) (string, error) {
+		return "sha256:" + strings.Repeat("a", 64), nil
+	}); err == nil || !strings.Contains(err.Error(), "shared") {
+		t.Fatalf("NewResolvedLock collision error = %v", err)
+	}
+	if err := ValidateLock(manifest, &ComponentLock{SchemaVersion: 1}, false); err == nil || !strings.Contains(err.Error(), "shared") {
+		t.Fatalf("ValidateLock collision error = %v", err)
+	}
+}

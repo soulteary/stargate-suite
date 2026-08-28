@@ -44,14 +44,28 @@ func main() {
 }
 
 func dockerDigest(ref string) (string, error) {
-	cmd := exec.Command("docker", "buildx", "imagetools", "inspect", ref, "--format", "{{json .Manifest.Digest}}")
+	cmd := exec.Command("docker", "buildx", "imagetools", "inspect", ref)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("docker buildx imagetools inspect: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
-	return strings.Trim(strings.TrimSpace(string(out)), `"`), nil
+	digest, err := parseInspectDigest(string(out))
+	if err != nil {
+		return "", err
+	}
+	return digest, nil
+}
+
+func parseInspectDigest(output string) (string, error) {
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 && fields[0] == "Digest:" {
+			return fields[1], nil
+		}
+	}
+	return "", fmt.Errorf("docker buildx imagetools inspect output has no descriptor digest")
 }
 
 func fatalf(format string, args ...interface{}) {
