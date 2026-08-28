@@ -35,6 +35,9 @@ func TestLoadLockedImageEnv(t *testing.T) {
 	if got, want := env["STARGATE_IMAGE"], lock.Images["stargate"].Image+"@"+digest; got != want {
 		t.Fatalf("STARGATE_IMAGE = %q, want %q", got, want)
 	}
+	if got, want := env["OWLMAIL_IMAGE"], lock.Images["owlmail"].Image+"@"+digest; got != want {
+		t.Fatalf("OWLMAIL_IMAGE = %q, want %q", got, want)
+	}
 	for _, key := range []string{"HERALD_REDIS_IMAGE", "WARDEN_REDIS_IMAGE", "STARGATE_REDIS_IMAGE"} {
 		if got, want := env[key], lock.Images["redis"].Image+"@"+digest; got != want {
 			t.Fatalf("%s = %q, want %q", key, got, want)
@@ -53,6 +56,23 @@ func TestLoadLockedImageEnvRejectsPlaceholderDigests(t *testing.T) {
 	}
 	if _, err := loadLockedImageEnv(path); err == nil {
 		t.Fatal("expected placeholder lock to be rejected")
+	}
+}
+
+func TestLockMappingsCoverEveryManifestImage(t *testing.T) {
+	manifest, err := loadManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name := range manifest.Components {
+		if len(lockImageEnvVars[name]) == 0 {
+			t.Errorf("component %q has no locked environment mapping", name)
+		}
+	}
+	for name := range manifest.Dependencies {
+		if len(lockImageEnvVars[name]) == 0 {
+			t.Errorf("dependency %q has no locked environment mapping", name)
+		}
 	}
 }
 

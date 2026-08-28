@@ -382,7 +382,7 @@ func ExtractEnvVars(compose map[string]interface{}) map[string]string {
 
 // builtinEnvOrder 是未使用 env-meta 时的 .env 键顺序。
 var builtinEnvOrder = []string{
-	"HERALD_IMAGE", "WARDEN_IMAGE", "STARGATE_IMAGE",
+	"HERALD_IMAGE", "WARDEN_IMAGE", "STARGATE_IMAGE", "OWLMAIL_IMAGE",
 	"HERALD_REDIS_IMAGE", "WARDEN_REDIS_IMAGE", "STARGATE_REDIS_IMAGE",
 	"HERALD_REDIS_ADDR", "HERALD_REDIS_PASSWORD", "HERALD_REDIS_DB",
 	"WARDEN_REDIS_ADDR", "WARDEN_REDIS_PASSWORD", "WARDEN_REDIS_PASSWORD_FILE", "WARDEN_REDIS_ENABLED", "WARDEN_DATA_FILE",
@@ -550,6 +550,9 @@ WARDEN_IMAGE=ghcr.io/soulteary/warden:1.1.0
 
 # Stargate Service Image
 STARGATE_IMAGE=ghcr.io/soulteary/stargate:1.0.0
+
+# OwlMail test inbox image
+OWLMAIL_IMAGE=ghcr.io/soulteary/owlmail:0.4.0
 
 # Redis Image Version
 HERALD_REDIS_IMAGE=redis:8.4-alpine
@@ -1034,7 +1037,7 @@ func injectOwlmailService(svcs map[string]interface{}, opts *Options) {
 		webPort = p
 	}
 	owlmail := map[string]interface{}{
-		"image":          "ghcr.io/soulteary/owlmail:latest",
+		"image":          "${OWLMAIL_IMAGE:-ghcr.io/soulteary/owlmail:0.4.0}",
 		"container_name": prefix + "owlmail",
 		"ports":          []interface{}{"1025:1025", webPort + ":1080"},
 		"environment": []interface{}{
@@ -1544,6 +1547,9 @@ func Generate(full map[string]interface{}, modes []string, envOverride string, o
 		}
 	}
 	if opts != nil && opts.IncludeSmtp && opts.UseOwlmailForSmtp {
+		if _, ok := vars["OWLMAIL_IMAGE"]; !ok {
+			vars["OWLMAIL_IMAGE"] = "ghcr.io/soulteary/owlmail:0.4.0"
+		}
 		vars["SMTP_HOST"] = "owlmail"
 		vars["SMTP_PORT"] = "1025"
 		vars["SMTP_USE_STARTTLS"] = "false"
