@@ -37,6 +37,8 @@ func sendVerificationCodeWithError(t *testing.T, phone string) (string, *ErrorRe
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
+	// Connect over loopback while presenting the configured auth virtual host.
+	req.Host = authHost
 	req.Header.Set("X-Forwarded-Host", authHost)
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -107,6 +109,8 @@ func loginWithError(t *testing.T, phone, challengeID, verifyCode string) (string
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
+	// Connect over loopback while presenting the configured auth virtual host.
+	req.Host = authHost
 	req.Header.Set("X-Forwarded-Host", authHost)
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -274,6 +278,8 @@ func sendVerificationCodeWithEmail(t *testing.T, email string) (string, *ErrorRe
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
+	// Connect over loopback while presenting the configured auth virtual host.
+	req.Host = authHost
 	req.Header.Set("X-Forwarded-Host", authHost)
 
 	client := &http.Client{Timeout: 10 * time.Second}
