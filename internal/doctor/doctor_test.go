@@ -14,13 +14,13 @@ func testManifestFS() fstest.MapFS {
 components:
   stargate:
     image: ghcr.io/soulteary/stargate
-    version: v1.0.0
+    version: 1.0.0
     containerPort: 8080
     livenessPath: /healthz
     readinessPath: /readyz
   herald:
     image: ghcr.io/soulteary/herald
-    version: v1.1.0
+    version: 1.1.0
     containerPort: 8082
     livenessPath: /healthz
 `)},
