@@ -161,7 +161,7 @@ jobs:
       - name: Get version information
         id: version
         run: |
-          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "dev-$(git rev-parse --short HEAD)")
+          VERSION=$(git describe --tags --exact-match 2>/dev/null || echo "dev-$(git rev-parse --short HEAD)")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build Docker image
@@ -211,7 +211,7 @@ jobs:
         id: version
         shell: bash
         run: |
-          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "dev-$(git rev-parse --short HEAD)")
+          VERSION=$(git describe --tags --exact-match 2>/dev/null || echo "dev-$(git rev-parse --short HEAD)")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build project
