@@ -118,6 +118,7 @@ type ApplyResult struct {
 //
 // This is the single policy application shared by CLI and Web UI.
 func Apply(p Profile, opts *composegen.Options, userEnv map[string]string, keygen *KeyGen) *ApplyResult {
+	p = p.enforceCanonicalSecurity()
 	if opts == nil {
 		opts = &composegen.Options{}
 	}
