@@ -103,6 +103,9 @@ jobs:
         run: make gen
 
       - name: docker compose config (syntax)
+        env:
+          HERALD_REDIS_PASSWORD: ci-herald-redis-password
+          WARDEN_REDIS_PASSWORD: ci-warden-redis-password
         run: docker compose -f build/image/docker-compose.yml config >/dev/null
 
       - name: Run tests (exclude e2e, with race + coverage)
