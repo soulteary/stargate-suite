@@ -61,7 +61,7 @@ dependencies:
     image: ghcr.io/traefik/whoami
     version: v1.11
 
-# 本 Suite 发布已验证的目标组件组合（只读契约来源，见 .cursor 规则 / PLAN.md）。
+# 本 Suite 发布已验证的目标组件组合（只读契约来源，见 docs/release.md）。
 # 供 `suite version` 展示；PR 8 已把 components.* 收敛到此组合。
 # 所有版本均对应已发布的上游稳定 Tag；镜像使用 release 工作流产生的
 # 无 `v` semver tag。
