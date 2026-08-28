@@ -1,15 +1,14 @@
-name: CI (PR)
+name: CI (main)
 
-# PR tier — fast feedback (target 5-8 min). Runs on pull requests only; pushes
-# to main are validated by the heavier `main.yml` tier. Documentation-only PRs
-# skip container build and E2E via the `changes` path filter below.
+# main tier — full validation on pushes to the integration branches. Heavier
+# than the PR tier: complete E2E, container build, vulnerability scan, and the
+# three-OS binary build matrix. Signing / SBOM / provenance live in release.yml.
 on:
-  pull_request:
+  push:
     branches: [ main, master, develop ]
 
-# Cancel superseded runs for the same PR so we don't burn minutes on stale SHAs.
 concurrency:
-  group: ci-pr-${{ github.workflow }}-${{ github.ref }}
+  group: ci-main-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -19,55 +18,10 @@ env:
   DOCKER_BUILDKIT: 1
 
 jobs:
-  # Detect which parts of the tree changed so heavy jobs (smoke E2E) run only
-  # when component manifest / canonical compose / E2E / auth-relevant code moves.
-  changes:
-    name: Detect changes
-    runs-on: ubuntu-latest
-    outputs:
-      code: ${{ steps.filter.outputs.code }}
-      e2e: ${{ steps.filter.outputs.e2e }}
-      docs_only: ${{ steps.filter.outputs.docs_only }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-      - name: Path filter
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            code:
-              - '**/*.go'
-              - 'go.mod'
-              - 'go.sum'
-              - 'config/**'
-              - 'compose/**'
-              - 'Dockerfile'
-              - 'Makefile'
-              - 'scripts/**'
-              - '.github/workflows/**'
-            e2e:
-              - 'e2e/**'
-              - 'config/components.yaml'
-              - 'config/components.lock.yaml'
-              - 'compose/**'
-              - 'fixtures/**'
-              - 'internal/composegen/**'
-              - 'internal/policy/**'
-              - 'internal/contract/**'
-              - 'Dockerfile'
-            docs_only:
-              - '**/*.md'
-              - 'docs/**'
-              - 'LICENSE'
-
-  # Static analysis + non-e2e unit tests + config/compose sanity. Always runs
-  # (even for docs-only PRs it is cheap and guards accidental code edits).
   test:
     name: Lint, unit tests, config
     runs-on: ubuntu-latest
-    needs: [changes]
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -94,7 +48,7 @@ jobs:
         run: |
           unformatted=$(gofmt -l $(git ls-files '*.go'))
           if [ -n "$unformatted" ]; then
-            echo "The following files are not gofmt-formatted:"; echo "$unformatted"; exit 1
+            echo "Not gofmt-formatted:"; echo "$unformatted"; exit 1
           fi
 
       - name: go vet
@@ -105,14 +59,13 @@ jobs:
         with:
           version: latest
 
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
       - name: Config validation
         run: go run ./cmd/suite validate
-
-      - name: Generate compose (native CLI, no Web server)
-        run: make gen
-
-      - name: docker compose config (syntax)
-        run: docker compose -f build/image/docker-compose.yml config >/dev/null
 
       - name: Run tests (exclude e2e, with race + coverage)
         run: |
@@ -120,7 +73,6 @@ jobs:
           if [ -n "$pkgs" ]; then
             go test -race -coverprofile=coverage.out -covermode=atomic $pkgs
           else
-            echo "No non-e2e packages to test"
             touch coverage.out
           fi
 
@@ -128,14 +80,11 @@ jobs:
         if: success()
         run: go tool cover -func=coverage.out 2>/dev/null || true
 
-  # Smoke E2E — only when E2E-relevant paths changed. Docs-only or pure Web-UI
-  # PRs skip this to keep PR feedback fast and cheap.
-  smoke-e2e:
-    name: Smoke E2E
+  e2e:
+    name: Full E2E
     runs-on: ubuntu-latest
-    needs: [changes, test]
-    if: needs.changes.outputs.e2e == 'true'
-    timeout-minutes: 20
+    needs: [test]
+    timeout-minutes: 30
     env:
       COMPOSE_FILE: ${{ github.workspace }}/build/image/docker-compose.yml
       TEST_WAIT_TIMEOUT: 180
@@ -202,8 +151,8 @@ jobs:
             sleep 2
           done
 
-      - name: Run smoke E2E
-        run: go test -race -timeout 15m ./e2e/...
+      - name: Run full E2E tests
+        run: go test -race -timeout 20m ./e2e/...
 
       - name: Show service logs on failure
         if: failure()
@@ -211,13 +160,54 @@ jobs:
           docker compose -f "$COMPOSE_FILE" ps -a
           docker compose -f "$COMPOSE_FILE" logs --tail=300
 
-  # CLI/binary build check on the changed-code path only.
-  build:
-    name: Build check (CLI)
+  docker-build:
+    name: Docker build + Trivy scan
     runs-on: ubuntu-latest
-    needs: [changes, test]
-    if: needs.changes.outputs.code == 'true'
-    timeout-minutes: 10
+    needs: [test]
+    timeout-minutes: 25
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Get version information
+        id: version
+        run: |
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "dev-$(git rev-parse --short HEAD)")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: stargate-suite:test
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: stargate-suite:test
+          format: table
+          exit-code: '0'
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+  build:
+    name: Build check (matrix)
+    runs-on: ${{ matrix.os }}
+    needs: [test]
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -240,5 +230,22 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Get version information
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "dev-$(git rev-parse --short HEAD)")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Build project
-        run: CGO_ENABLED=0 go build -ldflags "-s -w" -o stargate-suite ./cmd/suite
+        shell: bash
+        run: |
+          CGO_ENABLED=0 go build -ldflags "-s -w -X main.Version=${{ steps.version.outputs.version }}" \
+            -o stargate-suite${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./cmd/suite
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: stargate-suite-binary-${{ matrix.os }}
+          path: stargate-suite${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          retention-days: 5

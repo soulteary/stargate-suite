@@ -1,0 +1,146 @@
+name: Nightly
+
+# nightly / manual tier — broader, slower coverage that must not gate PRs:
+# cross-arch container E2E and multi-OS CLI builds. Scheduled off-peak and
+# runnable on demand. No self-hosted runners.
+on:
+  schedule:
+    # 02:30 UTC daily (off-peak).
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  # Full E2E against the pinned canonical combination (config/components.yaml is
+  # the single source of truth for versions — M-01).
+  e2e-linux:
+    name: Nightly E2E (linux/amd64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      COMPOSE_FILE: ${{ github.workspace }}/build/image/docker-compose.yml
+      TEST_WAIT_TIMEOUT: 240
+      HERALD_COMPOSE_DIR: ${{ github.workspace }}
+      HERALD_TEST_LISTENER_ADDR: 127.0.0.1:8092
+      HERALD_TEST_API_KEY: test-herald-test-code-key
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go environment
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Generate compose (native CLI)
+        run: make gen
+
+      - name: Prepare Warden data for E2E
+        run: cp fixtures/warden/data.json build/image/data.json
+
+      - name: Start services
+        run: docker compose -f "$COMPOSE_FILE" up -d
+
+      - name: Wait for services to be ready
+        run: |
+          start=$(date +%s)
+          while true; do
+            all_ok=true
+            for endpoint in "8080/healthz" "8081/healthcheck" "8082/healthz"; do
+              port="${endpoint%%/*}"
+              path="${endpoint#*/}"
+              if ! curl -sf --connect-timeout 3 "http://127.0.0.1:$port/$path" > /dev/null 2>&1; then
+                all_ok=false
+                break
+              fi
+            done
+            if [ "$all_ok" = true ]; then
+              echo "All services ready."
+              break
+            fi
+            now=$(date +%s)
+            elapsed=$(( now - start ))
+            if [ "$elapsed" -ge "${TEST_WAIT_TIMEOUT:-240}" ]; then
+              docker compose -f "$COMPOSE_FILE" ps -a
+              docker compose -f "$COMPOSE_FILE" logs --tail=200
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Run full E2E
+        run: go test -race -timeout 30m ./e2e/...
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          docker compose -f "$COMPOSE_FILE" ps -a
+          docker compose -f "$COMPOSE_FILE" logs --tail=300
+
+  # Multi-arch container build to catch arm64-only regressions (no push).
+  docker-multiarch:
+    name: Nightly multi-arch image build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build (amd64 + arm64, no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # CLI-only build on Windows/macOS (no Docker E2E on those OSes).
+  cli-build:
+    name: Nightly CLI build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go environment
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build CLI
+        shell: bash
+        run: CGO_ENABLED=0 go build -ldflags "-s -w" -o stargate-suite${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./cmd/suite
+
+      - name: Smoke test CLI (help/version/generate)
+        shell: bash
+        run: |
+          ./stargate-suite${{ matrix.os == 'windows-latest' && '.exe' || '' }} version
+          ./stargate-suite${{ matrix.os == 'windows-latest' && '.exe' || '' }} validate
