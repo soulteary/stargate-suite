@@ -1,7 +1,8 @@
 // Package policy: validation primitives shared by the four-layer validator
 // (see validate.go). These Go definitions are the runtime source of truth for
-// field shapes, secret strength, and stable finding codes. Layer 1 checks field
-// types; layer 2 checks single-field safety; higher layers live in validate.go.
+// field shapes, secret strength, and stable finding codes; no declarative
+// shadow schema is maintained. Layer 1 checks field types; layer 2 checks
+// single-field safety; higher layers live in validate.go.
 package policy
 
 import (
