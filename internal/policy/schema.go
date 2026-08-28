@@ -1,6 +1,6 @@
 // Package policy: schema-level validation primitives shared by the four-layer
-// validator (see validate.go). Layer 1 checks field TYPES (port / URL / bool /
-// duration / CIDR); layer 2 checks single-field SAFETY (secret length, banned
+// validator (see validate.go). Layer 1 checks field TYPES (bool / duration /
+// CIDR / host list); layer 2 checks single-field SAFETY (secret length, banned
 // placeholder values, no plaintext). Higher layers (cross-field, cross-service)
 // live in validate.go. All findings carry a stable Code so `validate --strict
 // --json` is scriptable.
@@ -8,9 +8,7 @@ package policy
 
 import (
 	"net"
-	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -53,25 +51,10 @@ const (
 // profiles. 32 chars ~ 128+ bits of entropy for hex/base64 material.
 const minSecretLen = 32
 
-// isValidPort reports whether s is a TCP port in [1,65535].
-func isValidPort(s string) bool {
-	n, err := strconv.Atoi(strings.TrimSpace(s))
-	return err == nil && n >= 1 && n <= 65535
-}
-
 // isValidDuration reports whether s parses as a Go duration (e.g. 5m, 60s, 1h).
 func isValidDuration(s string) bool {
 	_, err := time.ParseDuration(strings.TrimSpace(s))
 	return err == nil
-}
-
-// isValidURL reports whether s is an absolute http(s) URL with a host.
-func isValidURL(s string) bool {
-	u, err := url.Parse(strings.TrimSpace(s))
-	if err != nil {
-		return false
-	}
-	return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }
 
 // isValidBool reports whether s is a recognized boolean literal.
