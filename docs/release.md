@@ -8,17 +8,18 @@
 
 ### Trigger
 
-`release.yml` runs on a semver tag push (`vX.Y.Z`) or a controlled
-`workflow_dispatch` (pass an existing tag). Non-semver refs are refused, and the
-tag commit must be an ancestor of `main`.
+`release.yml` runs on a strict SemVer tag push (`vX.Y.Z`, with optional valid
+pre-release/build metadata) or a controlled `workflow_dispatch` (pass an
+existing tag). Malformed tags and leading-zero numeric identifiers are refused,
+and the tag commit must be an ancestor of `main`.
 
 ### What it produces
 
 - `-trimpath` binaries for linux / darwin / windows on amd64 + arm64, with
   version/commit/build-date injected via ldflags.
 - A stable, self-excluding `checksums.txt`.
-- A multi-arch (amd64 + arm64) container image, **Trivy-scanned before push**
-  (CRITICAL/HIGH fail the release).
+- A multi-arch (amd64 + arm64) container image, with **each architecture
+  Trivy-scanned before push** (CRITICAL/HIGH fail the release).
 - An SPDX **SBOM**.
 - A `components.lock.yaml` snapshot whose tags match `components.yaml` and
   whose images are resolved to immutable `sha256` digests.
@@ -42,7 +43,7 @@ and promote them on release.
 Workflows default to `permissions: contents: read`; only the release job
 elevates (`contents`, `packages`, `id-token`, `attestations` write). All
 third-party actions are pinned to commit SHAs (semantic version kept in a
-trailing comment).
+trailing comment). `govulncheck` is also pinned to an explicit module version.
 
 ### Controlled re-run
 
@@ -56,15 +57,17 @@ flows for the same tag.
 
 ### 触发
 
-`release.yml` 在推送语义化 tag（`vX.Y.Z`）或受控 `workflow_dispatch`（传入已存在的
-tag）时运行。非语义化 ref 会被拒绝，且 tag 对应 commit 必须是 `main` 的祖先。
+`release.yml` 在推送严格 SemVer tag（`vX.Y.Z`，可带合法预发布/构建元数据）或受控
+`workflow_dispatch`（传入已存在 tag）时运行。格式错误或数字前导零的 tag 会被拒绝，
+且 tag 对应 commit 必须是 `main` 的祖先。
 
 ### 产物
 
 - linux / darwin / windows 的 amd64 + arm64 `-trimpath` 二进制，经 ldflags 注入
   版本/commit/构建时间。
 - 稳定且自排除的 `checksums.txt`。
-- 多架构（amd64 + arm64）容器镜像，**推送前经 Trivy 扫描**（CRITICAL/HIGH 使发布失败）。
+- 多架构（amd64 + arm64）容器镜像，**两个架构均在推送前经 Trivy 扫描**
+  （CRITICAL/HIGH 使发布失败）。
 - SPDX **SBOM**。
 - 与 `components.yaml` 标签一致、且所有镜像均解析为不可变 `sha256` digest 的
   `components.lock.yaml` 快照。
@@ -86,6 +89,7 @@ tag）时运行。非语义化 ref 会被拒绝，且 tag 对应 commit 必须�
 workflow 顶层默认 `permissions: contents: read`，仅发布 job 提权
 （`contents`、`packages`、`id-token`、`attestations` 写）。所有第三方 Action 固定到
 commit SHA（语义版本保留在行尾注释）。
+`govulncheck` 同样固定到明确的 module 版本。
 
 ### 受控重跑
 

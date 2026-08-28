@@ -79,15 +79,25 @@ go run ./cmd/suite doctor --compose build/dev/docker-compose.yml
 
 Config generation is also available via the **Web UI** (first step selects the profile) or `make gen` (development profile, native CLI, no Web server). CI uses `make gen-test` for an isolated deterministic test profile. The raw canonical generator remains available as `go run ./cmd/suite generate --canonical --output build` for template inspection; it intentionally does not supply required runtime secrets.
 
-**Web UI:** `go run ./cmd/suite serve` binds **`127.0.0.1:8085` by default** (loopback only, no auth needed locally). Exposing it off-host is opt-in and always authenticated: `serve --listen 0.0.0.0:8085 --allow-remote` refuses to start without `--allow-remote` and, in remote mode, requires an access token (auto-generated and printed if you don't pass `--token`). State-changing POSTs are Origin/CSRF-checked, cookies are HttpOnly + SameSite=Strict (Secure off loopback), and operator secrets are dropped from the server session after the artifacts are returned. The listener never silently switches ports — a busy port is a hard error.
+**Web UI:** `go run ./cmd/suite serve` binds **`127.0.0.1:8085` by default** (loopback only, no auth needed locally). Exposing it off-host is opt-in and always authenticated: `serve --listen 0.0.0.0:8085 --allow-remote` refuses to start without `--allow-remote` and, in remote mode, requires an access token (auto-generated and printed if you don't pass `--token`). State-changing POSTs are Origin/CSRF-checked, cookies are HttpOnly + SameSite=Strict and Secure by default, and operator secrets are dropped from the server session after the artifacts are returned. `--allow-insecure-cookie` is reserved for an explicitly loopback-published HTTP container port; do not use it behind a reverse proxy. The listener never silently switches ports — a busy port is a hard error.
 
 **Container (self-contained, no source mount):**
 
 ```bash
 docker build -t stargate-suite:local .
-docker run --rm -p 8085:8085 stargate-suite:local        # Web UI, no repo mount
-docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local  # read-only root fs
+docker run --rm -p 127.0.0.1:8085:8085 stargate-suite:local \
+  serve --listen 0.0.0.0:8085 --allow-remote --allow-insecure-cookie
+docker run --rm --read-only --tmpfs /tmp -p 127.0.0.1:8085:8085 stargate-suite:local \
+  serve --listen 0.0.0.0:8085 --allow-remote --allow-insecure-cookie
 ```
+
+The container binds all container interfaces so Docker port publishing works,
+but still requires an access token. Open the tokenized URL printed in the
+container logs. The explicit insecure-cookie opt-in is safe only while the
+host-side port remains bound to `127.0.0.1`. For access from
+another machine, put an HTTPS reverse proxy in front and override the image
+command without `--allow-insecure-cookie`, so authentication and session
+cookies remain Secure.
 
 **Test:**
 

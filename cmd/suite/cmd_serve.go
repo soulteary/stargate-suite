@@ -94,10 +94,13 @@ func extractServiceNames(compose map[string]interface{}) []string {
 	return names
 }
 
-// parseEnvText 将 .env 文本解析为 KEY=VALUE 映射（每行一条，空行与 # 开头忽略）。
+// parseEnvText parses dotenv assignments, including the multiline literal
+// single-quoted form emitted by composegen.EncodeEnvValue.
 func parseEnvText(env string) map[string]string {
 	out := make(map[string]string)
-	for _, line := range strings.Split(env, "\n") {
+	lines := strings.Split(env, "\n")
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -108,8 +111,26 @@ func parseEnvText(env string) map[string]string {
 		}
 		key := strings.TrimSpace(line[:idx])
 		val := strings.TrimSpace(line[idx+1:])
-		// 去除可选的引号
-		if (strings.HasPrefix(val, `"`) && strings.HasSuffix(val, `"`)) || (strings.HasPrefix(val, "'") && strings.HasSuffix(val, "'")) {
+		if strings.HasPrefix(val, "'") {
+			var literal strings.Builder
+			part := val[1:]
+			for {
+				end := singleQuotedEnd(part)
+				if end >= 0 {
+					literal.WriteString(decodeSingleQuoted(part[:end]))
+					val = literal.String()
+					break
+				}
+				literal.WriteString(decodeSingleQuoted(part))
+				if i+1 >= len(lines) {
+					val = literal.String()
+					break
+				}
+				literal.WriteByte('\n')
+				i++
+				part = lines[i]
+			}
+		} else if strings.HasPrefix(val, `"`) && strings.HasSuffix(val, `"`) {
 			val = val[1 : len(val)-1]
 		}
 		if key != "" {
@@ -117,6 +138,23 @@ func parseEnvText(env string) map[string]string {
 		}
 	}
 	return out
+}
+
+func singleQuotedEnd(value string) int {
+	for i := 0; i < len(value); i++ {
+		if value[i] == '\\' && i+1 < len(value) && value[i+1] == '\'' {
+			i++
+			continue
+		}
+		if value[i] == '\'' {
+			return i
+		}
+	}
+	return -1
+}
+
+func decodeSingleQuoted(value string) string {
+	return strings.ReplaceAll(value, `\'`, `'`)
 }
 
 // suggestModes 根据解析出的服务名推断建议勾选的 compose 类型（用于一键导入）。
@@ -260,9 +298,9 @@ func sessionMiddleware(cfg serveConfig, h http.Handler) http.Handler {
 				Path:     "/",
 				MaxAge:   int(sessionTTL.Seconds()),
 				HttpOnly: true,
-				// Secure when not plain-loopback; Strict SameSite (the UI has no
-				// cross-site flows) further hardens against CSRF.
-				Secure:   !cfg.loopback,
+				// The browser-facing scheme is explicit configuration because a
+				// reverse proxy can rewrite both the upstream scheme and Host.
+				Secure:   cfg.secureCookie,
 				SameSite: http.SameSiteStrictMode,
 			})
 		}
@@ -853,7 +891,7 @@ func applyPortsConfigToOptions(opts *composegen.Options, ports []portDef) {
 }
 
 func cmdServe() error {
-	// Serve owns its flag set (--listen / --allow-remote / --token) so the Web
+	// Serve owns its security-related flag set so the Web
 	// UI security posture is explicit. Legacy --port / SERVE_PORT (parsed in
 	// main) is honored only when --listen is absent, for backward compatibility.
 	sfs := flag.NewFlagSet("serve", flag.ContinueOnError)
@@ -861,10 +899,11 @@ func cmdServe() error {
 	listen := sfs.String("listen", "", "host:port to bind (default 127.0.0.1:8085; loopback-only unless --allow-remote)")
 	allowRemote := sfs.Bool("allow-remote", false, "permit binding a non-loopback address (requires and, if unset, generates an access token)")
 	token := sfs.String("token", "", "access token required on every request (auto-generated in remote mode when empty)")
+	allowInsecureCookie := sfs.Bool("allow-insecure-cookie", false, "permit the auth cookie over HTTP (only for an explicitly loopback-published container port)")
 	if err := sfs.Parse(cmdArgs); err != nil {
 		return err
 	}
-	cfg, err := resolveServeConfig(*listen, servePort, *token, *allowRemote)
+	cfg, err := resolveServeConfig(*listen, servePort, *token, *allowRemote, *allowInsecureCookie)
 	if err != nil {
 		return err
 	}
@@ -1109,10 +1148,12 @@ func cmdServe() error {
 		}
 	}()
 	scheme := "http"
-	fmt.Printf("Web UI: %s://%s\n", scheme, addr)
+	openAddr := browserAddr(addr)
+	fmt.Printf("Web UI: %s://%s\n", scheme, openAddr)
 	if !cfg.loopback {
 		fmt.Printf("Remote access enabled. Access token required.\n")
-		fmt.Printf("  Open: %s://%s/?token=%s\n", scheme, addr, cfg.token)
+		fmt.Printf("  Open locally: %s://%s/?token=%s\n", scheme, openAddr, cfg.token)
+		fmt.Printf("  For off-host access, use an HTTPS reverse proxy and replace the URL host.\n")
 		fmt.Printf("  Or send header: Authorization: Bearer %s\n", cfg.token)
 	} else if cfg.token != "" {
 		fmt.Printf("Access token required: %s\n", cfg.token)

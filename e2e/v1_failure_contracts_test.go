@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -73,6 +75,121 @@ func TestLivenessReadinessAreDistinct(t *testing.T) {
 	}
 }
 
+func TestServiceReadyStatusRequires2xx(t *testing.T) {
+	for _, status := range []int{http.StatusOK, http.StatusNoContent} {
+		if !serviceReadyStatus(status) {
+			t.Errorf("status %d must be ready", status)
+		}
+	}
+	for _, status := range []int{http.StatusMovedPermanently, http.StatusNotFound, http.StatusTooManyRequests, http.StatusServiceUnavailable} {
+		if serviceReadyStatus(status) {
+			t.Errorf("status %d must not be ready", status)
+		}
+	}
+}
+
+// TestDependencyFailureRecoveryContracts exercises the v1 failure matrix
+// against real Compose services. A dependency outage must fail readiness while
+// preserving liveness, and readiness must recover after the dependency returns.
+func TestDependencyFailureRecoveryContracts(t *testing.T) {
+	dir := os.Getenv("HERALD_COMPOSE_DIR")
+	if dir == "" {
+		t.Skip("HERALD_COMPOSE_DIR is required for dependency failure tests")
+	}
+	ensureServicesReady(t)
+
+	cases := []struct {
+		name               string
+		service            string
+		livenessURL        string
+		affectedReadyURL   string
+		serviceRecoveryURL string
+	}{
+		{
+			name:               "herald redis outage",
+			service:            "herald-redis",
+			livenessURL:        heraldURL + "/livez",
+			affectedReadyURL:   heraldURL + "/readyz",
+			serviceRecoveryURL: heraldURL + "/readyz",
+		},
+		{
+			name:               "warden outage",
+			service:            "warden",
+			livenessURL:        stargateURL + "/healthz",
+			affectedReadyURL:   stargateURL + "/readyz",
+			serviceRecoveryURL: wardenURL + "/healthcheck",
+		},
+		{
+			name:               "herald outage",
+			service:            "herald",
+			livenessURL:        stargateURL + "/healthz",
+			affectedReadyURL:   stargateURL + "/readyz",
+			serviceRecoveryURL: heraldURL + "/readyz",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := stopDockerServiceInDir(dir, tc.service); err != nil {
+				t.Fatalf("stop dependency: %v", err)
+			}
+			t.Cleanup(func() {
+				if err := startDockerServiceInDir(dir, tc.service); err != nil {
+					t.Errorf("restore dependency after failure: %v", err)
+					return
+				}
+				if !waitForService(t, tc.serviceRecoveryURL, 45*time.Second) {
+					t.Errorf("%s was not ready after cleanup", tc.service)
+				}
+			})
+
+			status, body := waitForExactStatus(tc.affectedReadyURL, http.StatusServiceUnavailable, 30*time.Second)
+			if status != http.StatusServiceUnavailable {
+				t.Fatalf("affected readiness did not become 503; last status=%d body=%s", status, body)
+			}
+			liveStatus, liveBody := fetchStatus(tc.livenessURL)
+			if liveStatus != http.StatusOK {
+				t.Fatalf("liveness changed during dependency outage: status=%d body=%s", liveStatus, liveBody)
+			}
+
+			if err := startDockerServiceInDir(dir, tc.service); err != nil {
+				t.Fatalf("restart dependency: %v", err)
+			}
+			if !waitForService(t, tc.serviceRecoveryURL, 45*time.Second) {
+				t.Fatalf("%s did not recover", tc.service)
+			}
+			if !waitForService(t, tc.affectedReadyURL, 45*time.Second) {
+				t.Fatalf("affected readiness did not recover after %s restart", tc.service)
+			}
+		})
+	}
+}
+
+func fetchStatus(url string) (int, string) {
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		return 0, err.Error()
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, string(body)
+}
+
+func waitForExactStatus(url string, want int, timeout time.Duration) (int, string) {
+	deadline := time.Now().Add(timeout)
+	var status int
+	var body string
+	for time.Now().Before(deadline) {
+		status, body = fetchStatus(url)
+		if status == want {
+			return status, body
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return status, body
+}
+
 // TestHeraldNonceReplayRejected asserts a v2 nonce is single-use: replaying the
 // exact same signed request (same timestamp + nonce + signature) must be
 // rejected with a replay reason. This is the anti-replay guarantee of HMAC v2
@@ -129,6 +246,13 @@ func TestHeraldNonceReplayRejected(t *testing.T) {
 	secondCode, secondBody := doSigned()
 	testza.AssertTrue(t, secondCode == http.StatusUnauthorized || secondCode == http.StatusForbidden,
 		"replaying the same nonce must be rejected (401/403), got %d; body: %s", secondCode, secondBody)
+	var replayError struct {
+		Reason string `json:"reason"`
+	}
+	testza.AssertNoError(t, json.Unmarshal([]byte(secondBody), &replayError))
+	testza.AssertTrue(t, strings.Contains(strings.ToLower(replayError.Reason), "nonce") ||
+		strings.Contains(strings.ToLower(replayError.Reason), "replay"),
+		"replay rejection must identify the nonce/replay contract, got %q", replayError.Reason)
 	t.Logf("✓ nonce replay rejected: first=%d second=%d body=%s", firstCode, secondCode, secondBody)
 }
 

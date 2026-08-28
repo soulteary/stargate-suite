@@ -79,15 +79,23 @@ go run ./cmd/suite doctor --compose build/dev/docker-compose.yml
 
 配置生成也可经 **Web UI**（第一步选择 Profile）或 `make gen`（development Profile，原生 CLI，不启动 Web 服务）。CI 使用 `make gen-test` 生成隔离、确定性的 test Profile。若只需检查原始模板，可执行 `go run ./cmd/suite generate --canonical --output build`；原始模板不会补齐运行时必需的密钥。
 
-**Web UI：** `go run ./cmd/suite serve` **默认绑定 `127.0.0.1:8085`**（仅本地回环，本机无需鉴权）。对外暴露需显式开启且强制鉴权：`serve --listen 0.0.0.0:8085 --allow-remote`——未加 `--allow-remote` 会拒绝启动；remote 模式下必须携带 access token（未传 `--token` 时自动生成并打印）。状态变更 POST 会做 Origin/CSRF 校验，Cookie 为 HttpOnly + SameSite=Strict（非回环时置 Secure），且生成产物返回后即从服务端会话中清除运维密钥。监听端口被占用会直接报错，**绝不静默换端口**。
+**Web UI：** `go run ./cmd/suite serve` **默认绑定 `127.0.0.1:8085`**（仅本地回环，本机无需鉴权）。对外暴露需显式开启且强制鉴权：`serve --listen 0.0.0.0:8085 --allow-remote`——未加 `--allow-remote` 会拒绝启动；remote 模式下必须携带 access token（未传 `--token` 时自动生成并打印）。状态变更 POST 会做 Origin/CSRF 校验，Cookie 为 HttpOnly + SameSite=Strict 且默认启用 Secure；`--allow-insecure-cookie` 仅用于明确绑定到宿主机回环地址的 HTTP 容器端口，反向代理场景不得使用。生成产物返回后会从服务端会话中清除运维密钥。监听端口被占用会直接报错，**绝不静默换端口**。
 
 **容器（自包含，无需挂载源码）：**
 
 ```bash
 docker build -t stargate-suite:local .
-docker run --rm -p 8085:8085 stargate-suite:local        # Web UI，无需挂载仓库
-docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local  # 只读根文件系统
+docker run --rm -p 127.0.0.1:8085:8085 stargate-suite:local \
+  serve --listen 0.0.0.0:8085 --allow-remote --allow-insecure-cookie
+docker run --rm --read-only --tmpfs /tmp -p 127.0.0.1:8085:8085 stargate-suite:local \
+  serve --listen 0.0.0.0:8085 --allow-remote --allow-insecure-cookie
 ```
+
+容器内监听所有接口以支持 Docker 端口映射，但仍强制 access token。请打开容器
+日志中打印的带 token 地址。示例中的不安全 Cookie 选项仅在宿主端口始终绑定到
+`127.0.0.1` 时安全。若需从其他机器
+访问，请使用 HTTPS 反向代理，并覆盖镜像命令、去掉 `--allow-insecure-cookie`，
+确保鉴权与会话 Cookie 保持 Secure。
 
 **测试：**
 

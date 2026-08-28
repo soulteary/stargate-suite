@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -433,6 +434,28 @@ func getComments(meta *EnvMeta) map[string]string {
 	return envComments
 }
 
+// EncodeEnvValue renders a Compose dotenv value without allowing $, #,
+// whitespace, quotes, or newlines to change its meaning. Compose treats
+// single-quoted values literally; an embedded quote is escaped as \'.
+func EncodeEnvValue(value string) string {
+	if value == "" {
+		return ""
+	}
+	safe := true
+	for _, r := range value {
+		if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') ||
+			(r >= '0' && r <= '9') || strings.ContainsRune("_./:@,+-=", r) {
+			continue
+		}
+		safe = false
+		break
+	}
+	if safe {
+		return value
+	}
+	return "'" + strings.ReplaceAll(value, "'", `\'`) + "'"
+}
+
 // EnvBodyFromVars 根据变量映射生成 .env 文件内容；optionalOverride 可覆盖或追加（每行 KEY=VALUE）。meta 为 nil 时使用内置 order。
 func EnvBodyFromVars(vars map[string]string, optionalOverride string, meta *EnvMeta) string {
 	order := builtinEnvOrder
@@ -469,13 +492,18 @@ func EnvBodyFromVars(vars map[string]string, optionalOverride string, meta *EnvM
 			if k == "HERALD_TOTP_IMAGE" {
 				lines = append(lines, "# TOTP 2FA (optional): Herald proxies to herald-totp; Stargate uses Herald client for enroll/verify")
 			}
-			lines = append(lines, k+"="+v)
+			lines = append(lines, k+"="+EncodeEnvValue(v))
 		}
 	}
-	for k, v := range vars {
+	remaining := make([]string, 0, len(vars)-len(seen))
+	for k := range vars {
 		if !seen[k] {
-			lines = append(lines, k+"="+v)
+			remaining = append(remaining, k)
 		}
+	}
+	sort.Strings(remaining)
+	for _, k := range remaining {
+		lines = append(lines, k+"="+EncodeEnvValue(vars[k]))
 	}
 	if optionalOverride != "" {
 		lines = append(lines, "")
@@ -1455,6 +1483,13 @@ type Generated struct {
 func Generate(full map[string]interface{}, modes []string, envOverride string, opts *Options, meta *EnvMeta) (*Generated, error) {
 	if err := ValidateOptions(opts); err != nil {
 		return nil, err
+	}
+	if opts != nil {
+		for key := range opts.EnvOverrides {
+			if !ValidEnvKey(key) {
+				return nil, fmt.Errorf("invalid environment variable name %q", key)
+			}
+		}
 	}
 	if meta != nil && opts != nil && len(opts.EnvOverrides) > 0 {
 		if errs := ValidateEnvOverrides(opts.EnvOverrides, meta.ServiceAllowedEnvKeys()); len(errs) > 0 {
