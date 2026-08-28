@@ -384,7 +384,7 @@ services:
       - "traefik.http.middlewares.stargate-auth.forwardauth.authResponseHeadersRegex=^(X-Forwarded-.*|X-Auth-.*)$"
       - "traefik.http.middlewares.stargate-auth.forwardauth.trustForwardHeader=true"
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/healthz"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/healthz"]
       interval: 10s
       timeout: 3s
       retries: 3
