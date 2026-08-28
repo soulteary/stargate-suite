@@ -147,9 +147,6 @@ func Validate(p Profile, env map[string]string, opts *composegen.Options) []Find
 
 	// --- Service-to-service keys ---
 	if p.SecretSource == SecretUserProvidedOrFile {
-		if !strongCredential(get(EnvHeraldAPIKey), minAPIKeyLen) {
-			add(CodeHeraldAPIKeyWeak, EnvHeraldAPIKey, "HERALD_API_KEY must be a user-provided key of at least 16 characters (test/placeholder/empty rejected)", false)
-		}
 		if !strongCredential(get(EnvWardenAPIKey), minAPIKeyLen) {
 			add(CodeWardenAPIKeyWeak, EnvWardenAPIKey, "WARDEN_API_KEY must be a user-provided key of at least 16 characters (test/placeholder/empty rejected)", false)
 		}
@@ -157,8 +154,13 @@ func Validate(p Profile, env map[string]string, opts *composegen.Options) []Find
 		if hmac == "" {
 			hmac = get(EnvHmacSecret)
 		}
-		if !strongSecret(hmac) {
+		hasHeraldMtls := has(EnvHeraldTLSClientCert) && has(EnvHeraldTLSClientKey)
+		requireHmac := p.HeraldAuth == HeraldHmacV2 ||
+			(p.HeraldAuth == HeraldHmacV2OrMtls && !hasHeraldMtls)
+		if requireHmac && !strongSecret(hmac) {
 			add(CodeHmacSecretWeak, EnvHeraldHmacSecret, "HMAC secret must be a strong user-provided value of at least 32 characters (test/placeholder/empty rejected)", false)
+		} else if hmac != "" && !strongSecret(hmac) {
+			add(CodeHmacSecretWeak, EnvHeraldHmacSecret, "configured HMAC secret must be at least 32 characters and not be a placeholder", false)
 		}
 		// Herald v1.1 PII pepper + idempotency secret must be strong when set;
 		// production requires them to be set (fail-closed on missing).
@@ -245,7 +247,7 @@ func Validate(p Profile, env map[string]string, opts *composegen.Options) []Find
 		}
 	}
 	checkPair(CodeTLSPairIncomplete, EnvWardenTLSClientCertFile, EnvWardenTLSClientKeyFile)
-	checkPair(CodeTLSPairIncomplete, "HERALD_TLS_CLIENT_CERT_FILE", "HERALD_TLS_CLIENT_KEY_FILE")
+	checkPair(CodeTLSPairIncomplete, EnvHeraldTLSClientCert, EnvHeraldTLSClientKey)
 
 	// =====================================================================
 	// Layer 4 — CROSS-SERVICE rules: Stargate's outbound auth toward Herald
@@ -258,9 +260,9 @@ func Validate(p Profile, env map[string]string, opts *composegen.Options) []Find
 }
 
 // validateCrossServiceAuth enforces that Stargate's client auth toward Herald
-// resolves to exactly one explicit mode. In production (heraldAuth = hmacV2 or
-// mTLS) the API-key-only path is rejected, and mixing mTLS + HMAC without an
-// explicit REQUEST_AUTH_MODE is flagged as ambiguous.
+// resolves to the mode declared by the profile. The built-in production
+// profile requires HMAC v2; the legacy hmacV2OrMtls strategy remains available
+// to custom profiles and keeps its explicit ambiguity checks.
 func validateCrossServiceAuth(p Profile, env map[string]string) []Finding {
 	var out []Finding
 	strict := p.Strict()
@@ -273,11 +275,18 @@ func validateCrossServiceAuth(p Profile, env map[string]string) []Finding {
 	}
 
 	hasHmac := get(EnvHeraldHmacSecret) != "" || get(EnvHmacSecret) != ""
-	hasMtls := get("HERALD_TLS_CLIENT_CERT_FILE") != "" && get("HERALD_TLS_CLIENT_KEY_FILE") != ""
+	hasMtls := get(EnvHeraldTLSClientCert) != "" && get(EnvHeraldTLSClientKey) != ""
 	hasAPIKey := get(EnvHeraldAPIKey) != ""
 	mode := strings.ToLower(get(EnvRequestAuthMode))
 
 	switch p.HeraldAuth {
+	case HeraldHmacV2:
+		if !hasHmac {
+			add(CodeAuthModeMismatch, EnvRequestAuthMode, "production Herald auth requires HMAC v2 (HERALD_HMAC_SECRET)", false)
+		}
+		if mode != "" && mode != "hmac_v2" {
+			add(CodeAuthModeMismatch, EnvRequestAuthMode, "REQUEST_AUTH_MODE must be hmac_v2 in production (got "+mode+")", false)
+		}
 	case HeraldHmacV2OrMtls:
 		// production: must use HMAC v2 or mTLS; API-key-only is rejected.
 		if !hasHmac && !hasMtls {
