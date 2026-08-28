@@ -8,8 +8,8 @@
 //   - state-changing POSTs must carry a same-origin Origin/Referer and (in
 //     remote mode) a valid bearer/cookie token, blocking CSRF and drive-by
 //     requests from other origins;
-//   - cookies are HttpOnly + SameSite=Strict, and Secure is set when the
-//     listener is not plain-loopback;
+//   - cookies are HttpOnly + SameSite=Strict and Secure by default; the local
+//     HTTP container flow requires an explicit insecure-cookie opt-in;
 //   - the HTTP server has read/write/idle timeouts and a bounded header size.
 //
 // None of this changes what is generated — CLI and Web UI still call the same
@@ -39,8 +39,11 @@ type serveConfig struct {
 	// cookie). It is always set in remote mode.
 	token string
 	// loopback reports whether listenAddr is a plain loopback address (drives
-	// cookie Secure and whether a token is mandatory).
+	// whether a token is mandatory).
 	loopback bool
+	// secureCookie is explicit server configuration. Request Host cannot safely
+	// infer the browser-facing scheme when an HTTPS reverse proxy is involved.
+	secureCookie bool
 }
 
 // serveTokenCookieName is the cookie carrying the access token in remote mode.
@@ -53,7 +56,7 @@ const serveTokenCookieName = "stargate_suite_token"
 //
 // port is the legacy --port / SERVE_PORT value (used only when listen is empty,
 // preserving backward compatibility). listen (--listen) takes precedence.
-func resolveServeConfig(listen, port, token string, allowRemote bool) (serveConfig, error) {
+func resolveServeConfig(listen, port, token string, allowRemote, allowInsecureCookie bool) (serveConfig, error) {
 	addr := strings.TrimSpace(listen)
 	if addr == "" {
 		p := strings.TrimSpace(port)
@@ -70,10 +73,11 @@ func resolveServeConfig(listen, port, token string, allowRemote bool) (serveConf
 	}
 
 	cfg := serveConfig{
-		listenAddr:  addr,
-		allowRemote: allowRemote,
-		token:       strings.TrimSpace(token),
-		loopback:    isLoopbackHost(host),
+		listenAddr:   addr,
+		allowRemote:  allowRemote,
+		token:        strings.TrimSpace(token),
+		loopback:     isLoopbackHost(host),
+		secureCookie: !allowInsecureCookie,
 	}
 
 	if !cfg.loopback && !allowRemote {
@@ -126,6 +130,13 @@ func generateAccessToken() (string, error) {
 // for state-changing methods. It wraps the whole mux so every route is covered.
 func securityMiddleware(cfg serveConfig, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Liveness carries no application state or secrets and must remain
+		// available to container health probes before authentication.
+		if r.Method == http.MethodGet && r.URL.Path == "/healthz" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
 		// Token gate (only when a token is configured, i.e. remote mode or an
 		// operator-supplied token on loopback). GET /static and the login-less
 		// entry are still gated so the UI cannot be scraped off-host.
@@ -138,7 +149,7 @@ func securityMiddleware(cfg serveConfig, h http.Handler) http.Handler {
 					Value:    cfg.token,
 					Path:     "/",
 					HttpOnly: true,
-					Secure:   !cfg.loopback,
+					Secure:   cfg.secureCookie,
 					SameSite: http.SameSiteStrictMode,
 				})
 				// Redirect to the same path without the token in the URL/history.
@@ -162,6 +173,23 @@ func securityMiddleware(cfg serveConfig, h http.Handler) http.Handler {
 		}
 		h.ServeHTTP(w, r)
 	})
+}
+
+// browserAddr turns an unspecified bind address into a usable local URL. A
+// listener may bind all interfaces, but 0.0.0.0 and :: are not destinations a
+// browser should be told to open.
+func browserAddr(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr
+	}
+	switch host {
+	case "", "0.0.0.0":
+		host = "127.0.0.1"
+	case "::":
+		host = "::1"
+	}
+	return net.JoinHostPort(host, port)
 }
 
 // isStateChanging reports whether the method mutates state and thus needs CSRF

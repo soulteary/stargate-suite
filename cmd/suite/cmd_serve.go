@@ -260,9 +260,9 @@ func sessionMiddleware(cfg serveConfig, h http.Handler) http.Handler {
 				Path:     "/",
 				MaxAge:   int(sessionTTL.Seconds()),
 				HttpOnly: true,
-				// Secure when not plain-loopback; Strict SameSite (the UI has no
-				// cross-site flows) further hardens against CSRF.
-				Secure:   !cfg.loopback,
+				// The browser-facing scheme is explicit configuration because a
+				// reverse proxy can rewrite both the upstream scheme and Host.
+				Secure:   cfg.secureCookie,
 				SameSite: http.SameSiteStrictMode,
 			})
 		}
@@ -853,7 +853,7 @@ func applyPortsConfigToOptions(opts *composegen.Options, ports []portDef) {
 }
 
 func cmdServe() error {
-	// Serve owns its flag set (--listen / --allow-remote / --token) so the Web
+	// Serve owns its security-related flag set so the Web
 	// UI security posture is explicit. Legacy --port / SERVE_PORT (parsed in
 	// main) is honored only when --listen is absent, for backward compatibility.
 	sfs := flag.NewFlagSet("serve", flag.ContinueOnError)
@@ -861,10 +861,11 @@ func cmdServe() error {
 	listen := sfs.String("listen", "", "host:port to bind (default 127.0.0.1:8085; loopback-only unless --allow-remote)")
 	allowRemote := sfs.Bool("allow-remote", false, "permit binding a non-loopback address (requires and, if unset, generates an access token)")
 	token := sfs.String("token", "", "access token required on every request (auto-generated in remote mode when empty)")
+	allowInsecureCookie := sfs.Bool("allow-insecure-cookie", false, "permit the auth cookie over HTTP (only for an explicitly loopback-published container port)")
 	if err := sfs.Parse(cmdArgs); err != nil {
 		return err
 	}
-	cfg, err := resolveServeConfig(*listen, servePort, *token, *allowRemote)
+	cfg, err := resolveServeConfig(*listen, servePort, *token, *allowRemote, *allowInsecureCookie)
 	if err != nil {
 		return err
 	}
@@ -1109,10 +1110,12 @@ func cmdServe() error {
 		}
 	}()
 	scheme := "http"
-	fmt.Printf("Web UI: %s://%s\n", scheme, addr)
+	openAddr := browserAddr(addr)
+	fmt.Printf("Web UI: %s://%s\n", scheme, openAddr)
 	if !cfg.loopback {
 		fmt.Printf("Remote access enabled. Access token required.\n")
-		fmt.Printf("  Open: %s://%s/?token=%s\n", scheme, addr, cfg.token)
+		fmt.Printf("  Open locally: %s://%s/?token=%s\n", scheme, openAddr, cfg.token)
+		fmt.Printf("  For off-host access, use an HTTPS reverse proxy and replace the URL host.\n")
 		fmt.Printf("  Or send header: Authorization: Bearer %s\n", cfg.token)
 	} else if cfg.token != "" {
 		fmt.Printf("Access token required: %s\n", cfg.token)

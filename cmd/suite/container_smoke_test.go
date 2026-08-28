@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -18,7 +19,14 @@ import (
 //   - the image runs `serve` with NO repository mount (embedded assets), and
 //   - it works under a read-only root filesystem (writes go to tmpfs only).
 
-const smokeImage = "stargate-suite:smoke-test"
+const defaultSmokeImage = "stargate-suite:smoke-test"
+
+func smokeImage() string {
+	if image := strings.TrimSpace(os.Getenv("DOCKER_SMOKE_IMAGE")); image != "" {
+		return image
+	}
+	return defaultSmokeImage
+}
 
 func requireDockerSmoke(t *testing.T) {
 	t.Helper()
@@ -50,21 +58,31 @@ func repoRootDir(t *testing.T) string {
 
 func dockerBuild(t *testing.T) {
 	t.Helper()
+	if os.Getenv("DOCKER_SMOKE_IMAGE") != "" {
+		return
+	}
 	root := repoRootDir(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "docker", "build", "-t", smokeImage, ".")
+	cmd := exec.CommandContext(ctx, "docker", "build", "-t", smokeImage(), ".")
 	cmd.Dir = root
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("docker build failed: %v\n%s", err, out)
 	}
 }
 
-func waitHTTPOK(t *testing.T, url string, timeout time.Duration) {
+func waitHTTPOK(t *testing.T, url, token string, timeout time.Duration) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		resp, err := http.Get(url)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			t.Fatalf("create smoke request: %v", err)
+		}
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		resp, err := http.DefaultClient.Do(req)
 		if err == nil {
 			_ = resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
@@ -76,6 +94,23 @@ func waitHTTPOK(t *testing.T, url string, timeout time.Duration) {
 	t.Fatalf("service at %s did not become ready within %s", url, timeout)
 }
 
+func containerToken(t *testing.T, name string, timeout time.Duration) string {
+	t.Helper()
+	pattern := regexp.MustCompile(`Authorization: Bearer ([[:xdigit:]]{32})`)
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		out, err := exec.Command("docker", "logs", name).CombinedOutput()
+		if err == nil {
+			if match := pattern.FindStringSubmatch(string(out)); len(match) == 2 {
+				return match[1]
+			}
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	t.Fatalf("container %s did not print an access token within %s", name, timeout)
+	return ""
+}
+
 // TestContainerServeNoRepoMount builds the image and runs `serve` without any
 // repository mount, confirming the Web UI is reachable (embedded assets).
 func TestContainerServeNoRepoMount(t *testing.T) {
@@ -85,13 +120,15 @@ func TestContainerServeNoRepoMount(t *testing.T) {
 	name := "stargate-suite-smoke-serve"
 	_ = exec.Command("docker", "rm", "-f", name).Run()
 	run := exec.Command("docker", "run", "-d", "--name", name,
-		"-p", "18085:8085", smokeImage)
+		"-p", "127.0.0.1:18085:8085", smokeImage())
 	if out, err := run.CombinedOutput(); err != nil {
 		t.Fatalf("docker run failed: %v\n%s", err, out)
 	}
 	t.Cleanup(func() { _ = exec.Command("docker", "rm", "-f", name).Run() })
 
-	waitHTTPOK(t, "http://127.0.0.1:18085/", 30*time.Second)
+	token := containerToken(t, name, 10*time.Second)
+	waitHTTPOK(t, "http://127.0.0.1:18085/", token, 30*time.Second)
+	waitHTTPOK(t, "http://127.0.0.1:18085/healthz", "", 5*time.Second)
 }
 
 // TestContainerServeReadOnlyRootFS runs the image with a read-only root
@@ -105,11 +142,12 @@ func TestContainerServeReadOnlyRootFS(t *testing.T) {
 	_ = exec.Command("docker", "rm", "-f", name).Run()
 	run := exec.Command("docker", "run", "-d", "--name", name,
 		"--read-only", "--tmpfs", "/tmp",
-		"-p", "18086:8085", smokeImage)
+		"-p", "127.0.0.1:18086:8085", smokeImage())
 	if out, err := run.CombinedOutput(); err != nil {
 		t.Fatalf("docker run (read-only) failed: %v\n%s", err, out)
 	}
 	t.Cleanup(func() { _ = exec.Command("docker", "rm", "-f", name).Run() })
 
-	waitHTTPOK(t, "http://127.0.0.1:18086/", 30*time.Second)
+	token := containerToken(t, name, 10*time.Second)
+	waitHTTPOK(t, "http://127.0.0.1:18086/", token, 30*time.Second)
 }

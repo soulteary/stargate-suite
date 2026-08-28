@@ -24,11 +24,15 @@ FROM alpine:3.22
 # Upgrade the base packages before installing runtime dependencies so a cached
 # Alpine point-release layer cannot retain security fixes published after it.
 RUN apk upgrade --no-cache && \
-    apk add --no-cache ca-certificates curl
-COPY --from=builder /app/stargate-suite /bin/stargate-suite
+    apk add --no-cache ca-certificates curl && \
+    addgroup -S stargate-suite && \
+    adduser -S -D -H -G stargate-suite stargate-suite
+COPY --from=builder --chown=stargate-suite:stargate-suite /app/stargate-suite /bin/stargate-suite
 # Config and the canonical compose file are embedded in the binary (go:embed),
 # so the runtime image is self-contained and needs no source tree mounted.
 EXPOSE 8085
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -fsS http://127.0.0.1:8085/ >/dev/null || exit 1
-CMD ["stargate-suite", "serve"]
+    CMD curl -fsS http://127.0.0.1:8085/healthz >/dev/null || exit 1
+USER stargate-suite:stargate-suite
+ENTRYPOINT ["/bin/stargate-suite"]
+CMD ["serve", "--listen", "0.0.0.0:8085", "--allow-remote"]
