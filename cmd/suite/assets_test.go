@@ -149,6 +149,52 @@ func TestMalformedEnvMetaOverrideBlocksGeneration(t *testing.T) {
 	}
 }
 
+func TestInvalidManifestOverrideFailsValidation(t *testing.T) {
+	resetConfigDir(t)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "components.yaml"), []byte("schemaVersion: 1\ncomponents: {}\n"), 0o644); err != nil {
+		t.Fatalf("write invalid manifest override: %v", err)
+	}
+	configDirOverride = dir
+	prevArgs := cmdArgs
+	cmdArgs = nil
+	t.Cleanup(func() { cmdArgs = prevArgs })
+	if err := cmdValidate(); err == nil {
+		t.Fatal("cmdValidate accepted an invalid component manifest")
+	}
+}
+
+func TestManifestLoadingIsDeferredForDiagnosticCommands(t *testing.T) {
+	tests := map[string]bool{
+		"help":     false,
+		"version":  false,
+		"doctor":   false,
+		"generate": true,
+		"validate": true,
+		"serve":    true,
+		"unknown":  false,
+	}
+	for command, want := range tests {
+		if got := commandRequiresManifest(command); got != want {
+			t.Errorf("commandRequiresManifest(%q) = %v, want %v", command, got, want)
+		}
+	}
+}
+
+func TestVersionFallsBackWhenManifestOverrideIsInvalid(t *testing.T) {
+	resetConfigDir(t)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "components.yaml"), []byte("schemaVersion: broken\n"), 0o644); err != nil {
+		t.Fatalf("write invalid manifest override: %v", err)
+	}
+	configDirOverride = dir
+	stargate, warden, herald := verifiedCombo()
+	if stargate != verifiedStargate || warden != verifiedWarden || herald != verifiedHerald {
+		t.Fatalf("version fallback = %q/%q/%q, want %q/%q/%q",
+			stargate, warden, herald, verifiedStargate, verifiedWarden, verifiedHerald)
+	}
+}
+
 func TestValidateRejectsUnknownScenarioOption(t *testing.T) {
 	resetConfigDir(t)
 	dir := t.TempDir()

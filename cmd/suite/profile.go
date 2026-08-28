@@ -108,7 +108,9 @@ func generateForProfile(in profileGenInput) (*composegen.Generated, map[string]s
 	res := policy.Apply(in.Profile, base, in.UserEnv, policy.NewKeyGen(kr))
 
 	// Feed manifest container ports (single source of truth) into composegen.
-	applyManifestToComposegen()
+	if err := applyManifestToComposegen(); err != nil {
+		return nil, nil, fmt.Errorf("load component manifest: %w", err)
+	}
 
 	env := effectiveEnv(in.UserEnv, res.EnvOverrides)
 	envMeta, err := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")

@@ -353,10 +353,6 @@ func main() {
 
 	configDirOverride = strings.TrimSpace(resolveString(fs, "config-dir", "CONFIG_DIR", ""))
 
-	// Feed component-manifest container ports into composegen so generated
-	// compose ports derive from config/components.yaml (single source, M-01).
-	applyManifestToComposegen()
-
 	args := fs.Args()
 	cmdName := "help"
 	if len(args) > 0 {
@@ -378,8 +374,27 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Generation, validation, and serving require the authoritative component
+	// manifest. Keep help/version available with their embedded/fallback data,
+	// and let doctor report a malformed manifest as a diagnostic warning.
+	if commandRequiresManifest(cmdName) {
+		if err := applyManifestToComposegen(); err != nil {
+			fmt.Fprintf(os.Stderr, "component manifest: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
 	if err := c.fn(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
+	}
+}
+
+func commandRequiresManifest(name string) bool {
+	switch name {
+	case "generate", "validate", "serve":
+		return true
+	default:
+		return false
 	}
 }

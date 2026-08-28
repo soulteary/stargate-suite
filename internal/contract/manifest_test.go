@@ -38,6 +38,64 @@ func TestComponentLockMatchesManifestSnapshot(t *testing.T) {
 	}
 }
 
+func TestParseManifestRejectsInvalidContracts(t *testing.T) {
+	valid := readFile(t, repoRoot(t), ManifestPath)
+	if _, err := ParseManifest([]byte(valid)); err != nil {
+		t.Fatalf("ParseManifest(valid): %v", err)
+	}
+	tests := map[string]string{
+		"unknown field":              strings.Replace(valid, "    image:", "    imgae:", 1),
+		"missing image":              strings.Replace(valid, "    image: ghcr.io/soulteary/stargate\n", "", 1),
+		"invalid port":               strings.Replace(valid, "    containerPort: 8080", "    containerPort: 70000", 1),
+		"relative health path":       strings.Replace(valid, "/healthz", "healthz", 1),
+		"unknown verified component": strings.Replace(valid, "  stargate: v1.0.0", "  missing: v1.0.0", 1),
+		"version drift":              strings.Replace(valid, "  stargate: v1.0.0", "  stargate: v2.0.0", 1),
+	}
+	for name, data := range tests {
+		t.Run(name, func(t *testing.T) {
+			if _, err := ParseManifest([]byte(data)); err == nil {
+				t.Fatal("ParseManifest accepted an invalid manifest")
+			}
+		})
+	}
+}
+
+func TestManifestRequiresEveryGeneratedService(t *testing.T) {
+	root := repoRoot(t)
+	tests := []struct {
+		kind  string
+		names []string
+		omit  func(*Manifest, string)
+	}{
+		{
+			kind:  "component",
+			names: requiredManifestComponents,
+			omit:  func(m *Manifest, name string) { delete(m.Components, name) },
+		},
+		{
+			kind:  "dependency",
+			names: requiredManifestDependencies,
+			omit:  func(m *Manifest, name string) { delete(m.Dependencies, name) },
+		},
+		{
+			kind:  "verified component",
+			names: requiredVerifiedComponents,
+			omit:  func(m *Manifest, name string) { delete(m.VerifiedCombo, name) },
+		},
+	}
+	for _, tc := range tests {
+		for _, name := range tc.names {
+			t.Run(tc.kind+"/"+name, func(t *testing.T) {
+				m := loadManifestFromRoot(t, root)
+				tc.omit(m, name)
+				if err := validateManifest(m); err == nil {
+					t.Fatalf("manifest accepted missing %s %q", tc.kind, name)
+				}
+			})
+		}
+	}
+}
+
 // TestVerifiedComboMatchesComponents prevents the CLI's advertised verified
 // matrix from drifting away from the images that generation actually uses.
 func TestVerifiedComboMatchesComponents(t *testing.T) {
@@ -194,10 +252,22 @@ func TestManifestNoRehardcodedContainerPorts(t *testing.T) {
 	src := readFile(t, root, "internal/composegen/composegen.go")
 	// Patterns that would indicate a re-hardcoded host:container mapping like
 	// `hostPort + ":8082"`. The legitimate manifest path uses containerPortStr.
-	bad := []string{`":8082"`, `":8081"`, `":8083"`, `":8085"`}
+	bad := []string{`":8080"`, `":8082"`, `":8081"`, `":8083"`, `":8085"`}
 	for _, b := range bad {
 		if regexp.MustCompile(`\+\s*` + regexp.QuoteMeta(b)).MatchString(src) {
 			t.Errorf("composegen.go re-hardcodes container port %s; use containerPortStr sourced from the manifest", b)
+		}
+	}
+}
+
+func TestManifestFallbackPortsMatch(t *testing.T) {
+	root := repoRoot(t)
+	m := loadManifestFromRoot(t, root)
+	src := readFile(t, root, "internal/composegen/manifest.go")
+	for name, component := range m.Components {
+		want := `"` + regexp.QuoteMeta(name) + `"\s*:\s*` + itoa(component.ContainerPort)
+		if !regexp.MustCompile(want).MatchString(src) {
+			t.Errorf("composegen fallback port for %q does not match manifest port %d", name, component.ContainerPort)
 		}
 	}
 }

@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// testManifestFS returns an in-memory FS with a minimal components.yaml so the
-// image cross-check has a manifest to compare against.
+// testManifestFS returns an in-memory FS with the complete required manifest so
+// the image cross-check exercises the same contract accepted in production.
 func testManifestFS() fstest.MapFS {
 	return fstest.MapFS{
 		"config/components.yaml": {Data: []byte(`schemaVersion: 1
@@ -15,14 +15,54 @@ components:
   stargate:
     image: ghcr.io/soulteary/stargate
     version: 1.0.0
+    contractVersion: v1
     containerPort: 8080
     livenessPath: /healthz
     readinessPath: /readyz
+  warden:
+    image: ghcr.io/soulteary/warden
+    version: 1.1.0
+    contractVersion: v1
+    containerPort: 8081
+    livenessPath: /healthcheck
   herald:
     image: ghcr.io/soulteary/herald
     version: 1.1.0
+    contractVersion: v1
     containerPort: 8082
     livenessPath: /healthz
+  herald-totp:
+    image: ghcr.io/soulteary/herald-totp
+    version: 1.1.0
+    contractVersion: v1
+    containerPort: 8084
+    livenessPath: /healthz
+  herald-dingtalk:
+    image: ghcr.io/soulteary/herald-dingtalk
+    version: 1.1.0
+    contractVersion: v1
+    containerPort: 8083
+    livenessPath: /healthz
+  herald-smtp:
+    image: ghcr.io/soulteary/herald-smtp
+    version: 1.1.0
+    contractVersion: v1
+    containerPort: 8085
+    livenessPath: /healthz
+dependencies:
+  redis:
+    image: redis
+    version: 8.4-alpine
+  protected:
+    image: ghcr.io/traefik/whoami
+    version: v1.11
+  owlmail:
+    image: ghcr.io/soulteary/owlmail
+    version: 0.4.0
+verifiedCombo:
+  stargate: v1.0.0
+  warden: v1.1.0
+  herald: v1.1.0
 `)},
 	}
 }

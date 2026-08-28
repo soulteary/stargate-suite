@@ -1,11 +1,11 @@
 // Package composegen: container-port lookup sourced from the component manifest.
 //
-// Historically the container ports (Herald :8082, Warden :8081, Stargate :80,
+// Historically the container ports (Herald :8082, Warden :8081, Stargate :8080,
 // …) were hardcoded inline in applyOptions, duplicating config/ports.yaml and
 // compose/canonical. Per the upgrade rules (M-01) the single source of truth is
 // config/components.yaml. The CLI loads the manifest at startup and calls
 // SetContainerPorts so generation uses manifest-derived ports; the defaults
-// below match the current (pre-migration) values so composegen still behaves
+// below match the current manifest values so composegen still behaves
 // correctly if the manifest is unavailable (e.g. in isolated unit tests).
 package composegen
 
@@ -14,11 +14,11 @@ import (
 	"sync"
 )
 
-// defaultContainerPorts are the pre-migration container ports, kept in sync with
+// defaultContainerPorts are the current container ports, kept in sync with
 // config/components.yaml (the drift test enforces this). Used as a fallback when
 // SetContainerPorts has not been called.
 var defaultContainerPorts = map[string]int{
-	"stargate":        80,
+	"stargate":        8080,
 	"warden":          8081,
 	"herald":          8082,
 	"herald-dingtalk": 8083,

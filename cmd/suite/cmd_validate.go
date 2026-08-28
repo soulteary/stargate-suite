@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/soulteary/stargate-suite/internal/composegen"
+	"github.com/soulteary/stargate-suite/internal/contract"
 	"github.com/soulteary/stargate-suite/internal/policy"
 )
 
@@ -49,6 +50,18 @@ func cmdValidate() error {
 		if hasPortsType && len(page.Ports) == 0 {
 			fmt.Fprintf(os.Stderr, "warning: config has \"ports\" option but config/ports.yaml is missing or empty; port table will be empty\n")
 		}
+	}
+
+	manifest, err := loadManifest()
+	if err != nil {
+		return fmt.Errorf("component manifest: %w", err)
+	}
+	lock, err := contract.LoadLock(assetFS(), contract.LockPath)
+	if err != nil {
+		return fmt.Errorf("component lock: %w", err)
+	}
+	if err := contract.ValidateLock(manifest, lock, false); err != nil {
+		return fmt.Errorf("component lock: %w", err)
 	}
 
 	// 一致性：canonical compose 与 env-meta

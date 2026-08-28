@@ -15,19 +15,18 @@ func loadManifest() (*contract.Manifest, error) {
 	return contract.LoadManifest(assetFS(), contract.ManifestPath)
 }
 
-// applyManifestToComposegen loads the manifest and pushes its container ports
-// into composegen. Failures are non-fatal: composegen keeps its built-in
-// defaults (which match the manifest) so generation still works.
-func applyManifestToComposegen() {
+// applyManifestToComposegen loads the authoritative manifest and pushes its
+// container ports into composegen. Invalid overrides are fatal so generation
+// cannot silently fall back to stale built-in values.
+func applyManifestToComposegen() error {
 	m, err := loadManifest()
-	if err != nil || m == nil {
-		return
+	if err != nil {
+		return err
 	}
 	ports := make(map[string]int, len(m.Components))
 	for name, c := range m.Components {
-		if c.ContainerPort > 0 {
-			ports[name] = c.ContainerPort
-		}
+		ports[name] = c.ContainerPort
 	}
 	composegen.SetContainerPorts(ports)
+	return nil
 }

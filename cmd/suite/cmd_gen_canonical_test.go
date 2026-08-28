@@ -21,7 +21,9 @@ func TestCanonicalGenerationMatchesComposegen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load canonical compose: %v", err)
 	}
-	applyManifestToComposegen()
+	if err := applyManifestToComposegen(); err != nil {
+		t.Fatalf("load component manifest: %v", err)
+	}
 	envMeta, err := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
 	if err != nil {
 		t.Fatalf("load env-meta: %v", err)
