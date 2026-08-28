@@ -1,6 +1,6 @@
 # Deployment profiles — 部署 Profile 的安全与运行策略单一来源（PR 5）。
 #
-# Profile 是安全与运行策略，而不只是预填表单（见 docs/upgrade/00-overview.md 5.4 表）。
+# Profile 是安全与运行策略，而不只是预填表单（见 docs/deployment.md）。
 # CLI `generate --profile` 与 Web UI 首步选择 Profile 共用本文件 + internal/policy + internal/composegen，
 # 二者不各自实现策略。当前默认行为（PASSWORDS=plaintext:...、API_KEY=test-*、exposePorts 默认开启）
 # 归入 development/test 语义；production 初期标记 experimental，但所有严格规则均为真实错误、可测试。
