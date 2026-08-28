@@ -117,8 +117,8 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 			}
 
 			// PR 8 invariants shared by all profiles: core images pinned to the
-			// v1 contract line, Stargate on 8080 (not 80), and the split health
-			// probes (Stargate /healthz, Warden /healthcheck, Herald /healthz).
+			// v1 contract line, Stargate on 8080 (not 80), and component-specific
+			// health probes that are available in each runtime image.
 			for _, img := range []string{
 				"ghcr.io/soulteary/stargate:1.0.0",
 				"ghcr.io/soulteary/warden:1.0.0",
@@ -137,8 +137,8 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 			if !strings.Contains(compose, "8080/healthz") {
 				t.Errorf("%q compose Stargate healthcheck must probe :8080/healthz (PR8)", tc.profile)
 			}
-			if !strings.Contains(compose, "8082/healthz") {
-				t.Errorf("%q compose Herald healthcheck must probe :8082/healthz (PR8)", tc.profile)
+			if !strings.Contains(compose, `["CMD", "/bin/herald", "-healthcheck"]`) {
+				t.Errorf("%q compose Herald healthcheck must use the built-in checker (PR8)", tc.profile)
 			}
 			if !strings.Contains(compose, "8081/healthcheck") {
 				t.Errorf("%q compose Warden healthcheck must probe :8081/healthcheck (PR8)", tc.profile)
