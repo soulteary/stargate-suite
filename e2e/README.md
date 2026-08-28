@@ -43,8 +43,6 @@ go test -v ./e2e/...
 go test -v ./e2e/... -run TestCompleteLoginFlow
 go test -v ./e2e/... -run TestProtectedWhoamiAfterLogin   # needs PROTECTED_URL
 go test -v ./e2e/... -run TestInvalid
-go test -v ./e2e/... -run TestHeraldUnavailable
-go test -v ./e2e/... -run TestWardenUnavailable
 go test -v ./e2e/... -run TestLivenessReadinessAreDistinct
 go test -v ./e2e/... -run TestDependencyFailureRecoveryContracts
 go test -v ./e2e/... -run TestHeraldNonceReplayRejected
