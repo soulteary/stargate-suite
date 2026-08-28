@@ -54,7 +54,7 @@ Web UI 页面配置与场景预设（scenarios.json）。总览见 [../README.zh
 
 ## v1 配置字段与四层 Profile 校验
 
-v1 契约（Stargate 1.0.0 / Warden 1.1.0 / Herald 1.1.0）新增了安全相关的环境变量，均已登记在 `env-meta.yaml`，并在 `config/schemas/env-fields.yaml` 声明（该 schema 与校验器保持一致；`internal/policy` 中的漂移测试会在 schema 引用了引擎未实现的 code 时失败）。
+v1 契约（Stargate 1.0.0 / Warden 1.1.0 / Herald 1.1.0）新增的安全环境变量在 `env-meta.yaml` 中登记生成信息，由 `internal/policy` 的运行时规则执行校验。Go 校验器是字段类型、密钥强度、Profile 范围和结构化错误码的权威来源。
 
 - **Stargate**：`COOKIE_SECURE`、`CALLBACK_ALLOWED_HOSTS`、`SESSION_EXCHANGE_SECRET`、`TRUSTED_PROXIES`、`PROXY_HEADER`、`PASSWORD_HEADER_AUTH_ENABLED`、`WARDEN_HMAC_KEY_ID` / `WARDEN_HMAC_SECRET`、`HERALD_HMAC_KEY_ID`、`WARDEN_TLS_*`。
 - **Herald**：`REQUEST_AUTH_MODE`、`HERALD_HMAC_DEFAULT_KEY_ID`、`HMAC_MAX_DRIFT`、`HMAC_V1_ENABLED`、`HERALD_IDEMPOTENCY_SECRET`、`HERALD_PII_PEPPER`、`HERALD_TRUSTED_PROXIES` / `HERALD_TRUSTED_PROXY_HEADER`、`HERALD_TEST_API_KEY`、`HERALD_TEST_LISTENER_ADDR`。
