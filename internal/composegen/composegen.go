@@ -838,8 +838,8 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 			if labels, ok := svc["labels"].([]interface{}); ok {
 				for i, l := range labels {
 					s, _ := l.(string)
-					if strings.Contains(s, "forwardauth.address=http://stargate/_auth") {
-						labels[i] = strings.Replace(s, "http://stargate/_auth", "http://"+prefix+"stargate/_auth", 1)
+					if rewritten, ok := rewriteForwardAuthAddress(s, prefix); ok {
+						labels[i] = rewritten
 					}
 				}
 			}
@@ -1187,11 +1187,11 @@ func applyStargateSplitOverrides(svc map[string]interface{}, containerNamePrefix
 	if env, ok := svc["environment"].([]interface{}); ok {
 		for i, e := range env {
 			s, _ := e.(string)
-			if s == "WARDEN_URL=http://warden:8081" {
-				env[i] = "WARDEN_URL=http://" + prefix + "warden:8081"
+			if strings.HasPrefix(s, "WARDEN_URL=") {
+				env[i] = "WARDEN_URL=http://" + prefix + "warden:" + containerPortStr("warden", "8081")
 			}
-			if s == "HERALD_URL=http://herald:8082" {
-				env[i] = "HERALD_URL=http://" + prefix + "herald:8082"
+			if strings.HasPrefix(s, "HERALD_URL=") {
+				env[i] = "HERALD_URL=http://" + prefix + "herald:" + containerPortStr("herald", "8082")
 			}
 			if strings.HasPrefix(s, "HERALD_TOTP_BASE_URL=") {
 				env[i] = "HERALD_TOTP_BASE_URL=http://" + prefix + "herald-totp:" + totpPort
@@ -1201,11 +1201,30 @@ func applyStargateSplitOverrides(svc map[string]interface{}, containerNamePrefix
 	if labels, ok := svc["labels"].([]interface{}); ok {
 		for i, l := range labels {
 			s, _ := l.(string)
-			if s == "traefik.http.middlewares.stargate-auth.forwardauth.address=http://stargate/_auth" {
-				labels[i] = "traefik.http.middlewares.stargate-auth.forwardauth.address=http://" + prefix + "stargate/_auth"
+			if rewritten, ok := rewriteForwardAuthAddress(s, prefix); ok {
+				labels[i] = rewritten
 			}
 		}
 	}
+}
+
+// rewriteForwardAuthAddress prefixes the Stargate service name while retaining
+// the port already declared by the canonical label. It accepts the historical
+// portless form as well as the current explicit-port form.
+func rewriteForwardAuthAddress(label, prefix string) (string, bool) {
+	const marker = "http://stargate"
+	start := strings.Index(label, marker)
+	if start < 0 {
+		return label, false
+	}
+	rest := label[start+len(marker):]
+	path := strings.Index(rest, "/_auth")
+	if path < 0 || (path > 0 && rest[0] != ':') {
+		return label, false
+	}
+	end := start + len(marker) + path + len("/_auth")
+	replacement := "http://" + prefix + "stargate" + rest[:path] + "/_auth"
+	return label[:start] + replacement + label[end:], true
 }
 
 // generateImageOrBuild 生成 image 或 build 模式的 compose：仅核心服务 + the-gate-network（bridge），无 Traefik；build 模式将 herald/warden/stargate 的 image 替换为 build。meta 用于 .env 注释映射。

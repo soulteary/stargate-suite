@@ -23,6 +23,49 @@ func TestInjectOwlmailUsesVersionedImageVariable(t *testing.T) {
 	}
 }
 
+func TestStargateSplitOverridesRewriteCurrentCanonicalValues(t *testing.T) {
+	service := map[string]interface{}{
+		"environment": []interface{}{
+			"WARDEN_URL=${WARDEN_URL:-http://warden:8081}",
+			"HERALD_URL=${HERALD_URL:-http://herald:8082}",
+			"HERALD_TOTP_BASE_URL=${HERALD_TOTP_BASE_URL:-http://herald-totp:8084}",
+		},
+		"labels": []interface{}{
+			"traefik.http.middlewares.stargate-auth.forwardauth.address=http://stargate:8080/_auth",
+		},
+		"depends_on": []interface{}{"warden", "herald"},
+	}
+	applyStargateSplitOverrides(service, "isolated-", nil)
+
+	env := service["environment"].([]interface{})
+	wantEnv := []string{
+		"WARDEN_URL=http://isolated-warden:8081",
+		"HERALD_URL=http://isolated-herald:8082",
+		"HERALD_TOTP_BASE_URL=http://isolated-herald-totp:8084",
+	}
+	for i, want := range wantEnv {
+		if env[i] != want {
+			t.Errorf("environment[%d] = %q, want %q", i, env[i], want)
+		}
+	}
+	labels := service["labels"].([]interface{})
+	wantLabel := "traefik.http.middlewares.stargate-auth.forwardauth.address=http://isolated-stargate:8080/_auth"
+	if labels[0] != wantLabel {
+		t.Errorf("forwardauth label = %q, want %q", labels[0], wantLabel)
+	}
+	if _, ok := service["depends_on"]; ok {
+		t.Error("split Stargate service must not retain depends_on")
+	}
+}
+
+func TestRewriteForwardAuthAddressSupportsLegacyPortlessForm(t *testing.T) {
+	input := "forwardauth.address=http://stargate/_auth"
+	got, ok := rewriteForwardAuthAddress(input, "custom-")
+	if !ok || got != "forwardauth.address=http://custom-stargate/_auth" {
+		t.Fatalf("rewriteForwardAuthAddress() = %q, %v", got, ok)
+	}
+}
+
 // TestGenerateImageOrBuildStargateNoHeraldTotp 确保 image/build 模式下生成的 compose 中 stargate 不依赖 herald-totp，否则 docker compose config 会报错。
 func TestGenerateImageOrBuildStargateNoHeraldTotp(t *testing.T) {
 	full := map[string]interface{}{
