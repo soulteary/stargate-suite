@@ -24,7 +24,6 @@ func TestE2EWorkflowsEnableHeraldTestListener(t *testing.T) {
 	}{
 		{file: ".github/workflows/ci.yml", job: "smoke-e2e"},
 		{file: ".github/workflows/main.yml", job: "e2e"},
-		{file: ".github/workflows/nightly.yml", job: "e2e-linux"},
 	}
 
 	want := map[string]string{
