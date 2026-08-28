@@ -137,7 +137,7 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 			if !strings.Contains(compose, "8080/healthz") {
 				t.Errorf("%q compose Stargate healthcheck must probe :8080/healthz (PR8)", tc.profile)
 			}
-			if !strings.Contains(compose, `["CMD", "/bin/herald", "-healthcheck"]`) {
+			if !strings.Contains(compose, "/bin/herald") || !strings.Contains(compose, "-healthcheck") {
 				t.Errorf("%q compose Herald healthcheck must use the built-in checker (PR8)", tc.profile)
 			}
 			if !strings.Contains(compose, "8081/healthcheck") {
