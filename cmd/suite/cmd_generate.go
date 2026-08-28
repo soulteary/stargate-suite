@@ -233,9 +233,9 @@ var canonicalBuildModes = []string{"image", "build", "traefik", "traefik-herald"
 
 // generateCanonical writes one subdir per mode under outDir, each containing a
 // docker-compose.yml + .env, using the raw canonical compose with NO profile
-// policy applied (options:null semantics). This is the in-process replacement
-// for scripts/gen-via-api.sh: it calls the SAME composegen.Generate the Web
-// /api/generate handler calls with options:null, so output is byte-identical.
+// policy applied (options:null semantics). It calls the same
+// composegen.Generate path as the Web /api/generate handler, so output is
+// byte-identical without starting a Web server.
 func generateCanonical(output, modesCSV string, jsonOut bool) error {
 	modes := canonicalBuildModes
 	if strings.TrimSpace(modesCSV) != "" {
