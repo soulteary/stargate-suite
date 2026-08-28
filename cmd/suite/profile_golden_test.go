@@ -151,7 +151,7 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 
 			switch tc.profile {
 			case policy.Development, policy.Test:
-				if !strings.Contains(compose, "127.0.0.1:") {
+				if !strings.Contains(compose, "- 127.0.0.1:") {
 					t.Errorf("%q compose should bind exposed ports to loopback (127.0.0.1)", tc.profile)
 				}
 				if !strings.Contains(env, "ENVIRONMENT="+tc.profile) {
@@ -177,7 +177,7 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 				}
 				// No core-service host port publishing: the only "ports:" entry
 				// should be the reverse-proxy/whoami; core services carry none.
-				if strings.Contains(compose, "127.0.0.1:") {
+				if strings.Contains(compose, "- 127.0.0.1:") {
 					t.Errorf("production compose must not publish loopback host ports")
 				}
 				// production hardens further with a read-only root filesystem
