@@ -14,8 +14,8 @@ var lockImageEnvVars = map[string][]string{
 	"herald-totp":     {"HERALD_TOTP_IMAGE"},
 	"herald-dingtalk": {"HERALD_DINGTALK_IMAGE"},
 	"herald-smtp":     {"HERALD_SMTP_IMAGE"},
-	"redis":            {"HERALD_REDIS_IMAGE", "WARDEN_REDIS_IMAGE", "STARGATE_REDIS_IMAGE"},
-	"protected":        {"PROTECTED_IMAGE"},
+	"redis":           {"HERALD_REDIS_IMAGE", "WARDEN_REDIS_IMAGE", "STARGATE_REDIS_IMAGE"},
+	"protected":       {"PROTECTED_IMAGE"},
 }
 
 func loadLockedImageEnv(path string) (map[string]string, error) {
