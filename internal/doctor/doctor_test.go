@@ -15,14 +15,19 @@ components:
   stargate:
     image: ghcr.io/soulteary/stargate
     version: 1.0.0
+    contractVersion: v1
     containerPort: 8080
     livenessPath: /healthz
     readinessPath: /readyz
   herald:
     image: ghcr.io/soulteary/herald
     version: 1.1.0
+    contractVersion: v1
     containerPort: 8082
     livenessPath: /healthz
+verifiedCombo:
+  stargate: v1.0.0
+  herald: v1.1.0
 `)},
 	}
 }

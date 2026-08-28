@@ -801,7 +801,7 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 			case "stargate":
 				hostPort := strings.TrimSpace(opts.PortStargate)
 				if hostPort != "" {
-					svc["ports"] = []interface{}{hostPort + ":" + containerPortStr("stargate", "80")}
+					svc["ports"] = []interface{}{hostPort + ":" + containerPortStr("stargate", "8080")}
 				}
 			}
 		}
