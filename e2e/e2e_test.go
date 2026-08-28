@@ -109,9 +109,9 @@ func getTestCode(t *testing.T, challengeID string) (string, error) {
 		cmd := exec.Command("docker", "compose", "exec", "-T", "herald",
 			"/bin/busybox", "wget", "-q", "-O", "-", "--header", "X-Test-Api-Key: "+testKey, url)
 		cmd.Dir = dir
-		out, err := cmd.Output()
+		out, err := cmd.CombinedOutput()
 		if err != nil {
-			return "", fmt.Errorf("exec test-code fetch failed: %w", err)
+			return "", fmt.Errorf("exec test-code fetch failed: %w: %s", err, strings.TrimSpace(string(out)))
 		}
 		return parseTestCode(out)
 	}
