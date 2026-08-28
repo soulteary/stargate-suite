@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/soulteary/stargate-suite/internal/composegen"
+	"github.com/soulteary/stargate-suite/internal/policy"
 )
 
 func TestWriteGeneratedRestrictsEnvPermissions(t *testing.T) {
@@ -61,5 +62,24 @@ func TestSetFlagRejectsInvalidEnvNames(t *testing.T) {
 	env := collectUserEnv(values)
 	if got := env["VALID"]; got != " value with spaces " {
 		t.Fatalf("value whitespace was changed: %q", got)
+	}
+}
+
+func TestCollectUserEnvIncludesProductionInputs(t *testing.T) {
+	want := map[string]string{
+		policy.EnvHeraldPIIPepper:       "pepper-0011223344556677889900112233",
+		policy.EnvHeraldIdempotencySecr: "idem-0011223344556677889900112233aa",
+		policy.EnvRequestAuthMode:       "hmac_v2",
+		policy.EnvHeraldTLSClientCert:   "/run/secrets/herald-client.crt",
+		policy.EnvHeraldTLSClientKey:    "/run/secrets/herald-client.key",
+	}
+	for key, value := range want {
+		t.Setenv(key, value)
+	}
+	got := collectUserEnv(nil)
+	for key, value := range want {
+		if got[key] != value {
+			t.Errorf("collectUserEnv(%s) = %q, want %q", key, got[key], value)
+		}
 	}
 }

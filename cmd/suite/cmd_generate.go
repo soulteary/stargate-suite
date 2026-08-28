@@ -46,10 +46,21 @@ var profileSecretEnvKeys = []string{
 	policy.EnvWardenAPIKey,
 	policy.EnvHeraldHmacSecret,
 	policy.EnvHmacSecret,
+	policy.EnvHeraldPIIPepper,
+	policy.EnvHeraldIdempotencySecr,
 	policy.EnvHeraldRedisPassword,
 	policy.EnvWardenRedisPassword,
 	policy.EnvSessionRedisPassword,
 	policy.EnvCookieSecure,
+	policy.EnvRequestAuthMode,
+	policy.EnvHeraldTLSCACertFile,
+	policy.EnvHeraldTLSClientCert,
+	policy.EnvHeraldTLSClientKey,
+	policy.EnvHeraldTLSServerName,
+	policy.EnvWardenTLSCACertFile,
+	policy.EnvWardenTLSClientCertFile,
+	policy.EnvWardenTLSClientKeyFile,
+	policy.EnvWardenTLSServerName,
 }
 
 // collectUserEnv builds the user-supplied env overrides from the process

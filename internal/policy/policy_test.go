@@ -48,7 +48,7 @@ profiles:
     portBinding: reverseProxyOnly
     secretSource: userProvidedOrFile
     passwordAlgorithm: forbidPlaintext
-    heraldAuth: hmacV2OrMtls
+    heraldAuth: hmacV2
     heraldTestApi: forbidden
     redisPassword: required
     cookieSecure: required
@@ -172,7 +172,6 @@ func TestValidateProductionStrictRulesAreErrors(t *testing.T) {
 	// Assert each rule fires as an error.
 	wantKeys := map[string]bool{
 		EnvPasswords:           false,
-		EnvHeraldAPIKey:        false,
 		EnvWardenAPIKey:        false,
 		EnvHeraldHmacSecret:    false,
 		"exposePorts":          false,

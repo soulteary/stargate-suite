@@ -62,8 +62,12 @@ go run ./cmd/suite generate --profile development --output build/dev --seed pr5-
 # published internal ports, Cookie Secure off, or HMAC v1 are hard errors (never bypassable).
 # Supply real secrets via the process env or repeated --set KEY=VALUE:
 go run ./cmd/suite generate --profile production --output build/prod \
-  --set PASSWORDS=bcrypt:... --set HERALD_API_KEY=... --set WARDEN_API_KEY=... \
-  --set HERALD_HMAC_SECRET=... --set HERALD_REDIS_PASSWORD=... --set WARDEN_REDIS_PASSWORD=...
+  --set PASSWORDS='bcrypt:<real-hash>' --set WARDEN_API_KEY='<16+-char-key>' \
+  --set HERALD_HMAC_SECRET='<32+-char-secret>' \
+  --set HERALD_PII_PEPPER='<32+-char-secret>' \
+  --set HERALD_IDEMPOTENCY_SECRET='<32+-char-secret>' \
+  --set HERALD_REDIS_PASSWORD='<16+-char-password>' \
+  --set WARDEN_REDIS_PASSWORD='<16+-char-password>'
 
 # validate a profile's policy; production/test are strict (errors, not warnings):
 go run ./cmd/suite validate --profile production --strict

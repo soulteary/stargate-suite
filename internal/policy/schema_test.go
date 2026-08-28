@@ -87,7 +87,6 @@ func TestLayer2RejectsShortAndPlaceholderCredentials(t *testing.T) {
 	}{
 		{"unqualified passwords", EnvPasswords, "x", CodePasswordsHashRequired},
 		{"placeholder bcrypt", EnvPasswords, "bcrypt:REPLACE_WITH_REAL_HASH", CodePasswordsHashRequired},
-		{"short Herald API key", EnvHeraldAPIKey, "short", CodeHeraldAPIKeyWeak},
 		{"placeholder Warden API key", EnvWardenAPIKey, "CHANGE_ME_WARDEN_API_KEY", CodeWardenAPIKeyWeak},
 		{"short HMAC secret", EnvHeraldHmacSecret, "short", CodeHmacSecretWeak},
 		{"short Herald Redis password", EnvHeraldRedisPassword, "short", CodeRedisPasswordRequired},

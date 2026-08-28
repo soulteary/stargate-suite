@@ -18,8 +18,12 @@ functions, so both produce identical output.
 make gen                                   # native CLI → build/, no Web server
 go run ./cmd/suite generate --profile development --output build/dev
 go run ./cmd/suite generate --profile production  --output build/prod \
-  --set PASSWORDS=bcrypt:... --set HERALD_HMAC_SECRET=... \
-  --set HERALD_REDIS_PASSWORD=... --set WARDEN_REDIS_PASSWORD=...
+  --set PASSWORDS='bcrypt:<real-hash>' --set WARDEN_API_KEY='<16+-char-key>' \
+  --set HERALD_HMAC_SECRET='<32+-char-secret>' \
+  --set HERALD_PII_PEPPER='<32+-char-secret>' \
+  --set HERALD_IDEMPOTENCY_SECRET='<32+-char-secret>' \
+  --set HERALD_REDIS_PASSWORD='<16+-char-password>' \
+  --set WARDEN_REDIS_PASSWORD='<16+-char-password>'
 ```
 
 ### Profiles
@@ -33,7 +37,8 @@ password, Cookie Secure, HMAC v1, container privileges, and validation mode.
 - **test** — strict validation for CI.
 - **production** — experimental & strict: plaintext passwords, placeholder keys,
   published internal ports, Cookie Secure off, or HMAC v1 are hard errors and
-  can never be bypassed. Supply real secrets via env or repeated `--set`.
+  can never be bypassed. Herald request authentication is pinned to HMAC v2.
+  Supply real secrets via env or repeated `--set`.
 
 ### Start / stop
 
@@ -84,8 +89,12 @@ CLI 与 Web UI 调用同一套 `internal/composegen` / `internal/policy` 函数�
 make gen                                   # 原生 CLI → build/，不启 Web
 go run ./cmd/suite generate --profile development --output build/dev
 go run ./cmd/suite generate --profile production  --output build/prod \
-  --set PASSWORDS=bcrypt:... --set HERALD_HMAC_SECRET=... \
-  --set HERALD_REDIS_PASSWORD=... --set WARDEN_REDIS_PASSWORD=...
+  --set PASSWORDS='bcrypt:<真实哈希>' --set WARDEN_API_KEY='<至少16字符>' \
+  --set HERALD_HMAC_SECRET='<至少32字符>' \
+  --set HERALD_PII_PEPPER='<至少32字符>' \
+  --set HERALD_IDEMPOTENCY_SECRET='<至少32字符>' \
+  --set HERALD_REDIS_PASSWORD='<至少16字符>' \
+  --set WARDEN_REDIS_PASSWORD='<至少16字符>'
 ```
 
 ### Profile
@@ -99,7 +108,7 @@ go run ./cmd/suite generate --profile production  --output build/prod \
 - **test**——用于 CI 的 strict 校验。
 - **production**——实验性且 strict：明文口令、占位密钥、暴露内部端口、
   Cookie Secure 关闭、HMAC v1 均为硬错误，不可绕过。真实机密经环境变量或多个
-  `--set` 提供。
+  `--set` 提供；Herald 请求鉴权固定使用 HMAC v2。
 
 ### 启停
 

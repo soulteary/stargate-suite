@@ -62,8 +62,12 @@ go run ./cmd/suite generate --profile development --output build/dev --seed pr5-
 # 发布内部端口、Cookie Secure 关闭、启用 HMAC v1 均为硬错误（不可绕过）。
 # 通过进程环境变量或可重复的 --set KEY=VALUE 提供真实密钥：
 go run ./cmd/suite generate --profile production --output build/prod \
-  --set PASSWORDS=bcrypt:... --set HERALD_API_KEY=... --set WARDEN_API_KEY=... \
-  --set HERALD_HMAC_SECRET=... --set HERALD_REDIS_PASSWORD=... --set WARDEN_REDIS_PASSWORD=...
+  --set PASSWORDS='bcrypt:<真实哈希>' --set WARDEN_API_KEY='<至少16字符>' \
+  --set HERALD_HMAC_SECRET='<至少32字符>' \
+  --set HERALD_PII_PEPPER='<至少32字符>' \
+  --set HERALD_IDEMPOTENCY_SECRET='<至少32字符>' \
+  --set HERALD_REDIS_PASSWORD='<至少16字符>' \
+  --set WARDEN_REDIS_PASSWORD='<至少16字符>'
 
 # 校验某个 Profile 的策略；production/test 为 strict（错误而非警告）：
 go run ./cmd/suite validate --profile production --strict
