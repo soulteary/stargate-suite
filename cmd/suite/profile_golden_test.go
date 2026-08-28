@@ -127,8 +127,8 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 					t.Errorf("%q compose should pin core image %q (PR8)", tc.profile, img)
 				}
 			}
-			if !strings.Contains(compose, "http://stargate:8080/_auth") {
-				t.Errorf("%q compose forwardAuth must target Stargate on :8080 (PR8 port 80→8080)", tc.profile)
+			if !strings.Contains(compose, "http://the-gate-stargate:8080/_auth") {
+				t.Errorf("%q compose forwardAuth must target the prefixed Stargate container on :8080", tc.profile)
 			}
 			if strings.Contains(compose, "forwardauth.address=http://stargate/_auth") {
 				t.Errorf("%q compose must not keep the legacy port-80 forwardAuth address (PR8)", tc.profile)
