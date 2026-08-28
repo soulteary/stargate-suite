@@ -1,7 +1,7 @@
 // Package main: security hardening for the local Web UI (serve).
 //
-// The Web UI is a local operator tool that generates deployment secrets. PR11
-// tightens its boundary so it is safe by default:
+// The Web UI is a local operator tool that generates deployment secrets. Its
+// boundary is hardened so it is safe by default:
 //   - binds 127.0.0.1 by default; a non-loopback --listen is refused unless the
 //     operator explicitly passes --allow-remote (and then an access token is
 //     required — generated if not supplied);
@@ -137,6 +137,14 @@ func securityMiddleware(cfg serveConfig, h http.Handler) http.Handler {
 			return
 		}
 
+		// In loopback mode, reject arbitrary Host values before authentication
+		// or origin checks. Comparing Origin with r.Host alone is insufficient:
+		// both remain attacker-controlled during a DNS rebinding attack.
+		if cfg.loopback && !loopbackRequestHostOK(cfg, r.Host) {
+			http.Error(w, "misdirected request: invalid loopback host", http.StatusMisdirectedRequest)
+			return
+		}
+
 		// Token gate (only when a token is configured, i.e. remote mode or an
 		// operator-supplied token on loopback). GET /static and the login-less
 		// entry are still gated so the UI cannot be scraped off-host.
@@ -236,7 +244,42 @@ func originOK(cfg serveConfig, r *http.Request) bool {
 	if candidate == "" {
 		candidate = referer
 	}
-	return hostFromURL(candidate) == r.Host
+	return strings.EqualFold(hostFromURL(candidate), r.Host)
+}
+
+// loopbackRequestHostOK restricts a loopback listener to loopback Host values
+// on the configured port. This prevents an attacker-controlled DNS name that
+// has rebound to 127.0.0.1 or ::1 from reaching the operator UI.
+func loopbackRequestHostOK(cfg serveConfig, requestHost string) bool {
+	_, listenPort, err := net.SplitHostPort(cfg.listenAddr)
+	if err != nil {
+		return false
+	}
+	host, port, err := splitRequestHost(requestHost)
+	if err != nil || !isLoopbackHost(host) {
+		return false
+	}
+	if port == "" {
+		return listenPort == "80" || listenPort == "443"
+	}
+	return port == listenPort
+}
+
+func splitRequestHost(authority string) (string, string, error) {
+	authority = strings.TrimSpace(authority)
+	if authority == "" {
+		return "", "", fmt.Errorf("empty host")
+	}
+	if host, port, err := net.SplitHostPort(authority); err == nil {
+		return host, port, nil
+	}
+	if strings.HasPrefix(authority, "[") && strings.HasSuffix(authority, "]") {
+		return strings.TrimSuffix(strings.TrimPrefix(authority, "["), "]"), "", nil
+	}
+	if strings.Contains(authority, ":") {
+		return "", "", fmt.Errorf("invalid host authority %q", authority)
+	}
+	return authority, "", nil
 }
 
 // hostFromURL extracts the host[:port] authority from an Origin/Referer value
