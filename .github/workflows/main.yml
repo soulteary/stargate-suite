@@ -16,6 +16,7 @@ permissions:
 
 env:
   DOCKER_BUILDKIT: 1
+  GOVULNCHECK_VERSION: v1.7.0
 
 jobs:
   test:
@@ -52,7 +53,7 @@ jobs:
 
       - name: govulncheck
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
           govulncheck ./...
 
       - name: Config validation
