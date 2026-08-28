@@ -31,4 +31,13 @@ Web UI: `go run ./cmd/suite serve` → select type, download compose + .env.
 
 **Env:** Root `.env` (or canonical) → each `build/<mode>/.env`. Common: `AUTH_HOST`, `STARGATE_DOMAIN`, `*_API_KEY`, `*_IMAGE`; optional DingTalk/SMTP/OwlMail — see root `.env.example`.
 
+## Security hardening (profile-driven)
+
+Generated compose is hardened by the selected deployment profile (`development` / `test` / `production`; see [../config/profiles.yaml](../config/profiles.yaml)). Both the CLI (`generate --profile`) and the Web UI apply the same `internal/policy` + `internal/composegen` transforms, so the topology and controls below are identical on either path.
+
+- **Network segmentation (S-03):** the flat `the-gate-network` is replaced by purpose-scoped internal networks — `auth-internal` (Stargate ↔ Warden/Herald), `warden-data` (Warden ↔ its Redis), `herald-data` (Herald ↔ its Redis + channel adapters). The external edge network stays the Traefik ingress network. A compromised channel adapter cannot reach the Warden data plane, and each Redis is only reachable by its owning service.
+- **No host ports for internal services (S-03):** `production` publishes only the reverse-proxy entrypoint; core services and Redis use `expose` (container-internal) with no host mapping. `development` / `test` keep host access but bind exposed ports to `127.0.0.1` only.
+- **Redis password closure (S-01):** both Redis servers run with `--requirepass ${..._REDIS_PASSWORD:?...}` and authenticate their healthcheck; the password is never left blank. In `production` the value is mandatory (generation fails without it and `docker compose config` fails on the `${VAR:?}` interpolation); `development` / `test` may auto-generate or use isolated test values.
+- **Container least privilege:** every service drops all Linux capabilities (`cap_drop: [ALL]`) and disallows privilege escalation (`security_opt: [no-new-privileges:true]`). `production` additionally mounts a read-only root filesystem (`read_only: true`) with a writable `/tmp` tmpfs; Redis persists to its named data volume.
+
 See [../README](../README.md) · [../config/README](../config/README.md) · [traefik/README](./traefik/README.md).

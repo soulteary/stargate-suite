@@ -214,6 +214,10 @@ func TestValidateProductionAcceptsStrongConfig(t *testing.T) {
 	}
 	opts := baseOpts()
 	opts.ExposePorts = false
+	// production containers are hardened (least privilege + read-only root);
+	// the real path sets these via Apply, so mirror that for the accept case.
+	opts.LeastPrivilege = true
+	opts.ReadOnlyRootFS = true
 	findings := Validate(p, env, opts)
 	if HasErrors(findings) {
 		for _, f := range findings {

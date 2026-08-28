@@ -85,6 +85,35 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 
 			env := string(e1)
 			compose := string(c1)
+
+			// PR 6 invariants shared by all profiles: network segmentation
+			// (flat the-gate-network replaced by segmented internal networks)
+			// and Redis password closure (server --requirepass + authenticated
+			// healthcheck, no unauthenticated `redis-cli ping`).
+			for _, seg := range []string{"auth-internal", "warden-data", "herald-data"} {
+				if !strings.Contains(compose, seg) {
+					t.Errorf("%q compose should declare segmented network %q", tc.profile, seg)
+				}
+			}
+			if strings.Contains(compose, "the-gate-network") {
+				t.Errorf("%q compose should not keep the flat the-gate-network after segmentation", tc.profile)
+			}
+			if !strings.Contains(compose, "--requirepass") {
+				t.Errorf("%q compose Redis must set --requirepass (S-01)", tc.profile)
+			}
+			if !strings.Contains(compose, `HERALD_REDIS_PASSWORD}" ping`) ||
+				!strings.Contains(compose, `WARDEN_REDIS_PASSWORD}" ping`) {
+				t.Errorf("%q compose Redis healthcheck must authenticate with the password (S-01)", tc.profile)
+			}
+			// Least privilege applies to every profile: cap_drop ALL and
+			// no-new-privileges. Redis must NOT publish a host port (S-03).
+			if !strings.Contains(compose, "cap_drop") || !strings.Contains(compose, "no-new-privileges:true") {
+				t.Errorf("%q compose must apply least-privilege (cap_drop ALL + no-new-privileges)", tc.profile)
+			}
+			if strings.Contains(compose, "6379:6379") {
+				t.Errorf("%q compose must not publish Redis host port 6379 (S-03)", tc.profile)
+			}
+
 			switch tc.profile {
 			case policy.Development, policy.Test:
 				if !strings.Contains(compose, "127.0.0.1:") {
@@ -92,6 +121,11 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 				}
 				if !strings.Contains(env, "ENVIRONMENT="+tc.profile) {
 					t.Errorf("%q env should set ENVIRONMENT=%s", tc.profile, tc.profile)
+				}
+				// development/test use leastPrivilege WITHOUT a read-only root
+				// filesystem (readonly is production-only).
+				if strings.Contains(compose, "read_only: true") {
+					t.Errorf("%q compose should not force read-only root filesystem (production-only)", tc.profile)
 				}
 			case policy.Production:
 				if strings.Contains(env, "COOKIE_SECURE=false") || !strings.Contains(env, "COOKIE_SECURE=true") {
@@ -107,6 +141,14 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 				// should be the reverse-proxy/whoami; core services carry none.
 				if strings.Contains(compose, "127.0.0.1:") {
 					t.Errorf("production compose must not publish loopback host ports")
+				}
+				// production hardens further with a read-only root filesystem
+				// plus a writable /tmp tmpfs.
+				if !strings.Contains(compose, "read_only: true") {
+					t.Errorf("production compose must set read-only root filesystem")
+				}
+				if !strings.Contains(compose, "/tmp") {
+					t.Errorf("production read-only services need a writable /tmp tmpfs")
 				}
 			}
 		})

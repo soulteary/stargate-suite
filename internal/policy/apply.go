@@ -190,5 +190,22 @@ func Apply(p Profile, opts *composegen.Options, userEnv map[string]string, keyge
 		// production: password mandatory, never auto-injected; validation enforces.
 	}
 
+	// --- Network segmentation (S-03) --------------------------------------
+	// All three profiles run on the segmented internal networks (edge /
+	// auth-internal / warden-data / herald-data) so the flat the-gate-network
+	// is never the sole isolation boundary. This is topology, not a secret, so
+	// it applies uniformly regardless of environment.
+	opts.NetworkSegmentation = true
+
+	// --- Container least privilege (S-01/S-03 hardening) ------------------
+	switch p.ContainerPrivileges {
+	case PrivLeastPrivilegeReadonly:
+		opts.LeastPrivilege = true
+		opts.ReadOnlyRootFS = true
+	case PrivLeastPrivilege:
+		opts.LeastPrivilege = true
+		opts.ReadOnlyRootFS = false
+	}
+
 	return &ApplyResult{Options: opts, EnvOverrides: env}
 }

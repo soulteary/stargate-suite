@@ -143,6 +143,18 @@ func Validate(p Profile, env map[string]string, opts *composegen.Options) []Find
 		add(EnvHeraldTestMode, "Herald test mode is forbidden in production (HERALD_TEST_MODE must not be true)", true)
 	}
 
+	// --- Container least privilege (S-01/S-03) ----------------------------
+	// production requires a read-only root filesystem on top of least
+	// privilege; a mis-edited profiles.yaml that drops it is a hard error.
+	if p.ContainerPrivileges == PrivLeastPrivilegeReadonly && opts != nil {
+		if !opts.LeastPrivilege {
+			add("containerPrivileges", "production requires least-privilege containers (cap_drop ALL, no-new-privileges)", false)
+		}
+		if !opts.ReadOnlyRootFS {
+			add("containerPrivileges", "production requires a read-only root filesystem on containers", false)
+		}
+	}
+
 	return findings
 }
 
