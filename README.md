@@ -28,7 +28,6 @@ Go module: `github.com/soulteary/stargate-suite`. Repo name: **stargate-suite**.
 
 ```
 stargate-suite/
-├── compose/example/   # optional; image | build generated from canonical
 ├── compose/canonical/ # single source → CLI / Web UI / make gen
 ├── build/             # generated (make gen via CLI, or CLI / Web UI)
 ├── config/             # page.yaml, scenarios
@@ -52,7 +51,7 @@ make up
 
 **CLI:** `go run ./cmd/suite help` — `generate`, `validate`, `doctor`, `serve`. The default config and canonical compose are **embedded in the binary** (`go:embed`), so all subcommands run without the repo source tree (e.g. from a release binary or the container). Use `--config-dir=<dir>` (or `CONFIG_DIR`) to override the embedded `config/` with an on-disk directory; anything missing there falls back to the embedded assets. `generate` and `validate` call the **same** `internal/composegen` / `internal/policy` functions as the Web UI's `/api/generate`, so the CLI produces byte-identical output without ever starting a Web server.
 
-**Deployment profiles** (`config/profiles.yaml`): `development` / `test` / `production` are **security & runtime policy**, not just prefilled forms — they set port binding, secret source, password algorithm, Herald auth, Redis password, Cookie Secure, HMAC v1, container privileges and validation mode (see [docs/upgrade/00-overview.md](docs/upgrade/00-overview.md) §5.4). The CLI and Web UI share one model (`internal/policy` + `internal/composegen`):
+**Deployment profiles** (`config/profiles.yaml`): `development` / `test` / `production` are **security & runtime policy**, not just prefilled forms — they set port binding, secret source, password algorithm, Herald auth, Redis password, Cookie Secure, HMAC v1, container privileges and validation mode (see [docs/deployment.md](docs/deployment.md)). The CLI and Web UI share one model (`internal/policy` + `internal/composegen`):
 
 ```bash
 # development: current defaults (loopback ports, plaintext test password, dev keys).
