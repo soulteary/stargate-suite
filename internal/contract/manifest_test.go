@@ -202,54 +202,6 @@ func TestManifestNoRehardcodedContainerPorts(t *testing.T) {
 	}
 }
 
-// TestBuildArtifactsStalenessAdvisory is a NON-FAILING advisory. build/* is a
-// gitignored generated artifact, not a source of truth, so drift there must not
-// fail CI; instead we surface it so the human knows to regenerate. This is the
-// deliberate choice over regenerating build/* in this PR: build/* is not
-// committed, and regenerating it is a separate concern (deployment profiles,
-// PR 5+). The test still demonstrates it can DETECT the known build/* drift
-// (Stargate v0.9.2 / Warden v0.10.0 / Herald v0.6.1, herald-dingtalk:latest).
-func TestBuildArtifactsStalenessAdvisory(t *testing.T) {
-	root := repoRoot(t)
-	m := loadManifestFromRoot(t, root)
-
-	buildFiles := []string{
-		"build/image/docker-compose.yml",
-		"build/build/docker-compose.yml",
-		"build/traefik/docker-compose.yml",
-		"build/traefik-herald/docker-compose.yml",
-		"build/traefik-warden/docker-compose.yml",
-		"build/traefik-stargate/docker-compose.yml",
-	}
-	stale := 0
-	for _, rel := range buildFiles {
-		b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
-		if err != nil {
-			continue // gitignored / not generated yet — nothing to advise on.
-		}
-		content := string(b)
-		for comp, envVar := range coreImageEnvVar {
-			c, ok := m.Component(comp)
-			if !ok || c.Ref() == "" {
-				continue
-			}
-			// Detect the image line for this component regardless of the pinned tag.
-			imgLine := regexp.MustCompile(`(?m)^\s*image:\s*(?:\$\{` + regexp.QuoteMeta(envVar) + `:-)?` +
-				regexp.QuoteMeta(c.Image) + `:([^}\s]+)`)
-			for _, mm := range imgLine.FindAllStringSubmatch(content, -1) {
-				got := c.Image + ":" + mm[1]
-				if got != c.Ref() {
-					t.Logf("advisory: %s pins %q but manifest says %q (regenerate build/* from canonical)", rel, got, c.Ref())
-					stale++
-				}
-			}
-		}
-	}
-	if stale > 0 {
-		t.Logf("advisory: %d stale image reference(s) in build/*; run the generator to refresh (non-fatal, build/* is a generated artifact)", stale)
-	}
-}
-
 // --- small string helpers (avoid pulling strconv/strings into many sites) ---
 
 func itoa(n int) string {
