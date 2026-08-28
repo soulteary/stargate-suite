@@ -2,7 +2,7 @@ name: CI (PR)
 
 # PR tier — fast feedback (target 5-8 min). Runs on pull requests only; pushes
 # to main are validated by the heavier `main.yml` tier. Documentation-only PRs
-# skip container build and E2E via the `changes` path filter below.
+# skip Go, container, and E2E work via the `changes` path filter below.
 on:
   pull_request:
     branches: [ main, master, develop ]
@@ -27,7 +27,6 @@ jobs:
     outputs:
       code: ${{ steps.filter.outputs.code }}
       e2e: ${{ steps.filter.outputs.e2e }}
-      docs_only: ${{ steps.filter.outputs.docs_only }}
     steps:
       - name: Checkout code
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -42,9 +41,11 @@ jobs:
               - 'go.sum'
               - 'config/**'
               - 'compose/**'
+              - 'fixtures/**'
               - 'Dockerfile'
               - 'Makefile'
               - 'scripts/**'
+              - 'cmd/suite/static/**'
               - '.github/workflows/**'
             e2e:
               - 'e2e/**'
@@ -56,17 +57,13 @@ jobs:
               - 'internal/policy/**'
               - 'internal/contract/**'
               - 'Dockerfile'
-            docs_only:
-              - '**/*.md'
-              - 'docs/**'
-              - 'LICENSE'
-
-  # Static analysis + non-e2e unit tests + config/compose sanity. Always runs
-  # (even for docs-only PRs it is cheap and guards accidental code edits).
+  # Static analysis + non-e2e unit tests + config/compose sanity. Documentation-
+  # only PRs skip this job; any Go/config/compose/static/workflow change sets code.
   test:
     name: Lint, unit tests, config
     runs-on: ubuntu-latest
     needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     timeout-minutes: 12
     steps:
       - name: Checkout code
@@ -127,14 +124,14 @@ jobs:
           COVERAGE_MINIMUM: "30.0"
         run: ./scripts/check-coverage.sh coverage.out
 
-  # Smoke E2E — only when E2E-relevant paths changed. Docs-only or pure Web-UI
-  # PRs skip this to keep PR feedback fast and cheap.
+  # Smoke E2E — only when E2E-relevant paths changed. The complete suite runs
+  # after merge in main.yml; PRs cover one happy path plus auth/health guards.
   smoke-e2e:
     name: Smoke E2E
     runs-on: ubuntu-latest
     needs: [changes, test]
     if: needs.changes.outputs.e2e == 'true'
-    timeout-minutes: 20
+    timeout-minutes: 15
     env:
       COMPOSE_FILE: ${{ github.workspace }}/build/image/docker-compose.yml
       ENVIRONMENT: test
@@ -197,7 +194,9 @@ jobs:
           done
 
       - name: Run smoke E2E
-        run: go test -race -timeout 15m ./e2e/...
+        run: >-
+          go test -race -timeout 10m ./e2e/...
+          -run '^(TestCompleteLoginFlow|TestProtectedWhoamiAfterLogin|TestWardenAPIKeyAuth|TestHeraldHMACAuth|TestLivenessReadinessAreDistinct|TestHeraldTestCodeNotOnMainListener)$'
 
       - name: Show service logs on failure
         if: failure()
