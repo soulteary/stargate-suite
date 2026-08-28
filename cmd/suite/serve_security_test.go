@@ -187,6 +187,37 @@ func TestSecurityMiddlewareCSRFOnPost(t *testing.T) {
 	}
 }
 
+func TestSecurityMiddlewareRejectsDNSRebindingHost(t *testing.T) {
+	cfg := serveConfig{listenAddr: "127.0.0.1:8085", loopback: true}
+	h, reached := okHandler()
+	mw := securityMiddleware(cfg, h)
+
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(method, "/generate", nil)
+		req.Host = "attacker.example:8085"
+		req.Header.Set("Origin", "http://attacker.example:8085")
+		mw.ServeHTTP(rec, req)
+		if rec.Code != http.StatusMisdirectedRequest || *reached {
+			t.Fatalf("%s with rebound Host reached the handler: code=%d reached=%v", method, rec.Code, *reached)
+		}
+	}
+}
+
+func TestLoopbackRequestHostAllowsLocalAliases(t *testing.T) {
+	cfg := serveConfig{listenAddr: "127.0.0.1:8085", loopback: true}
+	for _, host := range []string{"localhost:8085", "127.0.0.1:8085", "127.0.0.2:8085", "[::1]:8085"} {
+		if !loopbackRequestHostOK(cfg, host) {
+			t.Errorf("loopback Host %q was rejected", host)
+		}
+	}
+	for _, host := range []string{"attacker.example:8085", "localhost:9090", "127.0.0.1", "[::1]:9090"} {
+		if loopbackRequestHostOK(cfg, host) {
+			t.Errorf("invalid loopback Host %q was accepted", host)
+		}
+	}
+}
+
 func TestSecurityMiddlewareRemoteRequiresOriginOnPost(t *testing.T) {
 	// Remote mode: a POST with no Origin/Referer must be rejected even with a
 	// valid token (defense in depth against non-browser CSRF replay).
