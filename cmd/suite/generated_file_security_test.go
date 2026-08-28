@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/soulteary/stargate-suite/internal/composegen"
 )
 
 func TestWriteGeneratedRestrictsEnvPermissions(t *testing.T) {
@@ -28,6 +30,21 @@ func TestWriteGeneratedRestrictsEnvPermissions(t *testing.T) {
 	}
 	if got := composeInfo.Mode().Perm(); got != 0o644 {
 		t.Fatalf("compose permissions=%#o, want 0644", got)
+	}
+}
+
+func TestGeneratedEnvRoundTripsThroughImporter(t *testing.T) {
+	want := map[string]string{
+		"APOSTROPHE": "operator's secret",
+		"MULTILINE":  "line one\nline two",
+		"BACKSLASH":  `C:\path\with\slashes`,
+	}
+	body := composegen.EnvBodyFromVars(want, "", nil)
+	got := parseEnvText(body)
+	for key, value := range want {
+		if got[key] != value {
+			t.Errorf("%s round-trip = %q, want %q", key, got[key], value)
+		}
 	}
 }
 

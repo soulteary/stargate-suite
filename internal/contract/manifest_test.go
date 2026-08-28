@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -19,6 +20,39 @@ func loadManifestFromRoot(t *testing.T, root string) *Manifest {
 		t.Fatalf("parse %s: %v", ManifestPath, err)
 	}
 	return m
+}
+
+func TestComponentLockMatchesManifestSnapshot(t *testing.T) {
+	root := repoRoot(t)
+	manifest := loadManifestFromRoot(t, root)
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(LockPath)))
+	if err != nil {
+		t.Fatalf("read %s: %v", LockPath, err)
+	}
+	lock, err := ParseLock(data)
+	if err != nil {
+		t.Fatalf("parse %s: %v", LockPath, err)
+	}
+	if err := ValidateLock(manifest, lock, false); err != nil {
+		t.Fatalf("component lock drift: %v", err)
+	}
+}
+
+// TestVerifiedComboMatchesComponents prevents the CLI's advertised verified
+// matrix from drifting away from the images that generation actually uses.
+func TestVerifiedComboMatchesComponents(t *testing.T) {
+	root := repoRoot(t)
+	m := loadManifestFromRoot(t, root)
+	for name, verified := range m.VerifiedCombo {
+		component, ok := m.Component(name)
+		if !ok {
+			t.Errorf("verifiedCombo references missing component %q", name)
+			continue
+		}
+		if strings.TrimPrefix(verified, "v") != strings.TrimPrefix(component.Version, "v") {
+			t.Errorf("verifiedCombo %s=%q does not match component version %q", name, verified, component.Version)
+		}
+	}
 }
 
 // coreImageEnvVar maps each core component to the env var that carries its

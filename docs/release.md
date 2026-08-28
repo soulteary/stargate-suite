@@ -20,6 +20,8 @@ tag commit must be an ancestor of `main`.
 - A multi-arch (amd64 + arm64) container image, **Trivy-scanned before push**
   (CRITICAL/HIGH fail the release).
 - An SPDX **SBOM**.
+- A `components.lock.yaml` snapshot whose tags match `components.yaml` and
+  whose images are resolved to immutable `sha256` digests.
 - Keyless **Cosign** signatures for the image and for `checksums.txt`.
 - GitHub **build-provenance attestations** for the image and the binaries.
 
@@ -64,6 +66,8 @@ tag）时运行。非语义化 ref 会被拒绝，且 tag 对应 commit 必须�
 - 稳定且自排除的 `checksums.txt`。
 - 多架构（amd64 + arm64）容器镜像，**推送前经 Trivy 扫描**（CRITICAL/HIGH 使发布失败）。
 - SPDX **SBOM**。
+- 与 `components.yaml` 标签一致、且所有镜像均解析为不可变 `sha256` digest 的
+  `components.lock.yaml` 快照。
 - 镜像与 `checksums.txt` 的 keyless **Cosign** 签名。
 - 镜像与二进制的 GitHub **构建来源证明（attestation）**。
 

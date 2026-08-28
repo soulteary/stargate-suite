@@ -99,8 +99,8 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Generate compose (native CLI)
-        run: make gen
+      - name: Generate test-profile compose (native CLI)
+        run: make gen-test
 
       - name: Prepare Warden data for E2E
         run: cp fixtures/warden/data.json build/image/data.json
@@ -161,7 +161,7 @@ jobs:
       - name: Get version information
         id: version
         run: |
-          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "dev-$(git rev-parse --short HEAD)")
+          VERSION=$(git describe --tags --exact-match 2>/dev/null || echo "dev-$(git rev-parse --short HEAD)")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build Docker image
@@ -182,7 +182,7 @@ jobs:
         with:
           image-ref: stargate-suite:test
           format: table
-          exit-code: '0'
+          exit-code: '1'
           ignore-unfixed: true
           severity: CRITICAL,HIGH
 
@@ -211,7 +211,7 @@ jobs:
         id: version
         shell: bash
         run: |
-          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "dev-$(git rev-parse --short HEAD)")
+          VERSION=$(git describe --tags --exact-match 2>/dev/null || echo "dev-$(git rev-parse --short HEAD)")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build project

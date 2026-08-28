@@ -94,10 +94,13 @@ func extractServiceNames(compose map[string]interface{}) []string {
 	return names
 }
 
-// parseEnvText 将 .env 文本解析为 KEY=VALUE 映射（每行一条，空行与 # 开头忽略）。
+// parseEnvText parses dotenv assignments, including the multiline literal
+// single-quoted form emitted by composegen.EncodeEnvValue.
 func parseEnvText(env string) map[string]string {
 	out := make(map[string]string)
-	for _, line := range strings.Split(env, "\n") {
+	lines := strings.Split(env, "\n")
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -108,8 +111,26 @@ func parseEnvText(env string) map[string]string {
 		}
 		key := strings.TrimSpace(line[:idx])
 		val := strings.TrimSpace(line[idx+1:])
-		// 去除可选的引号
-		if (strings.HasPrefix(val, `"`) && strings.HasSuffix(val, `"`)) || (strings.HasPrefix(val, "'") && strings.HasSuffix(val, "'")) {
+		if strings.HasPrefix(val, "'") {
+			var literal strings.Builder
+			part := val[1:]
+			for {
+				end := singleQuotedEnd(part)
+				if end >= 0 {
+					literal.WriteString(decodeSingleQuoted(part[:end]))
+					val = literal.String()
+					break
+				}
+				literal.WriteString(decodeSingleQuoted(part))
+				if i+1 >= len(lines) {
+					val = literal.String()
+					break
+				}
+				literal.WriteByte('\n')
+				i++
+				part = lines[i]
+			}
+		} else if strings.HasPrefix(val, `"`) && strings.HasSuffix(val, `"`) {
 			val = val[1 : len(val)-1]
 		}
 		if key != "" {
@@ -117,6 +138,23 @@ func parseEnvText(env string) map[string]string {
 		}
 	}
 	return out
+}
+
+func singleQuotedEnd(value string) int {
+	for i := 0; i < len(value); i++ {
+		if value[i] == '\\' && i+1 < len(value) && value[i+1] == '\'' {
+			i++
+			continue
+		}
+		if value[i] == '\'' {
+			return i
+		}
+	}
+	return -1
+}
+
+func decodeSingleQuoted(value string) string {
+	return strings.ReplaceAll(value, `\'`, `'`)
 }
 
 // suggestModes 根据解析出的服务名推断建议勾选的 compose 类型（用于一键导入）。

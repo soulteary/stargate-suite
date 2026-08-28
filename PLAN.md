@@ -4,8 +4,7 @@
 >
 > 本轮目标：把 Suite 收敛为「Stargate 体系的版本锁定、配置生成、集成契约验证与可复现部署工具」，不把 Suite 扩展成长期运行的控制平面。
 >
-> **状态（v0.10 收官）：** PR 1-14 已实现落地。运行契约已原子迁移到 v1（Stargate `v1.0.0` / Warden `v1.0.0` / Herald `v1.1.0`，端口 8080，健康 `/healthz`+`/readyz`，HMAC v2、v1 默认关闭）。版本/端口/健康路径唯一来源为 [`config/components.yaml`](config/components.yaml)。运维文档见 [迁移](docs/migration-v0.10.md)、[部署](docs/deployment.md)、[安全](docs/security.md)、[开发](docs/development.md)、[发布](docs/release.md)。
-> 注：Warden 上游最高稳定 Tag 为 `v1.0.0`（无 `v1.1.0`），文档与清单均以此为准。
+> **状态（v0.10 收官）：** PR 1-14 已实现落地。运行契约已原子迁移到 v1（Stargate `v1.0.0` / Warden `v1.1.0` / Herald `v1.1.0`，端口 8080，健康 `/healthz`+`/readyz`，HMAC v2、v1 默认关闭）。版本/端口/健康路径唯一来源为 [`config/components.yaml`](config/components.yaml)。运维文档见 [迁移](docs/migration-v0.10.md)、[部署](docs/deployment.md)、[安全](docs/security.md)、[开发](docs/development.md)、[发布](docs/release.md)。
 
 ## 现状基线（已核对真实仓库）
 

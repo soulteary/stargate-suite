@@ -192,7 +192,7 @@ order:
 # Per-key: comment (for .env and compose), services (which compose service may use this env), default (optional)
 vars:
   HERALD_IMAGE: { comment: "Herald Service Image", services: [], default: "ghcr.io/soulteary/herald:1.1.0" }
-  WARDEN_IMAGE: { comment: "Warden Service Image", services: [], default: "ghcr.io/soulteary/warden:1.0.0" }
+  WARDEN_IMAGE: { comment: "Warden Service Image", services: [], default: "ghcr.io/soulteary/warden:1.1.0" }
   STARGATE_IMAGE: { comment: "Stargate Service Image", services: [], default: "ghcr.io/soulteary/stargate:1.0.0" }
   HERALD_REDIS_IMAGE: { comment: "Herald Redis Image", services: [], default: "redis:8.4-alpine" }
   WARDEN_REDIS_IMAGE: { comment: "Warden Redis Image", services: [], default: "redis:8.4-alpine" }
@@ -232,7 +232,7 @@ vars:
   RATE_LIMIT_PER_DESTINATION: { comment: "Herald 每目标/小时限流", services: [herald] }
   HERALD_DINGTALK_API_URL: { comment: "Herald 钉钉通道：herald-dingtalk 服务地址", services: [herald] }
   HERALD_DINGTALK_API_KEY: { comment: "Herald 钉钉通道 API 密钥", services: [herald, herald-dingtalk] }
-  HERALD_DINGTALK_IMAGE: { comment: "herald-dingtalk 服务镜像", services: [], default: "ghcr.io/soulteary/herald-dingtalk:v0.5.0" }
+  HERALD_DINGTALK_IMAGE: { comment: "herald-dingtalk 服务镜像", services: [], default: "ghcr.io/soulteary/herald-dingtalk:1.1.0" }
   DINGTALK_APP_KEY: { comment: "herald-dingtalk：钉钉应用 Key", services: [herald-dingtalk] }
   DINGTALK_APP_SECRET: { comment: "herald-dingtalk：钉钉应用 Secret", services: [herald-dingtalk] }
   DINGTALK_AGENT_ID: { comment: "herald-dingtalk：钉钉应用 AgentId", services: [herald-dingtalk] }
@@ -240,7 +240,7 @@ vars:
   HERALD_DINGTALK_IDEMPOTENCY_TTL: { comment: "herald-dingtalk 幂等缓存 TTL（秒）", services: [herald-dingtalk] }
   HERALD_SMTP_API_URL: { comment: "Herald 邮件通道：herald-smtp 服务地址", services: [herald] }
   HERALD_SMTP_API_KEY: { comment: "Herald 邮件通道 API 密钥", services: [herald, herald-smtp] }
-  HERALD_SMTP_IMAGE: { comment: "herald-smtp 服务镜像", services: [], default: "ghcr.io/soulteary/herald-smtp:v0.2.0" }
+  HERALD_SMTP_IMAGE: { comment: "herald-smtp 服务镜像", services: [], default: "ghcr.io/soulteary/herald-smtp:1.1.0" }
   SMTP_HOST: { comment: "herald-smtp：SMTP 服务器主机", services: [herald-smtp] }
   SMTP_PORT: { comment: "herald-smtp：SMTP 端口", services: [herald-smtp] }
   SMTP_USER: { comment: "herald-smtp：SMTP 用户名", services: [herald-smtp] }
@@ -342,7 +342,7 @@ vars:
   HERALD_TOTP_HMAC_SECRET: { comment: "Herald 调用 herald-totp 的 HMAC 密钥", services: [] }
   HERALD_TOTP_ENABLED: { comment: "是否启用 herald-totp（TOTP 2FA）", services: [stargate] }
   HERALD_TOTP_BASE_URL: { comment: "Herald 调用 herald-totp 的地址", services: [stargate], default: "http://herald-totp:8084" }
-  HERALD_TOTP_IMAGE: { comment: "herald-totp 服务镜像", services: [], default: "ghcr.io/soulteary/herald-totp:v0.3.0" }
+  HERALD_TOTP_IMAGE: { comment: "herald-totp 服务镜像", services: [], default: "ghcr.io/soulteary/herald-totp:1.1.0" }
   AUDIT_LOG_ENABLED: { comment: "是否启用审计日志", services: [stargate] }
   AUDIT_LOG_FORMAT: { comment: "审计日志格式 (json/text)", services: [stargate] }
   OTLP_ENABLED: { comment: "是否启用 OpenTelemetry 导出", services: [stargate] }

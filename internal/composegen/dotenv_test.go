@@ -7,18 +7,27 @@ import (
 
 func TestEncodeEnvValue(t *testing.T) {
 	tests := map[string]string{
-		"":                         "",
-		"plain-value_1":            "plain-value_1",
-		"$argon2id$v=19$m=65536":   "'$argon2id$v=19$m=65536'",
-		"value # not a comment":     "'value # not a comment'",
-		"line one\nline two":        "'line one\nline two'",
-		"operator's secret":         `'operator\'s secret'`,
-		`C:\\path\\with\\slashes`: `'C:\\path\\with\\slashes'`,
+		"":                           "",
+		"plain-value_1":              "plain-value_1",
+		"$argon2id$v=19$m=65536":     "'$argon2id$v=19$m=65536'",
+		"value # not a comment":       "'value # not a comment'",
+		"line one\nline two":          "'line one\nline two'",
+		"operator's secret":           `'operator\'s secret'`,
+		`C:\\path\\with\\slashes`:     `'C:\\path\\with\\slashes'`,
 	}
 	for input, want := range tests {
 		if got := EncodeEnvValue(input); got != want {
 			t.Errorf("EncodeEnvValue(%q)=%q, want %q", input, got, want)
 		}
+	}
+}
+
+func TestGenerateRejectsInvalidOverrideKey(t *testing.T) {
+	_, err := Generate(map[string]interface{}{}, nil, "", &Options{
+		EnvOverrides: map[string]string{"GOOD\nEVIL": "injected"},
+	}, nil)
+	if err == nil || !strings.Contains(err.Error(), "invalid environment variable name") {
+		t.Fatalf("Generate error = %v", err)
 	}
 }
 
