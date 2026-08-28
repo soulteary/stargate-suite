@@ -8,13 +8,13 @@ help: ## Show help information
 	@echo "stargate-suite End-to-End Integration Test Project"
 	@echo ""
 	@echo "Compose 生成到 $(BUILD_DIR)/，默认使用: $(COMPOSE_FILE)"
-	@echo "首次使用请执行: make gen（通过 Web API）或 make serve 在浏览器中配置生成"
+	@echo "首次使用请执行: make gen（CLI 原生生成，无需 Web 服务）或 make serve 在浏览器中配置生成"
 	@echo ""
 	@echo "Available commands:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
 
-gen: ## Generate docker-compose and .env into build/ via Web API (run before up)
-	@./scripts/gen-via-api.sh
+gen: ## Generate docker-compose and .env into build/ via the CLI (run before up)
+	@go run ./cmd/suite generate --canonical --output $(BUILD_DIR)
 
 up: ## Start all services（默认 build/image）
 	docker compose -f $(COMPOSE_FILE) up -d

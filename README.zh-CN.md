@@ -18,16 +18,21 @@ Go 模块：`github.com/soulteary/stargate-suite`。仓库名：**stargate-suite
 | [config/README.zh-CN](config/README.zh-CN.md) | Web UI 配置；[EN](config/README.md) |
 | [compose/traefik/README.zh-CN](compose/traefik/README.zh-CN.md) | Traefik 三合一/三分开；[EN](compose/traefik/README.md) |
 | [e2e/README.zh-CN](e2e/README.zh-CN.md) | E2E 测试；[EN](e2e/README.md) |
+| [docs/migration-v0.10](docs/migration-v0.10.md) | v0.9 → v0.10 破坏性变更迁移 |
+| [docs/deployment](docs/deployment.md) | 部署与 Profile |
+| [docs/security](docs/security.md) | 安全模型与加固 |
+| [docs/development](docs/development.md) | 本地开发与测试 |
+| [docs/release](docs/release.md) | 发布流程与供应链 |
 
 ## 结构
 
 ```
 stargate-suite/
 ├── compose/example/   # 可选；image | build 由 canonical 生成
-├── compose/canonical/ # 单一数据源 → Web UI / make gen
-├── build/             # 生成输出（make gen 经 Web API 或 Web UI）
+├── compose/canonical/ # 单一数据源 → CLI / Web UI / make gen
+├── build/             # 生成输出（make gen 经 CLI，或 CLI / Web UI）
 ├── config/            # page.yaml, scenarios
-├── cmd/suite/         # Web UI（serve）+ generate + validate
+├── cmd/suite/         # Web UI（serve）+ generate + validate + doctor
 ├── e2e/               # E2E 测试
 ├── fixtures/warden/   # 测试用户 data.json
 └── scripts/run-e2e.sh
@@ -40,12 +45,12 @@ stargate-suite/
 **生成并启动：**
 
 ```bash
-make gen    # 经 Web API 生成到 build/（无 CLI gen 子命令）
+make gen    # 由 CLI 原生生成到 build/（不启动 Web 服务、无需 jq）
 make up
 # 或：make up-build | make up-traefik
 ```
 
-**CLI：** `go run ./cmd/suite help` — `generate`、`validate`、`serve`。默认配置与 canonical compose 已通过 `go:embed` **嵌入二进制**，因此各子命令无需仓库源码目录即可运行（如 release 二进制或容器内）。可用 `--config-dir=<目录>`（或环境变量 `CONFIG_DIR`）以磁盘目录覆盖内置 `config/`；覆盖目录中缺失的文件会回退到嵌入资产。
+**CLI：** `go run ./cmd/suite help` — `generate`、`validate`、`doctor`、`serve`。默认配置与 canonical compose 已通过 `go:embed` **嵌入二进制**，因此各子命令无需仓库源码目录即可运行（如 release 二进制或容器内）。可用 `--config-dir=<目录>`（或环境变量 `CONFIG_DIR`）以磁盘目录覆盖内置 `config/`；覆盖目录中缺失的文件会回退到嵌入资产。`generate` 与 `validate` 调用与 Web UI `/api/generate` **完全相同**的 `internal/composegen` / `internal/policy` 函数，因此 CLI 无需启动 Web 服务即可产出字节一致的结果。
 
 **部署 Profile**（`config/profiles.yaml`）：`development` / `test` / `production` 是**安全与运行策略**，而非单纯预填表单——涵盖端口绑定、密钥来源、密码算法、Herald 认证、Redis 密码、Cookie Secure、HMAC v1、容器权限与校验模式（见 [docs/upgrade/00-overview.md](docs/upgrade/00-overview.md) §5.4）。CLI 与 Web UI 共用同一模型（`internal/policy` + `internal/composegen`）：
 
@@ -63,11 +68,18 @@ go run ./cmd/suite generate --profile production --output build/prod \
 
 # 校验某个 Profile 的策略；production/test 为 strict（错误而非警告）：
 go run ./cmd/suite validate --profile production --strict
+
+# 对已生成的 compose 做只读诊断（解析、镜像↔manifest 漂移、宿主端口与本地占用、
+# 网络；加 --probe 主动探测 liveness/readiness）：
+go run ./cmd/suite doctor --compose build/dev/docker-compose.yml
+
+# 每个子命令都支持 --json，便于 CI / Cursor 解析；退出码稳定
+#（0 成功，校验失败或 doctor 硬失败时非零）。
 ```
 
-配置生成也可经 **Web UI**（第一步选择 Profile）或 `make gen`（Web API）。
+配置生成也可经 **Web UI**（第一步选择 Profile）或 `make gen`（原生 CLI，不启动 Web 服务）。
 
-**Web UI：** `go run ./cmd/suite serve`（默认 http://localhost:8085）。无鉴权，仅限本地。
+**Web UI：** `go run ./cmd/suite serve` **默认绑定 `127.0.0.1:8085`**（仅本地回环，本机无需鉴权）。对外暴露需显式开启且强制鉴权：`serve --listen 0.0.0.0:8085 --allow-remote`——未加 `--allow-remote` 会拒绝启动；remote 模式下必须携带 access token（未传 `--token` 时自动生成并打印）。状态变更 POST 会做 Origin/CSRF 校验，Cookie 为 HttpOnly + SameSite=Strict（非回环时置 Secure），且生成产物返回后即从服务端会话中清除运维密钥。监听端口被占用会直接报错，**绝不静默换端口**。
 
 **容器（自包含，无需挂载源码）：**
 
@@ -88,8 +100,8 @@ docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local  # �
 
 ## 端口与环境变量
 
-- **Stargate**：无宿主端口——`stargate` 服务 `ports: []`，容器内监听后端端口 **80**，仅通过 Traefik 暴露（见 `compose/canonical/docker-compose.yml` 与 `config/ports.yaml`）。
-- **Warden** 8081 · **Herald** 8082 · **Herald-TOTP** 8084 · **Herald-DingTalk** 8083 · **Herald-SMTP** 8085 · **Redis** 6379（仅在端口被暴露/映射时占用宿主端口）。
+- **Stargate**：无宿主端口——`stargate` 服务 `ports: []`，容器内监听后端端口 **8080**（健康检查：`/healthz` 存活、`/readyz` 就绪），仅通过 Traefik 暴露（见 `compose/canonical/docker-compose.yml` 与 `config/ports.yaml`）。
+- **Warden** 8081（健康 `/healthcheck`）· **Herald** 8082（`/healthz`）· **Herald-TOTP** 8084 · **Herald-DingTalk** 8083 · **Herald-SMTP** 8085 · **Redis** 6379（仅在端口被暴露/映射时占用宿主端口）。组件版本、端口与健康路径均以 `config/components.yaml` 为唯一权威来源——当前锁定组合：Stargate `v1.0.0`、Warden `v1.0.0`、Herald `v1.1.0`。
 - **Web UI** 默认 **8085**（`make serve`），与 **herald-smtp** 的默认端口相同。默认场景不会启动 herald-smtp，因此开箱即用无冲突；但若启用 herald-smtp 且同一台机器上同时执行 `make serve`，两者端口会冲突——需改其一（如用 `SERVE_PORT` 改 Web UI 端口，或改 herald-smtp 宿主端口）。
 - 复制 `.env.example` 为 `.env` 可覆盖镜像版本、`AUTH_HOST`、`PASSWORDS`、`WARDEN_API_KEY`、`HERALD_API_KEY`、`HERALD_HMAC_SECRET`。
 
@@ -110,7 +122,7 @@ docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local  # �
 
 ## Makefile（见 `make help`）
 
-常用：`make gen`（经 Web API）、`make up` / `make up-image` / `make up-build` / `make up-traefik`，`make down`，`make ps`，`make logs`，`make test-wait`，`make health`，`make serve`，`make suite-build`。
+常用：`make gen`（原生 CLI）、`make up` / `make up-image` / `make up-build` / `make up-traefik`，`make down`，`make ps`，`make logs`，`make test-wait`，`make health`，`make serve`，`make suite-build`。
 
 ## 服务简述
 
@@ -134,6 +146,19 @@ docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local  # �
 - 新测试：在 `e2e/` 下添加，使用 `ensureServicesReady(t)` 与 `test_helpers.go`
 - 本地构建：`make up-build`，再重新构建/重启
 - 代码检查：`golangci-lint run --max-same-issues=100000`
+
+## 发布与供应链
+
+CI 分层：`ci.yml`（PR 快速反馈）、`main.yml`（完整 E2E + 镜像构建 + Trivy 扫描）、
+`nightly.yml`（多架构 + 跨 OS）。所有第三方 GitHub Action 均固定到 commit SHA；
+workflow 顶层默认 `permissions: contents: read`。
+
+`release.yml` 在推送语义化 tag（`vX.Y.Z`）或受控 `workflow_dispatch` 重跑时触发。
+它以 `-trimpath` 构建 linux/darwin/windows 的 amd64+arm64 二进制，发布多架构镜像，
+并生成：SBOM（SPDX）、签名的 `checksums.txt`（keyless Cosign）、镜像的 keyless Cosign
+签名、以及 GitHub 构建来源证明（attestation）。仅 stable tag 更新 `latest`；
+预发布 tag（如 `v0.10.0-rc.1`）不会移动 `latest`。Release 正文取自 `CHANGELOG.md`
+中对应版本的段落。
 
 ## 许可证
 

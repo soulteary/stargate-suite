@@ -7,6 +7,7 @@ package main
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/soulteary/stargate-suite/internal/composegen"
 	"github.com/soulteary/stargate-suite/internal/policy"
 )
 
@@ -68,6 +70,8 @@ func cmdGenerate() error {
 	output := fs.String("output", "", "output directory for generated compose + .env (required)")
 	modesCSV := fs.String("modes", "", "comma-separated compose modes (default: profile standard scenario)")
 	force := fs.Bool("force", false, "generate even if a non-production profile has policy violations (production is never bypassable)")
+	jsonOut := fs.Bool("json", false, "emit a structured result (profile, modes, outputs, findings) as JSON")
+	canonical := fs.Bool("canonical", false, "generate raw canonical compose(s) with NO profile policy applied, one subdir per mode (reproduces `make gen`; --modes selects modes, default: all build modes)")
 	seed := fs.String("seed", "", "deterministic seed for auto-generated dev/test keys (byte-stable output; leave empty for crypto/rand). Never use a real seed for real deployments.")
 	var sets stringSliceFlag
 	fs.Var(&sets, "set", "override an env value as KEY=VALUE (repeatable); also read from process env for known secret keys")
@@ -75,12 +79,21 @@ func cmdGenerate() error {
 		return err
 	}
 
+	if strings.TrimSpace(*output) == "" {
+		return fmt.Errorf("generate: --output directory is required")
+	}
+
+	// Canonical path: reproduce the historical `make gen` output (raw canonical
+	// compose, options:null, no profile policy) entirely in-process — no Web
+	// server, no jq. This shares composegen.Generate with the Web /api/generate
+	// (options:null) path, so CLI and Web produce identical bytes.
+	if *canonical {
+		return generateCanonical(*output, *modesCSV, *jsonOut)
+	}
+
 	prof, err := resolveProfile(*profileName)
 	if err != nil {
 		return err
-	}
-	if strings.TrimSpace(*output) == "" {
-		return fmt.Errorf("generate: --output directory is required")
 	}
 
 	userEnv := collectUserEnv(sets)
@@ -94,11 +107,23 @@ func cmdGenerate() error {
 	// production) any error aborts. production must never be bypassable.
 	findings := validateForProfile(prof, nil, userEnv)
 	if policy.HasErrors(findings) {
-		printFindings(findings)
+		if !*jsonOut {
+			printFindings(findings)
+		}
 		if prof.Name == policy.Production || !*force {
+			if *jsonOut {
+				emitGenerateJSON(generateJSONResult{
+					Profile:  prof.Name,
+					Modes:    modes,
+					Output:   filepath.Clean(*output),
+					OK:       false,
+					Findings: findingsToJSON(findings),
+					Error:    fmt.Sprintf("profile %q has policy violations; refusing to generate", prof.Name),
+				})
+			}
 			return fmt.Errorf("generate: profile %q has policy violations; refusing to generate (supply real secrets via env/--set; production strict rules are hard errors)", prof.Name)
 		}
-	} else if len(findings) > 0 {
+	} else if len(findings) > 0 && !*jsonOut {
 		printFindings(findings)
 	}
 
@@ -117,12 +142,16 @@ func cmdGenerate() error {
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return fmt.Errorf("generate: mkdir %s: %w", outDir, err)
 	}
+	var written []string
 	// Single mode → write directly under outDir; multiple → subdir per mode.
 	if len(modes) == 1 {
 		if err := writeGenerated(outDir, gen.Composes[modes[0]], gen.Env); err != nil {
 			return err
 		}
-		fmt.Printf("Generated profile %q (%s) → %s\n", prof.Name, modes[0], outDir)
+		written = append(written, filepath.Join(outDir, "docker-compose.yml"), filepath.Join(outDir, ".env"))
+		if !*jsonOut {
+			fmt.Printf("Generated profile %q (%s) → %s\n", prof.Name, modes[0], outDir)
+		}
 	} else {
 		for _, mode := range modes {
 			sub := filepath.Join(outDir, mode)
@@ -132,11 +161,119 @@ func cmdGenerate() error {
 			if err := writeGenerated(sub, gen.Composes[mode], gen.Env); err != nil {
 				return err
 			}
+			written = append(written, filepath.Join(sub, "docker-compose.yml"), filepath.Join(sub, ".env"))
 		}
-		fmt.Printf("Generated profile %q (%s) → %s/<mode>/\n", prof.Name, strings.Join(modes, ","), outDir)
+		if !*jsonOut {
+			fmt.Printf("Generated profile %q (%s) → %s/<mode>/\n", prof.Name, strings.Join(modes, ","), outDir)
+		}
 	}
-	if prof.Experimental {
+	if prof.Experimental && !*jsonOut {
 		fmt.Printf("note: profile %q is experimental; review generated config before real deployment\n", prof.Name)
+	}
+	if *jsonOut {
+		emitGenerateJSON(generateJSONResult{
+			Profile:      prof.Name,
+			Modes:        modes,
+			Output:       outDir,
+			OK:           true,
+			Experimental: prof.Experimental,
+			Written:      written,
+			Findings:     findingsToJSON(findings),
+		})
+	}
+	return nil
+}
+
+// generateJSONResult is the stable --json shape for `generate`. It never
+// includes secret values — only the profile, requested modes, the paths
+// written, and any advisory findings (by stable code).
+type generateJSONResult struct {
+	Profile      string            `json:"profile"`
+	Modes        []string          `json:"modes"`
+	Output       string            `json:"output"`
+	OK           bool              `json:"ok"`
+	Experimental bool              `json:"experimental,omitempty"`
+	Written      []string          `json:"written,omitempty"`
+	Findings     []jsonFindingItem `json:"findings,omitempty"`
+	Error        string            `json:"error,omitempty"`
+}
+
+// jsonFindingItem mirrors validate --json findings for a consistent contract.
+type jsonFindingItem struct {
+	Code    string `json:"code"`
+	Field   string `json:"field"`
+	Profile string `json:"profile"`
+	Message string `json:"message"`
+	IsError bool   `json:"is_error"`
+}
+
+func findingsToJSON(findings []policy.Finding) []jsonFindingItem {
+	out := make([]jsonFindingItem, 0, len(findings))
+	for _, f := range findings {
+		out = append(out, jsonFindingItem{Code: f.Code, Field: f.Field, Profile: f.Profile, Message: f.Message, IsError: f.IsError})
+	}
+	return out
+}
+
+func emitGenerateJSON(res generateJSONResult) {
+	b, _ := json.MarshalIndent(res, "", "  ")
+	fmt.Println(string(b))
+}
+
+// canonicalBuildModes are the compose modes `make gen` produced via the Web API
+// path. Kept here so the CLI reproduces the same build/* layout in one process.
+var canonicalBuildModes = []string{"image", "build", "traefik", "traefik-herald", "traefik-warden", "traefik-stargate"}
+
+// generateCanonical writes one subdir per mode under outDir, each containing a
+// docker-compose.yml + .env, using the raw canonical compose with NO profile
+// policy applied (options:null semantics). This is the in-process replacement
+// for scripts/gen-via-api.sh: it calls the SAME composegen.Generate the Web
+// /api/generate handler calls with options:null, so output is byte-identical.
+func generateCanonical(output, modesCSV string, jsonOut bool) error {
+	modes := canonicalBuildModes
+	if strings.TrimSpace(modesCSV) != "" {
+		modes = splitCSV(modesCSV)
+	}
+	full, err := composegen.LoadComposeFS(assetFS(), canonicalCompose)
+	if err != nil {
+		return fmt.Errorf("generate: load canonical compose: %w", err)
+	}
+	// Feed manifest container ports (single source of truth) into composegen,
+	// matching the Web UI startup path.
+	applyManifestToComposegen()
+	envMeta, _ := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
+	// options:null + empty envOverride == the canonical defaults the Web API
+	// uses for `make gen`.
+	gen, err := composegen.Generate(full, modes, "", nil, envMeta)
+	if err != nil {
+		return fmt.Errorf("generate: %w", err)
+	}
+	outDir := filepath.Clean(output)
+	var written []string
+	for _, mode := range modes {
+		sub := filepath.Join(outDir, mode)
+		if err := os.MkdirAll(sub, 0o755); err != nil {
+			return fmt.Errorf("generate: mkdir %s: %w", sub, err)
+		}
+		compose, ok := gen.Composes[mode]
+		if !ok {
+			return fmt.Errorf("generate: canonical compose has no mode %q", mode)
+		}
+		if err := writeGenerated(sub, compose, gen.Env); err != nil {
+			return err
+		}
+		written = append(written, filepath.Join(sub, "docker-compose.yml"), filepath.Join(sub, ".env"))
+	}
+	if jsonOut {
+		emitGenerateJSON(generateJSONResult{
+			Profile: "canonical",
+			Modes:   modes,
+			Output:  outDir,
+			OK:      true,
+			Written: written,
+		})
+	} else {
+		fmt.Printf("Generated canonical compose (%s) → %s/<mode>/\n", strings.Join(modes, ","), outDir)
 	}
 	return nil
 }

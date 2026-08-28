@@ -18,16 +18,21 @@ Go module: `github.com/soulteary/stargate-suite`. Repo name: **stargate-suite**.
 | [config/README](config/README.md) | Web UI config; [中文](config/README.zh-CN.md) |
 | [compose/traefik/README](compose/traefik/README.md) | Traefik all-in-one / split; [中文](compose/traefik/README.zh-CN.md) |
 | [e2e/README](e2e/README.md) | E2E tests; [中文](e2e/README.zh-CN.md) |
+| [docs/migration-v0.10](docs/migration-v0.10.md) | v0.9 → v0.10 breaking-change migration |
+| [docs/deployment](docs/deployment.md) | Deployment & profiles |
+| [docs/security](docs/security.md) | Security model & hardening |
+| [docs/development](docs/development.md) | Local development & testing |
+| [docs/release](docs/release.md) | Release process & supply chain |
 
 ## Structure
 
 ```
 stargate-suite/
 ├── compose/example/   # optional; image | build generated from canonical
-├── compose/canonical/ # single source → Web UI / make gen
-├── build/             # generated (make gen via Web API or Web UI)
+├── compose/canonical/ # single source → CLI / Web UI / make gen
+├── build/             # generated (make gen via CLI, or CLI / Web UI)
 ├── config/             # page.yaml, scenarios
-├── cmd/suite/          # Web UI (serve) + generate + validate
+├── cmd/suite/          # Web UI (serve) + generate + validate + doctor
 ├── e2e/                # E2E tests
 ├── fixtures/warden/    # test users (data.json)
 └── scripts/run-e2e.sh
@@ -40,12 +45,12 @@ stargate-suite/
 **Generate then start:**
 
 ```bash
-make gen    # generates into build/ via Web API (no CLI gen command)
+make gen    # generates into build/ natively via the CLI (no Web server, no jq)
 make up
 # or: make up-build | make up-traefik
 ```
 
-**CLI:** `go run ./cmd/suite help` — `generate`, `validate`, `serve`. The default config and canonical compose are **embedded in the binary** (`go:embed`), so all subcommands run without the repo source tree (e.g. from a release binary or the container). Use `--config-dir=<dir>` (or `CONFIG_DIR`) to override the embedded `config/` with an on-disk directory; anything missing there falls back to the embedded assets.
+**CLI:** `go run ./cmd/suite help` — `generate`, `validate`, `doctor`, `serve`. The default config and canonical compose are **embedded in the binary** (`go:embed`), so all subcommands run without the repo source tree (e.g. from a release binary or the container). Use `--config-dir=<dir>` (or `CONFIG_DIR`) to override the embedded `config/` with an on-disk directory; anything missing there falls back to the embedded assets. `generate` and `validate` call the **same** `internal/composegen` / `internal/policy` functions as the Web UI's `/api/generate`, so the CLI produces byte-identical output without ever starting a Web server.
 
 **Deployment profiles** (`config/profiles.yaml`): `development` / `test` / `production` are **security & runtime policy**, not just prefilled forms — they set port binding, secret source, password algorithm, Herald auth, Redis password, Cookie Secure, HMAC v1, container privileges and validation mode (see [docs/upgrade/00-overview.md](docs/upgrade/00-overview.md) §5.4). The CLI and Web UI share one model (`internal/policy` + `internal/composegen`):
 
@@ -63,11 +68,18 @@ go run ./cmd/suite generate --profile production --output build/prod \
 
 # validate a profile's policy; production/test are strict (errors, not warnings):
 go run ./cmd/suite validate --profile production --strict
+
+# read-only diagnostics for a generated compose (parse, image↔manifest drift,
+# published ports & local port usage, networks; --probe adds liveness/readiness):
+go run ./cmd/suite doctor --compose build/dev/docker-compose.yml
+
+# every subcommand supports --json for CI / Cursor; exit codes are stable
+# (0 ok, non-zero on validation failure or doctor hard failure).
 ```
 
-Config generation is also available via the **Web UI** (first step selects the profile) or `make gen` (Web API).
+Config generation is also available via the **Web UI** (first step selects the profile) or `make gen` (native CLI, no Web server).
 
-**Web UI:** `go run ./cmd/suite serve` (default http://localhost:8085). No auth — localhost only.
+**Web UI:** `go run ./cmd/suite serve` binds **`127.0.0.1:8085` by default** (loopback only, no auth needed locally). Exposing it off-host is opt-in and always authenticated: `serve --listen 0.0.0.0:8085 --allow-remote` refuses to start without `--allow-remote` and, in remote mode, requires an access token (auto-generated and printed if you don't pass `--token`). State-changing POSTs are Origin/CSRF-checked, cookies are HttpOnly + SameSite=Strict (Secure off loopback), and operator secrets are dropped from the server session after the artifacts are returned. The listener never silently switches ports — a busy port is a hard error.
 
 **Container (self-contained, no source mount):**
 
@@ -88,8 +100,8 @@ docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local  # re
 
 ## Ports & env
 
-- **Stargate**: no host port — the `stargate` service uses `ports: []` and listens on backend port **80** inside the container; it is reachable only via Traefik (see `compose/canonical/docker-compose.yml` and `config/ports.yaml`).
-- **Warden** 8081 · **Herald** 8082 · **Herald-TOTP** 8084 · **Herald-DingTalk** 8083 · **Herald-SMTP** 8085 · **Redis** 6379 (host ports only when the port is exposed / mapped).
+- **Stargate**: no host port — the `stargate` service uses `ports: []` and listens on backend port **8080** inside the container (health: `/healthz` liveness, `/readyz` readiness); it is reachable only via Traefik (see `compose/canonical/docker-compose.yml` and `config/ports.yaml`).
+- **Warden** 8081 (health `/healthcheck`) · **Herald** 8082 (`/healthz`) · **Herald-TOTP** 8084 · **Herald-DingTalk** 8083 · **Herald-SMTP** 8085 · **Redis** 6379 (host ports only when the port is exposed / mapped). Component versions, ports and health paths come from `config/components.yaml` (single source of truth) — current pinned combo: Stargate `v1.0.0`, Warden `v1.0.0`, Herald `v1.1.0`.
 - **Web UI** defaults to **8085** (`make serve`), which is the same default port as **herald-smtp**. The default scenarios do not run herald-smtp, so there is no conflict out of the box; but if you enable herald-smtp and also run `make serve` on the same host, the ports collide — change one of them (e.g. `SERVE_PORT` for the Web UI or the herald-smtp host port).
 - Copy `.env.example` → `.env` to override image versions, `AUTH_HOST`, `PASSWORDS`, `WARDEN_API_KEY`, `HERALD_API_KEY`, `HERALD_HMAC_SECRET`.
 
@@ -110,7 +122,7 @@ Run one: `go test -v ./e2e/... -run TestCompleteLoginFlow`
 
 ## Makefile (see `make help`)
 
-Common: `make gen` (via Web API), `make up` / `make up-image` / `make up-build` / `make up-traefik`, `make down`, `make ps`, `make logs`, `make test-wait`, `make health`, `make serve`, `make suite-build`.
+Common: `make gen` (native CLI), `make up` / `make up-image` / `make up-build` / `make up-traefik`, `make down`, `make ps`, `make logs`, `make test-wait`, `make health`, `make serve`, `make suite-build`.
 
 ## Services (brief)
 
@@ -134,6 +146,21 @@ Full login flow is covered by e2e tests; see [e2e/README](e2e/README.md).
 - New tests: add under `e2e/`, use `ensureServicesReady(t)` and `test_helpers.go`
 - Local build: `make up-build`, then rebuild/restart
 - Lint: `golangci-lint run --max-same-issues=100000`
+
+## Releases & supply chain
+
+CI is split into tiers: `ci.yml` (fast PR feedback), `main.yml` (full E2E +
+image build + Trivy), and `nightly.yml` (multi-arch + cross-OS). All third-party
+GitHub Actions are pinned to commit SHAs; workflows default to
+`permissions: contents: read`.
+
+`release.yml` runs on a semver tag (`vX.Y.Z`) or a controlled
+`workflow_dispatch` re-run. It builds `-trimpath` binaries for
+linux/darwin/windows amd64+arm64, publishes a multi-arch image, and produces:
+SBOM (SPDX), a signed `checksums.txt` (keyless Cosign), keyless Cosign image
+signature, and GitHub build-provenance attestations. Stable tags update
+`latest`; pre-release tags (e.g. `v0.10.0-rc.1`) never move it. Release notes are
+extracted from the matching section of `CHANGELOG.md`.
 
 ## License
 
