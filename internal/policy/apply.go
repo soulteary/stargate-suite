@@ -29,6 +29,10 @@ const (
 	EnvHmacV1Enabled        = "HMAC_V1_ENABLED"
 	EnvHeraldTestMode       = "HERALD_TEST_MODE"
 	EnvProviderFailurePol   = "PROVIDER_FAILURE_POLICY"
+	EnvHeraldTLSCACertFile  = "HERALD_TLS_CA_CERT_FILE"
+	EnvHeraldTLSClientCert  = "HERALD_TLS_CLIENT_CERT_FILE"
+	EnvHeraldTLSClientKey   = "HERALD_TLS_CLIENT_KEY_FILE"
+	EnvHeraldTLSServerName  = "HERALD_TLS_SERVER_NAME"
 
 	// Stargate v1 fields (PR7).
 	EnvCallbackAllowedHosts    = "CALLBACK_ALLOWED_HOSTS"
@@ -174,7 +178,7 @@ func Apply(p Profile, opts *composegen.Options, userEnv map[string]string, keyge
 
 	// --- Herald auth mode -------------------------------------------------
 	switch p.HeraldAuth {
-	case HeraldHmacV2OrMtls:
+	case HeraldHmacV2, HeraldHmacV2OrMtls:
 		set(EnvRequestAuthMode, "hmac_v2")
 	case HeraldTestAPIKeyOrHmacV2:
 		set(EnvRequestAuthMode, "hmac_v2")
