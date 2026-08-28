@@ -136,6 +136,8 @@ jobs:
       HERALD_COMPOSE_DIR: ${{ github.workspace }}
       HERALD_TEST_LISTENER_ADDR: 127.0.0.1:8092
       HERALD_TEST_API_KEY: test-herald-test-code-key
+      HERALD_REDIS_PASSWORD: test-herald-redis-password
+      WARDEN_REDIS_PASSWORD: test-warden-redis-password
     steps:
       - name: Checkout code
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
