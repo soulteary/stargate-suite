@@ -5,7 +5,6 @@ go 1.27.0
 require (
 	github.com/MarvinJWendt/testza v0.5.2
 	github.com/redis/go-redis/v9 v9.22.0
-	github.com/soulteary/cli-kit v1.8.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -25,7 +24,6 @@ require (
 	github.com/mattn/go-runewidth v0.0.19 // indirect
 	github.com/pterm/pterm v0.12.82 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
-	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
