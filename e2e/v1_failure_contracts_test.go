@@ -88,6 +88,14 @@ func TestServiceReadyStatusRequires2xx(t *testing.T) {
 	}
 }
 
+func TestTestCodeRequiresDedicatedAccessPath(t *testing.T) {
+	t.Setenv("HERALD_COMPOSE_DIR", "")
+	t.Setenv("HERALD_TEST_CODE_URL", "")
+	if _, err := getTestCode(t, "challenge-id"); err == nil {
+		t.Fatal("getTestCode must not fall back to Herald's main listener")
+	}
+}
+
 // TestDependencyFailureRecoveryContracts exercises the v1 failure matrix
 // against real Compose services. A dependency outage must fail readiness while
 // preserving liveness, and readiness must recover after the dependency returns.
