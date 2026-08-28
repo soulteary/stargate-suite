@@ -52,6 +52,11 @@ opt-in and always authenticated:
 - Operator secrets are dropped from the server session after artifacts return.
 - No silent port switching — a busy port is a hard error.
 
+CLI-generated `.env` files contain deployment secrets and are written with
+owner-only `0600` permissions. Values are Compose-dotenv encoded so `$`, `#`,
+quotes, whitespace, and newlines cannot be reinterpreted as interpolation or
+additional assignments. Keep the generated directory out of source control.
+
 ### Supply chain
 
 Third-party GitHub Actions are pinned to commit SHAs; workflows default to
@@ -102,6 +107,10 @@ build-provenance attestations. See [release.md](release.md).
 - Cookie 为 HttpOnly + SameSite=Strict（非 loopback 时 Secure）。
 - 生成后从服务端会话清除机密，不落盘。
 - 无静默切换端口——端口占用即硬错误。
+
+CLI 生成的 `.env` 包含部署机密，文件权限固定为仅所有者可读写的 `0600`。值会按
+Compose dotenv 规则编码，避免 `$`、`#`、引号、空白和换行被重新解释为插值或额外
+赋值。不要将生成目录提交到版本库。
 
 ### 供应链
 

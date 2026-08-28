@@ -24,6 +24,13 @@ type stringSliceFlag []string
 
 func (s *stringSliceFlag) String() string { return strings.Join(*s, ",") }
 func (s *stringSliceFlag) Set(v string) error {
+	i := strings.IndexByte(v, '=')
+	if i <= 0 {
+		return fmt.Errorf("expected KEY=VALUE, got %q", v)
+	}
+	if key := strings.TrimSpace(v[:i]); !composegen.ValidEnvKey(key) {
+		return fmt.Errorf("invalid environment variable name %q", key)
+	}
 	*s = append(*s, v)
 	return nil
 }
@@ -51,13 +58,13 @@ var profileSecretEnvKeys = []string{
 func collectUserEnv(sets []string) map[string]string {
 	env := make(map[string]string)
 	for _, k := range profileSecretEnvKeys {
-		if v := strings.TrimSpace(os.Getenv(k)); v != "" {
+		if v := os.Getenv(k); v != "" {
 			env[k] = v
 		}
 	}
 	for _, kv := range sets {
 		if i := strings.IndexByte(kv, '='); i > 0 {
-			env[strings.TrimSpace(kv[:i])] = strings.TrimSpace(kv[i+1:])
+			env[strings.TrimSpace(kv[:i])] = kv[i+1:]
 		}
 	}
 	return env
@@ -281,14 +288,30 @@ func generateCanonical(output, modesCSV string, jsonOut bool) error {
 // writeGenerated writes docker-compose.yml and .env into dir.
 func writeGenerated(dir string, compose, env []byte) error {
 	composePath := filepath.Join(dir, "docker-compose.yml")
-	if err := os.WriteFile(composePath, compose, 0o644); err != nil {
+	if err := writeFileWithMode(composePath, compose, 0o644); err != nil {
 		return fmt.Errorf("generate: write %s: %w", composePath, err)
 	}
 	envPath := filepath.Join(dir, ".env")
-	if err := os.WriteFile(envPath, env, 0o644); err != nil {
+	if err := writeFileWithMode(envPath, env, 0o600); err != nil {
 		return fmt.Errorf("generate: write %s: %w", envPath, err)
 	}
 	return nil
+}
+
+func writeFileWithMode(path string, data []byte, mode os.FileMode) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
+	if err != nil {
+		return err
+	}
+	if err := f.Chmod(mode); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 func splitCSV(s string) []string {

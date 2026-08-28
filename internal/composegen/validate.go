@@ -57,6 +57,10 @@ func ValidateEnvOverrides(overrides map[string]string, allowed map[string]map[st
 		"WARDEN_REMOTE_CONFIG": true, "OTLP_ENDPOINT": true,
 	}
 	for k, v := range overrides {
+		if !ValidEnvKey(k) {
+			errs = append(errs, fmt.Sprintf("invalid environment variable name %q", k))
+			continue
+		}
 		v = strings.TrimSpace(v)
 		if v == "" {
 			continue
@@ -81,6 +85,21 @@ func ValidateEnvOverrides(overrides map[string]string, allowed map[string]map[st
 		}
 	}
 	return errs
+}
+
+// ValidEnvKey reports whether key is a portable POSIX-style environment
+// variable name and therefore safe to serialize as the left side of KEY=VALUE.
+func ValidEnvKey(key string) bool {
+	if key == "" {
+		return false
+	}
+	for i, r := range key {
+		if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || r == '_' || (i > 0 && r >= '0' && r <= '9') {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func looksLikeURL(s string) bool {
