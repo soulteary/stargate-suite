@@ -6,13 +6,13 @@
 
 ## 使用方式
 
-场景生成支持 **Web UI** 与 **CLI**。在 Web UI（`go run ./cmd/suite serve`）第一步先选择**部署 Profile**（`development` / `test` / `production`），再选择场景预设（S1–S5）；生成器会按该场景的 modes/options/env 填充，并叠加 Profile 的安全与运行策略，最终生成 compose，在「回顾」步骤下载或复制即可。
+场景预设目前通过 **Web UI** 选择。在 Web UI（`go run ./cmd/suite serve`）第一步先选择**部署 Profile**（`development` / `test` / `production`），再选择场景预设（S1–S5）；生成器会按该场景的 modes/options/env 填充，并叠加 Profile 的安全与运行策略，最终生成 compose，在「回顾」步骤下载或复制即可。CLI 支持 Profile 与显式 modes，但目前没有 `--scenario` 参数。
 
-若只需生成默认模式集合（image、build、traefik 等）而不指定场景，可执行 `make gen`（经 Web API），或用 CLI `generate --profile <profile> --output <目录>`。
+若只需生成默认模式集合（image、build、traefik 等）而不指定场景，可执行 `make gen`（原生 CLI），或用 `suite generate --profile <profile> --output <目录>`。
 
 ## 部署 Profile（策略，而非单纯预设）
 
-Profile 来自 `config/profiles.yaml`，由共享的 `internal/policy` 模型应用（CLI 与 Web UI 一致）���关键差异：
+Profile 来自 `config/profiles.yaml`，由共享的 `internal/policy` 模型应用（CLI 与 Web UI 一致）。关键差异：
 
 | 策略 | development | test | production |
 |---|---|---|---|

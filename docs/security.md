@@ -10,8 +10,8 @@
 
 - `REQUEST_AUTH_MODE=hmac_v2` is set **explicitly**; there is no implicit fallback
   between API key and HMAC.
-- **HMAC v1 is disabled by default** (`HMAC_V1_ENABLED=false`). Enable it only for
-  a controlled migration window and disable it again afterwards.
+- **HMAC v1 is forbidden by every suite profile** (`HMAC_V1_ENABLED=false`).
+  Migrate callers to HMAC v2 before generating a suite deployment.
 - HMAC v2 uses a signing secret (`HERALD_HMAC_SECRET`) with a bounded clock drift
   (`HMAC_MAX_DRIFT`, default 60s) to resist replay.
 
@@ -48,6 +48,8 @@ opt-in and always authenticated:
 - Remote mode requires an access token (auto-generated and printed if `--token`
   is omitted).
 - State-changing POSTs are Origin/CSRF-checked.
+- Loopback mode accepts only localhost/loopback `Host` values on the configured
+  port, preventing DNS rebinding from bypassing the same-origin check.
 - Cookies are HttpOnly + SameSite=Strict (Secure on off-loopback).
 - Operator secrets are dropped from the server session after artifacts return.
 - No silent port switching — a busy port is a hard error.
@@ -71,7 +73,8 @@ build-provenance attestations. See [release.md](release.md).
 ### 服务间鉴权（Herald）
 
 - **显式**设置 `REQUEST_AUTH_MODE=hmac_v2`，不在 API Key 与 HMAC 间隐式回退。
-- **HMAC v1 默认关闭**（`HMAC_V1_ENABLED=false`）。仅在受控迁移窗口开启，之后关闭。
+- **所有套件 Profile 均禁止 HMAC v1**（`HMAC_V1_ENABLED=false`）。生成套件部署前，
+  必须先将调用方迁移到 HMAC v2。
 - HMAC v2 使用签名密钥（`HERALD_HMAC_SECRET`）并限制时钟漂移
   （`HMAC_MAX_DRIFT`，默认 60s）以抗重放。
 
@@ -104,6 +107,8 @@ build-provenance attestations. See [release.md](release.md).
 - `--listen 0.0.0.0:8085 --allow-remote`，缺 `--allow-remote` 则拒绝启动。
 - 远程模式需 access token（未传 `--token` 则自动生成并打印）。
 - 变更类 POST 做 Origin/CSRF 校验。
+- loopback 模式仅接受配置端口上的 localhost/回环 `Host`，防止 DNS Rebinding
+  绕过同源检查。
 - Cookie 为 HttpOnly + SameSite=Strict（非 loopback 时 Secure）。
 - 生成后从服务端会话清除机密，不落盘。
 - 无静默切换端口——端口占用即硬错误。

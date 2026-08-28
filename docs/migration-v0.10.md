@@ -35,8 +35,8 @@
    - Herald: **`/healthz`**.
 3. **Herald requires explicit request auth.** `REQUEST_AUTH_MODE=hmac_v2` is now
    set explicitly; there is no implicit fallback between API key and HMAC.
-4. **HMAC v1 disabled by default.** `HMAC_V1_ENABLED=false`. Only enable it for a
-   controlled migration window; re-disable once callers use v2.
+4. **HMAC v1 is forbidden by suite profiles.** `HMAC_V1_ENABLED=false`. Migrate
+   callers to HMAC v2 before generating or starting the upgraded stack.
 5. **Redis password is mandatory.** The generated Redis services require
    `HERALD_REDIS_PASSWORD` / `WARDEN_REDIS_PASSWORD` (compose fails fast if unset).
 6. **Internal services are not exposed by default.** In segmented/production
@@ -68,8 +68,8 @@
 - **Health checks fail after upgrade:** you are probably still probing `/health`
   or port `80` — switch to `/healthz` + `/readyz` on `8080` (Warden: `/healthcheck`).
 - **Herald returns 401/unauthorized:** the caller is still using HMAC v1 or an
-  implicit API key. Configure HMAC v2 (or temporarily set `HMAC_V1_ENABLED=true`
-  for the migration window only).
+  implicit API key. Configure HMAC v2; suite profiles do not permit a v1
+  compatibility window.
 - **Compose refuses to start (Redis):** set `HERALD_REDIS_PASSWORD` /
   `WARDEN_REDIS_PASSWORD`.
 - Use `suite doctor` for image↔manifest drift, published-port and health-probe
@@ -101,8 +101,8 @@
    - Herald：**`/healthz`**。
 3. **Herald 需显式请求鉴权。** 现显式设置 `REQUEST_AUTH_MODE=hmac_v2`，不再在
    API Key 与 HMAC 间隐式回退。
-4. **HMAC v1 默认关闭。** `HMAC_V1_ENABLED=false`。仅在受控迁移窗口临时开启，
-   调用方切到 v2 后立即关闭。
+4. **套件 Profile 禁止 HMAC v1。** `HMAC_V1_ENABLED=false`。生成或启动升级后的
+   服务栈前，先将调用方迁移到 HMAC v2。
 5. **Redis 密码必填。** 生成的 Redis 服务要求 `HERALD_REDIS_PASSWORD` /
    `WARDEN_REDIS_PASSWORD`（未设置时 compose 直接失败）。
 6. **内部服务默认不暴露。** 在分段/生产输出中，Warden/Herald 与各 Redis 位于
@@ -130,8 +130,8 @@
 
 - **升级后健康检查失败：** 多半仍在探测 `/health` 或端口 `80`——切到 `8080` 上的
   `/healthz` + `/readyz`（Warden 为 `/healthcheck`）。
-- **Herald 返回 401/未授权：** 调用方仍用 HMAC v1 或隐式 API Key。配置 HMAC v2
-  （或仅在迁移窗口临时 `HMAC_V1_ENABLED=true`）。
+- **Herald 返回 401/未授权：** 调用方仍用 HMAC v1 或隐式 API Key。请配置 HMAC v2；
+  套件 Profile 不提供 v1 兼容窗口。
 - **compose 无法启动（Redis）：** 设置 `HERALD_REDIS_PASSWORD` /
   `WARDEN_REDIS_PASSWORD`。
 - 用 `suite doctor` 排查镜像↔清单漂移、暴露端口与健康探针。

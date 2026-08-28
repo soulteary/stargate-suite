@@ -2,7 +2,7 @@
 
 # Compose
 
-单一数据源；所有输出由 Web UI 或 `make gen`（Web API）从 `canonical/docker-compose.yml` 生成到 `build/`。在项目根目录执行。总览见 [../README.zh-CN.md](../README.zh-CN.md)。
+单一数据源；所有输出由 Web UI 或原生 CLI `make gen` 从 `canonical/docker-compose.yml` 生成到 `build/`。在项目根目录执行。总览见 [../README.zh-CN.md](../README.zh-CN.md)。
 
 ## 目录
 

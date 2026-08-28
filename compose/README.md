@@ -2,7 +2,7 @@ English | [中文](README.zh-CN.md)
 
 # Compose
 
-Single canonical source. All output is generated into `build/` by Web UI or `make gen` (Web API) from `canonical/docker-compose.yml`. Run from project root. Overview: [../README.md](../README.md).
+Single canonical source. All output is generated into `build/` by the Web UI or native-CLI `make gen` from `canonical/docker-compose.yml`. Run from project root. Overview: [../README.md](../README.md).
 
 ## Layout
 
