@@ -54,6 +54,29 @@ When adding or changing a service’s environment variables, keep these in sync 
 
 Run `./suite validate` to check that `page.yaml` and the merged config load correctly, and (when `config/env-meta.yaml` and `config/scenarios.json` exist) consistency between canonical compose env vars and env-meta, and scenario option keys. Useful in CI or for a quick local check.
 
+## v1 config fields & four-layer profile validation (PR7)
+
+The v1 contracts (Stargate 1.0.0 / Warden 1.1.0 / Herald 1.1.0) add security-relevant env fields. They are registered in `env-meta.yaml` and declared in `config/schemas/env-fields.yaml` (the schema is mirrored by the validator; a drift test in `internal/policy` fails if the schema references a code the engine does not implement).
+
+- **Stargate**: `COOKIE_SECURE`, `CALLBACK_ALLOWED_HOSTS`, `SESSION_EXCHANGE_SECRET`, `TRUSTED_PROXIES`, `PROXY_HEADER`, `PASSWORD_HEADER_AUTH_ENABLED`, `WARDEN_HMAC_KEY_ID` / `WARDEN_HMAC_SECRET`, `HERALD_HMAC_KEY_ID`, `WARDEN_TLS_*`.
+- **Herald**: `REQUEST_AUTH_MODE`, `HERALD_HMAC_DEFAULT_KEY_ID`, `HMAC_MAX_DRIFT`, `HMAC_V1_ENABLED`, `HERALD_IDEMPOTENCY_SECRET`, `HERALD_PII_PEPPER`, `HERALD_TRUSTED_PROXIES` / `HERALD_TRUSTED_PROXY_HEADER`, `HERALD_TEST_API_KEY`, `HERALD_TEST_LISTENER_ADDR`.
+- **Warden**: only `ENVIRONMENT` is added — Warden v1.1 does **not** parse `WARDEN_HMAC_ALLOW_V1` / `WARDEN_METRICS_REQUIRE_AUTH`, so the suite does not invent them.
+
+`./suite validate --profile <development|test|production>` runs the same four-layer validator used by the Web UI (CLI and UI share `validateForProfile` → `policy.Validate`):
+
+1. **Layer 1 — field type**: shape of a set field (port / URL / bool / duration / CIDR list / host list). Malformed shapes are hard errors in every profile.
+2. **Layer 2 — single-field safety**: secret strength (≥32 chars, no placeholder), no plaintext passwords, Redis password present.
+3. **Layer 3 — cross-field**: cross-domain callback/cookie requires a strong `SESSION_EXCHANGE_SECRET`; `STEP_UP_ENABLED` requires `STEP_UP_PATHS` + `TRUSTED_PROXIES`; TLS client cert/key must be a complete pair.
+4. **Layer 4 — cross-service**: Stargate→Herald auth must resolve to one explicit mode; production rejects API-key-only and forbids HMAC v1.
+
+Each finding carries a stable `code` (e.g. `HERALD_PII_PEPPER_WEAK`). Use `--json` for scriptable output:
+
+```bash
+./suite validate --profile production --json   # exits non-zero on any error finding
+```
+
+Production is always strict (cannot be relaxed with `--strict=false`); `--strict` promotes test/dev findings to hard errors too.
+
 ## Commands
 
 ```bash

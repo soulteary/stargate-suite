@@ -13,9 +13,15 @@ import (
 )
 
 // Finding is one validation result. IsError marks it as a hard failure (strict
-// rule violation) versus an advisory warning (dev-experience hint).
+// rule violation) versus an advisory warning (dev-experience hint). Code is a
+// stable, machine-readable identifier (e.g. STARGATE_SESSION_EXCHANGE_SECRET_
+// REQUIRED) so `validate --strict --json` output is scriptable; Field names the
+// offending env key and Profile records the profile the rule ran under.
 type Finding struct {
+	Code    string
 	Key     string
+	Field   string
+	Profile string
 	Message string
 	IsError bool
 }
@@ -25,8 +31,15 @@ func (f Finding) String() string {
 	if f.IsError {
 		kind = "error"
 	}
-	if f.Key != "" {
-		return fmt.Sprintf("%s: %s (%s)", kind, f.Message, f.Key)
+	key := f.Key
+	if key == "" {
+		key = f.Field
+	}
+	if f.Code != "" && key != "" {
+		return fmt.Sprintf("%s [%s]: %s (%s)", kind, f.Code, f.Message, key)
+	}
+	if key != "" {
+		return fmt.Sprintf("%s: %s (%s)", kind, f.Message, key)
 	}
 	return fmt.Sprintf("%s: %s", kind, f.Message)
 }
@@ -75,87 +88,206 @@ func Validate(p Profile, env map[string]string, opts *composegen.Options) []Find
 	var findings []Finding
 	strict := p.Strict()
 	get := func(k string) string { return strings.TrimSpace(env[k]) }
+	has := func(k string) bool { return get(k) != "" }
 
-	// A single rule helper: emit error in strict profiles, warning otherwise
-	// (unless forceError is set — some rules are always errors when they apply).
-	add := func(key, msg string, forceError bool) {
-		findings = append(findings, Finding{Key: key, Message: msg, IsError: strict || forceError})
+	// Rule helper: emit error in strict profiles, warning otherwise (unless
+	// forceError is set — some rules are always errors when they apply).
+	add := func(code, key, msg string, forceError bool) {
+		findings = append(findings, Finding{
+			Code: code, Key: key, Field: key, Profile: p.Name,
+			Message: msg, IsError: strict || forceError,
+		})
 	}
 
-	// --- Passwords --------------------------------------------------------
+	// =====================================================================
+	// Layer 1 — field TYPES: only validate a field's shape when it is set.
+	// Type errors are always hard (a malformed port/URL/duration is wrong in
+	// every profile), so they force-error regardless of strictness.
+	// =====================================================================
+	if v := get(EnvHmacMaxDrift); v != "" && !isValidDuration(v) {
+		add(CodeHmacDriftInvalid, EnvHmacMaxDrift, "HMAC_MAX_DRIFT must be a duration (e.g. 60s)", true)
+	}
+	for _, k := range []string{EnvCookieSecure, EnvHmacV1Enabled, EnvPasswordHeaderAuth, EnvStepUpEnabled, EnvHeraldTestMode} {
+		if v := get(k); v != "" && !isValidBool(v) {
+			add(CodeBoolInvalid, k, k+" must be a boolean (true/false)", true)
+		}
+	}
+	if v := get(EnvTrustedProxies); v != "" && !isValidCIDRList(v) {
+		add(CodeTrustedProxiesInvalid, EnvTrustedProxies, "TRUSTED_PROXIES must be a comma-separated list of IPs/CIDRs", true)
+	}
+	if v := get(EnvHeraldTrustedProxies); v != "" && !isValidCIDRList(v) {
+		add(CodeTrustedProxiesInvalid, EnvHeraldTrustedProxies, "HERALD_TRUSTED_PROXIES must be a comma-separated list of IPs/CIDRs", true)
+	}
+	if v := get(EnvCallbackAllowedHosts); v != "" && !isValidHostList(v) {
+		add(CodeCallbackHostsInvalid, EnvCallbackAllowedHosts, "CALLBACK_ALLOWED_HOSTS must be a comma-separated list of hosts (no scheme)", true)
+	}
+
+	// =====================================================================
+	// Layer 2 — single-field SAFETY (secret strength, no plaintext, no
+	// placeholder values). Gated by the profile's strategy.
+	// =====================================================================
+	// --- Passwords ---
 	pw := get(EnvPasswords)
 	if p.PasswordAlgorithm == PasswordForbidPlaintext {
 		if pw == "" {
-			add(EnvPasswords, "PASSWORDS must be provided (production forbids the default plaintext test password)", false)
+			add(CodePasswordsRequired, EnvPasswords, "PASSWORDS must be provided (production forbids the default plaintext test password)", false)
 		} else if isPlaintextPasswords(pw) {
-			add(EnvPasswords, "PASSWORDS uses plaintext algorithm; production requires bcrypt/argon2/etc.", false)
+			add(CodePasswordsPlaintext, EnvPasswords, "PASSWORDS uses plaintext algorithm; production requires bcrypt/argon2/etc.", false)
 		}
-	} else if pw != "" && isPlaintextPasswords(pw) && strict {
-		// test profile allows test passwords; plaintext is acceptable there.
-		_ = pw
 	}
 
-	// --- Service-to-service keys -----------------------------------------
+	// --- Service-to-service keys ---
 	if p.SecretSource == SecretUserProvidedOrFile {
-		for _, k := range []string{EnvHeraldAPIKey, EnvWardenAPIKey} {
-			if looksWeakOrTest(get(k)) {
-				add(k, k+" must be a user-provided key or secret-file reference (test/placeholder/empty rejected)", false)
-			}
+		if looksWeakOrTest(get(EnvHeraldAPIKey)) {
+			add(CodeHeraldAPIKeyWeak, EnvHeraldAPIKey, "HERALD_API_KEY must be a user-provided key or secret-file reference (test/placeholder/empty rejected)", false)
+		}
+		if looksWeakOrTest(get(EnvWardenAPIKey)) {
+			add(CodeWardenAPIKeyWeak, EnvWardenAPIKey, "WARDEN_API_KEY must be a user-provided key or secret-file reference (test/placeholder/empty rejected)", false)
 		}
 		hmac := get(EnvHeraldHmacSecret)
 		if hmac == "" {
 			hmac = get(EnvHmacSecret)
 		}
 		if looksWeakOrTest(hmac) {
-			add(EnvHeraldHmacSecret, "HMAC secret must be a strong user-provided value (test/placeholder/empty rejected)", false)
+			add(CodeHmacSecretWeak, EnvHeraldHmacSecret, "HMAC secret must be a strong user-provided value (test/placeholder/empty rejected)", false)
+		}
+		// Herald v1.1 PII pepper + idempotency secret must be strong when set;
+		// production requires them to be set (fail-closed on missing).
+		if !strongSecret(get(EnvHeraldPIIPepper)) {
+			add(CodePIIPepperWeak, EnvHeraldPIIPepper, "HERALD_PII_PEPPER must be a strong secret of at least 32 chars in production", false)
+		}
+		if !strongSecret(get(EnvHeraldIdempotencySecr)) {
+			add(CodeIdempotencySecretWeak, EnvHeraldIdempotencySecr, "HERALD_IDEMPOTENCY_SECRET must be a strong secret of at least 32 chars in production", false)
 		}
 	}
 
-	// --- Port exposure ----------------------------------------------------
+	// --- Port exposure ---
 	if p.PortBinding == PortReverseProxyOnly && opts != nil && opts.ExposePorts {
-		add("exposePorts", "internal services and Redis must not publish host ports in production (only the reverse-proxy entrypoint is exposed)", false)
+		add(CodeExposePortsForbidden, "exposePorts", "internal services and Redis must not publish host ports in production (only the reverse-proxy entrypoint is exposed)", false)
 	}
 
-	// --- Cookie Secure ----------------------------------------------------
-	if p.CookieSecure == CookieRequired {
-		if !isTrue(get(EnvCookieSecure)) {
-			add(EnvCookieSecure, "Cookie Secure must be enabled in production (COOKIE_SECURE=true)", false)
-		}
+	// --- Cookie Secure ---
+	if p.CookieSecure == CookieRequired && !isTrue(get(EnvCookieSecure)) {
+		add(CodeCookieSecureRequired, EnvCookieSecure, "Cookie Secure must be enabled in production (COOKIE_SECURE=true)", false)
 	}
 
-	// --- HMAC v1 ----------------------------------------------------------
-	// HMAC v1 is forbidden in every profile; enabling it is always an error.
+	// --- HMAC v1 (forbidden in every profile; always an error) ---
 	if isTrue(get(EnvHmacV1Enabled)) {
-		add(EnvHmacV1Enabled, "HMAC v1 is forbidden (HMAC_V1_ENABLED must not be true)", true)
+		add(CodeHmacV1Forbidden, EnvHmacV1Enabled, "HMAC v1 is forbidden (HMAC_V1_ENABLED must not be true)", true)
 	}
 
-	// --- Redis password ---------------------------------------------------
+	// --- Redis password ---
 	if p.RedisPassword == RedisRequired {
-		for _, k := range []string{EnvHeraldRedisPassword, EnvWardenRedisPassword} {
-			if get(k) == "" {
-				add(k, k+" is required in production (Redis must be authenticated)", false)
-			}
+		if get(EnvHeraldRedisPassword) == "" {
+			add(CodeRedisPasswordRequired, EnvHeraldRedisPassword, "HERALD_REDIS_PASSWORD is required in production (Redis must be authenticated)", false)
+		}
+		if get(EnvWardenRedisPassword) == "" {
+			add(CodeRedisPasswordRequired, EnvWardenRedisPassword, "WARDEN_REDIS_PASSWORD is required in production (Redis must be authenticated)", false)
 		}
 	}
 
-	// --- Herald test API --------------------------------------------------
+	// --- Herald test mode ---
 	if p.HeraldTestAPI == HeraldTestAPIForbidden && isTrue(get(EnvHeraldTestMode)) {
-		add(EnvHeraldTestMode, "Herald test mode is forbidden in production (HERALD_TEST_MODE must not be true)", true)
+		add(CodeHeraldTestModeForbidden, EnvHeraldTestMode, "Herald test mode is forbidden in production (HERALD_TEST_MODE must not be true)", true)
 	}
 
-	// --- Container least privilege (S-01/S-03) ----------------------------
-	// production requires a read-only root filesystem on top of least
-	// privilege; a mis-edited profiles.yaml that drops it is a hard error.
+	// --- Container least privilege (S-01/S-03) ---
 	if p.ContainerPrivileges == PrivLeastPrivilegeReadonly && opts != nil {
 		if !opts.LeastPrivilege {
-			add("containerPrivileges", "production requires least-privilege containers (cap_drop ALL, no-new-privileges)", false)
+			add(CodeContainerPrivileges, "containerPrivileges", "production requires least-privilege containers (cap_drop ALL, no-new-privileges)", false)
 		}
 		if !opts.ReadOnlyRootFS {
-			add("containerPrivileges", "production requires a read-only root filesystem on containers", false)
+			add(CodeContainerReadonly, "containerPrivileges", "production requires a read-only root filesystem on containers", false)
 		}
 	}
 
+	// =====================================================================
+	// Layer 3 — CROSS-FIELD rules (interactions between two+ fields).
+	// =====================================================================
+	// Cross-domain callback / cookie sharing needs a strong session-exchange
+	// secret: if CALLBACK_ALLOWED_HOSTS or a cross-domain COOKIE_DOMAIN is set,
+	// SESSION_EXCHANGE_SECRET must be >= 32 random chars.
+	crossDomain := has(EnvCallbackAllowedHosts) || has(EnvCookieDomain)
+	if crossDomain && !strongSecret(get(EnvSessionExchangeSecret)) {
+		add(CodeSessionExchangeSecret, EnvSessionExchangeSecret, "cross-domain callback/cookie sharing requires SESSION_EXCHANGE_SECRET of at least 32 characters", false)
+	}
+
+	// step-up requires both the guarded paths and a trusted-proxy list (so the
+	// client IP used for step-up decisions is trustworthy).
+	if isTrue(get(EnvStepUpEnabled)) {
+		if get(EnvStepUpPaths) == "" {
+			add(CodeStepUpPathsRequired, EnvStepUpPaths, "STEP_UP_ENABLED=true requires STEP_UP_PATHS to be non-empty", false)
+		}
+		if get(EnvTrustedProxies) == "" {
+			add(CodeStepUpProxiesRequired, EnvTrustedProxies, "STEP_UP_ENABLED=true requires TRUSTED_PROXIES so the client IP is trustworthy", false)
+		}
+	}
+
+	// TLS cert/key must be configured as a pair (Stargate->Warden client mTLS,
+	// Stargate->Herald client mTLS). A half-configured pair is always an error.
+	checkPair := func(code, certKey, keyKey string) {
+		c, k := has(certKey), has(keyKey)
+		if c != k {
+			missing := keyKey
+			if !c {
+				missing = certKey
+			}
+			add(code, missing, "TLS client cert/key must be configured as a pair ("+certKey+" + "+keyKey+")", true)
+		}
+	}
+	checkPair(CodeTLSPairIncomplete, EnvWardenTLSClientCertFile, EnvWardenTLSClientKeyFile)
+	checkPair(CodeTLSPairIncomplete, "HERALD_TLS_CLIENT_CERT_FILE", "HERALD_TLS_CLIENT_KEY_FILE")
+
+	// =====================================================================
+	// Layer 4 — CROSS-SERVICE rules: Stargate's outbound auth toward Herald
+	// must match a single, explicit server-side mode (HMAC v2 or mTLS or API
+	// key) rather than being inferred from several fields at once.
+	// =====================================================================
+	findings = append(findings, validateCrossServiceAuth(p, env)...)
+
 	return findings
+}
+
+// validateCrossServiceAuth enforces that Stargate's client auth toward Herald
+// resolves to exactly one explicit mode. In production (heraldAuth = hmacV2 or
+// mTLS) the API-key-only path is rejected, and mixing mTLS + HMAC without an
+// explicit REQUEST_AUTH_MODE is flagged as ambiguous.
+func validateCrossServiceAuth(p Profile, env map[string]string) []Finding {
+	var out []Finding
+	strict := p.Strict()
+	get := func(k string) string { return strings.TrimSpace(env[k]) }
+	add := func(code, key, msg string, forceError bool) {
+		out = append(out, Finding{
+			Code: code, Key: key, Field: key, Profile: p.Name,
+			Message: msg, IsError: strict || forceError,
+		})
+	}
+
+	hasHmac := get(EnvHeraldHmacSecret) != "" || get(EnvHmacSecret) != ""
+	hasMtls := get("HERALD_TLS_CLIENT_CERT_FILE") != "" && get("HERALD_TLS_CLIENT_KEY_FILE") != ""
+	hasAPIKey := get(EnvHeraldAPIKey) != ""
+	mode := strings.ToLower(get(EnvRequestAuthMode))
+
+	switch p.HeraldAuth {
+	case HeraldHmacV2OrMtls:
+		// production: must use HMAC v2 or mTLS; API-key-only is rejected.
+		if !hasHmac && !hasMtls {
+			add(CodeAuthModeMismatch, EnvRequestAuthMode, "production Herald auth requires HMAC v2 (HERALD_HMAC_SECRET) or mTLS client cert; API-key-only is not allowed", false)
+		}
+		if mode != "" && mode != "hmac_v2" && mode != "mtls" {
+			add(CodeAuthModeMismatch, EnvRequestAuthMode, "REQUEST_AUTH_MODE must be hmac_v2 or mtls in production (got "+mode+")", false)
+		}
+		// Ambiguity: both mTLS and HMAC present but no explicit mode selected.
+		if hasHmac && hasMtls && mode == "" {
+			add(CodeAuthModeAmbiguous, EnvRequestAuthMode, "both mTLS and HMAC are configured; set REQUEST_AUTH_MODE explicitly to avoid ambiguous auth", false)
+		}
+	case HeraldTestAPIKeyOrHmacV2:
+		// test: HMAC v2 or a dedicated test API key; never HMAC v1.
+		if !hasHmac && !hasAPIKey {
+			add(CodeAuthModeMismatch, EnvRequestAuthMode, "test Herald auth requires HMAC v2 or a test API key", false)
+		}
+	}
+	return out
 }
 
 // HasErrors reports whether any finding is an error.

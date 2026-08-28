@@ -50,12 +50,14 @@ func sum(b []byte) string {
 // rules without being real credentials (never written to a committed .env by a
 // test — golden output stays under build/, which is gitignored).
 var prodSecrets = map[string]string{
-	policy.EnvPasswords:           "bcrypt:REPLACE_WITH_REAL_BCRYPT_HASH",
-	policy.EnvHeraldAPIKey:        "CHANGE_ME_HERALD_API_KEY",
-	policy.EnvWardenAPIKey:        "CHANGE_ME_WARDEN_API_KEY",
-	policy.EnvHeraldHmacSecret:    "CHANGE_ME_HMAC_SECRET_32BYTES_MIN",
-	policy.EnvHeraldRedisPassword: "CHANGE_ME_HERALD_REDIS_PW",
-	policy.EnvWardenRedisPassword: "CHANGE_ME_WARDEN_REDIS_PW",
+	policy.EnvPasswords:             "bcrypt:REPLACE_WITH_REAL_BCRYPT_HASH",
+	policy.EnvHeraldAPIKey:          "CHANGE_ME_HERALD_API_KEY",
+	policy.EnvWardenAPIKey:          "CHANGE_ME_WARDEN_API_KEY",
+	policy.EnvHeraldHmacSecret:      "CHANGE_ME_HMAC_SECRET_32BYTES_MIN",
+	policy.EnvHeraldRedisPassword:   "CHANGE_ME_HERALD_REDIS_PW",
+	policy.EnvWardenRedisPassword:   "CHANGE_ME_WARDEN_REDIS_PW",
+	policy.EnvHeraldPIIPepper:       "CHANGE_ME_HERALD_PII_PEPPER_32BYTES",
+	policy.EnvHeraldIdempotencySecr: "CHANGE_ME_HERALD_IDEMPOTENCY_32BYTES",
 }
 
 // TestGoldenProfilesByteStable is the golden/byte-stability test: for each

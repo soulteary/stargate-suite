@@ -52,6 +52,29 @@ Web UI 页面配置与场景预设（scenarios.json）。总览见 [../README.zh
 
 运行 `./suite validate` 可检查 `page.yaml` 与合并后的 config 是否能正确加载，并在存在 `config/env-meta.yaml` 与 `config/scenarios.json` 时做一致性检查（canonical compose 与 env-meta、场景 options 键集合）；用于 CI 或本地快速检查。
 
+## v1 配置字段与四层 Profile 校验（PR7）
+
+v1 契约（Stargate 1.0.0 / Warden 1.1.0 / Herald 1.1.0）新增了安全相关的环境变量，均已登记在 `env-meta.yaml`，并在 `config/schemas/env-fields.yaml` 声明（该 schema 与校验器保持一致；`internal/policy` 中的漂移测试会在 schema 引用了引擎未实现的 code 时失败）。
+
+- **Stargate**：`COOKIE_SECURE`、`CALLBACK_ALLOWED_HOSTS`、`SESSION_EXCHANGE_SECRET`、`TRUSTED_PROXIES`、`PROXY_HEADER`、`PASSWORD_HEADER_AUTH_ENABLED`、`WARDEN_HMAC_KEY_ID` / `WARDEN_HMAC_SECRET`、`HERALD_HMAC_KEY_ID`、`WARDEN_TLS_*`。
+- **Herald**：`REQUEST_AUTH_MODE`、`HERALD_HMAC_DEFAULT_KEY_ID`、`HMAC_MAX_DRIFT`、`HMAC_V1_ENABLED`、`HERALD_IDEMPOTENCY_SECRET`、`HERALD_PII_PEPPER`、`HERALD_TRUSTED_PROXIES` / `HERALD_TRUSTED_PROXY_HEADER`、`HERALD_TEST_API_KEY`、`HERALD_TEST_LISTENER_ADDR`。
+- **Warden**：仅新增 `ENVIRONMENT` —— Warden v1.1 并不解析 `WARDEN_HMAC_ALLOW_V1` / `WARDEN_METRICS_REQUIRE_AUTH`，因此本套件不臆造这些字段。
+
+`./suite validate --profile <development|test|production>` 运行与 Web UI 相同的四层校验器（CLI 与 UI 共用 `validateForProfile` → `policy.Validate`）：
+
+1. **第一层 · 字段类型**：已设置字段的形状（端口 / URL / 布尔 / 时长 / CIDR 列表 / Host 列表）。形状错误在任何 Profile 下都是硬错误。
+2. **第二层 · 单字段安全**：密钥强度（≥32 字符、非占位符）、禁止明文密码、Redis 密码必填。
+3. **第三层 · 跨字段**：跨域回跳/Cookie 需要强 `SESSION_EXCHANGE_SECRET`；`STEP_UP_ENABLED` 需要 `STEP_UP_PATHS` + `TRUSTED_PROXIES`；TLS 客户端证书/私钥必须成对。
+4. **第四层 · 跨服务**：Stargate→Herald 鉴权必须收敛到唯一显式模式；生产拒绝仅 API Key 且禁止 HMAC v1。
+
+每条结论带有稳定 `code`（如 `HERALD_PII_PEPPER_WEAK`）。用 `--json` 输出可脚本化：
+
+```bash
+./suite validate --profile production --json   # 存在任一 error 结论即非零退出
+```
+
+生产始终 strict（不可被 `--strict=false` 绕过）；`--strict` 会把 test/dev 的结论也提升为硬错误。
+
 ## 命令
 
 ```bash

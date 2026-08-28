@@ -29,6 +29,39 @@ const (
 	EnvHmacV1Enabled        = "HMAC_V1_ENABLED"
 	EnvHeraldTestMode       = "HERALD_TEST_MODE"
 	EnvProviderFailurePol   = "PROVIDER_FAILURE_POLICY"
+
+	// Stargate v1 fields (PR7).
+	EnvCallbackAllowedHosts    = "CALLBACK_ALLOWED_HOSTS"
+	EnvSessionExchangeSecret   = "SESSION_EXCHANGE_SECRET"
+	EnvTrustedProxies          = "TRUSTED_PROXIES"
+	EnvProxyHeader             = "PROXY_HEADER"
+	EnvPasswordHeaderAuth      = "PASSWORD_HEADER_AUTH_ENABLED"
+	EnvCookieDomain            = "COOKIE_DOMAIN"
+	EnvStepUpEnabled           = "STEP_UP_ENABLED"
+	EnvStepUpPaths             = "STEP_UP_PATHS"
+	EnvWardenHmacKeyID         = "WARDEN_HMAC_KEY_ID"
+	EnvWardenHmacSecret        = "WARDEN_HMAC_SECRET"
+	EnvWardenTLSCACertFile     = "WARDEN_TLS_CA_CERT_FILE"
+	EnvWardenTLSClientCertFile = "WARDEN_TLS_CLIENT_CERT_FILE"
+	EnvWardenTLSClientKeyFile  = "WARDEN_TLS_CLIENT_KEY_FILE"
+	EnvWardenTLSServerName     = "WARDEN_TLS_SERVER_NAME"
+	EnvWardenAPIKeyStargate    = "WARDEN_API_KEY"
+	EnvHeraldHmacKeyID         = "HERALD_HMAC_KEY_ID"
+
+	// Herald v1.1 fields (PR7).
+	EnvHeraldHmacDefaultKeyID = "HERALD_HMAC_DEFAULT_KEY_ID"
+	EnvHmacMaxDrift           = "HMAC_MAX_DRIFT"
+	EnvHeraldIdempotencySecr  = "HERALD_IDEMPOTENCY_SECRET"
+	EnvHeraldPIIPepper        = "HERALD_PII_PEPPER"
+	EnvHeraldTrustedProxies   = "HERALD_TRUSTED_PROXIES"
+	EnvHeraldTrustedProxyHdr  = "HERALD_TRUSTED_PROXY_HEADER"
+	EnvHeraldTestAPIKey       = "HERALD_TEST_API_KEY"
+	EnvHeraldTestListenerAddr = "HERALD_TEST_LISTENER_ADDR"
+
+	// Warden v1.1 fields (PR7). NOTE: Warden v1.1 only exposes ENVIRONMENT
+	// among the new markers; WARDEN_HMAC_ALLOW_V1 / WARDEN_METRICS_REQUIRE_AUTH
+	// are NOT parsed by the upstream Warden config, so the suite does not
+	// invent them (see docs/upgrade/pr-07 report).
 )
 
 // Deterministic test values folded from the current default suite behaviour
