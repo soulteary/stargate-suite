@@ -1,0 +1,60 @@
+package composegen
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestEncodeEnvValue(t *testing.T) {
+	check := func(input, want string) {
+		t.Helper()
+		if got := EncodeEnvValue(input); got != want {
+			t.Errorf("EncodeEnvValue(%q)=%q, want %q", input, got, want)
+		}
+	}
+	check("", "")
+	check("plain-value_1", "plain-value_1")
+	check("$argon2id$v=19$m=65536", "'$argon2id$v=19$m=65536'")
+	check("value # not a comment", "'value # not a comment'")
+	check("line one\nline two", "'line one\nline two'")
+	check("operator's secret", `'operator\'s secret'`)
+	check(`C:\\path\\with\\slashes`, `'C:\\path\\with\\slashes'`)
+}
+
+func TestGenerateRejectsInvalidOverrideKey(t *testing.T) {
+	_, err := Generate(map[string]interface{}{}, nil, "", &Options{
+		EnvOverrides: map[string]string{"GOOD\nEVIL": "injected"},
+	}, nil)
+	if err == nil || !strings.Contains(err.Error(), "invalid environment variable name") {
+		t.Fatalf("Generate error = %v", err)
+	}
+}
+
+func TestEnvBodyFromVarsQuotesAndSortsRemainingKeys(t *testing.T) {
+	body := EnvBodyFromVars(map[string]string{
+		"ZZ_EXTRA": "contains $dollar",
+		"AA_EXTRA": "value # comment",
+	}, "", nil)
+	if !strings.Contains(body, "AA_EXTRA='value # comment'\n") {
+		t.Fatalf("AA_EXTRA was not safely quoted:\n%s", body)
+	}
+	if !strings.Contains(body, "ZZ_EXTRA='contains $dollar'\n") {
+		t.Fatalf("ZZ_EXTRA was not safely quoted:\n%s", body)
+	}
+	if strings.Index(body, "AA_EXTRA=") > strings.Index(body, "ZZ_EXTRA=") {
+		t.Fatalf("remaining variables are not sorted:\n%s", body)
+	}
+}
+
+func TestValidEnvKey(t *testing.T) {
+	for _, key := range []string{"VALID", "_VALID_2", "lowercase"} {
+		if !ValidEnvKey(key) {
+			t.Errorf("ValidEnvKey(%q)=false", key)
+		}
+	}
+	for _, key := range []string{"", "2INVALID", "BAD-NAME", "BAD\nINJECT"} {
+		if ValidEnvKey(key) {
+			t.Errorf("ValidEnvKey(%q)=true", key)
+		}
+	}
+}

@@ -81,7 +81,7 @@ func envBodyFromMap(env map[string]string) string {
 	for _, k := range keys {
 		b.WriteString(k)
 		b.WriteString("=")
-		b.WriteString(env[k])
+		b.WriteString(composegen.EncodeEnvValue(env[k]))
 		b.WriteString("\n")
 	}
 	return b.String()
