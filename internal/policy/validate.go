@@ -92,6 +92,7 @@ func isHashedPasswords(v string) bool {
 //   - HMAC v1 must be forbidden (HMAC_V1_ENABLED not "true").
 //   - Redis password required.
 func Validate(p Profile, env map[string]string, opts *composegen.Options) []Finding {
+	p = p.enforceCanonicalSecurity()
 	var findings []Finding
 	strict := p.Strict()
 	get := func(k string) string { return strings.TrimSpace(env[k]) }

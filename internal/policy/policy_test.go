@@ -295,3 +295,91 @@ func TestHmacV1ForbiddenInEveryProfile(t *testing.T) {
 		}
 	}
 }
+
+func TestParseProfilesRejectsUnknownAndWeakenedFields(t *testing.T) {
+	base := `
+schemaVersion: 1
+profiles:
+  development:
+    description: dev
+    experimental: false
+    portBinding: loopback
+    secretSource: autoGenerateOrInput
+    passwordAlgorithm: allowPlaintext
+    heraldAuth: apiKeyOptional
+    heraldTestApi: disabled
+    redisPassword: autoGenerate
+    cookieSecure: optional
+    hmacV1: forbidden
+    containerPrivileges: leastPrivilege
+    validationMode: warnAndError
+  test:
+    description: test
+    experimental: false
+    portBinding: loopback
+    secretSource: deterministicTest
+    passwordAlgorithm: allowTest
+    heraldAuth: testApiKeyOrHmacV2
+    heraldTestApi: loopbackListener
+    redisPassword: isolated
+    cookieSecure: optional
+    hmacV1: forbidden
+    containerPrivileges: leastPrivilege
+    validationMode: strict
+  production:
+    description: prod
+    experimental: true
+    portBinding: reverseProxyOnly
+    secretSource: userProvidedOrFile
+    passwordAlgorithm: forbidPlaintext
+    heraldAuth: hmacV2
+    heraldTestApi: forbidden
+    redisPassword: required
+    cookieSecure: required
+    hmacV1: forbidden
+    containerPrivileges: leastPrivilegeReadonly
+    validationMode: strict
+`
+
+	tests := map[string]string{
+		"unknown field":       strings.Replace(base, "    portBinding: loopback", "    portBindng: loopback", 1),
+		"missing field":       strings.Replace(base, "    passwordAlgorithm: forbidPlaintext\n", "", 1),
+		"weakened production": strings.Replace(base, "    cookieSecure: required", "    cookieSecure: optional", 1),
+		"unknown enum":        strings.Replace(base, "    redisPassword: required", "    redisPassword: maybe", 1),
+		"wrong schema":        strings.Replace(base, "schemaVersion: 1", "schemaVersion: 2", 1),
+	}
+	for name, data := range tests {
+		t.Run(name, func(t *testing.T) {
+			if _, err := ParseProfiles([]byte(data)); err == nil {
+				t.Fatal("ParseProfiles accepted an invalid policy")
+			}
+		})
+	}
+}
+
+func TestDirectProductionProfileCannotDisableStrictRules(t *testing.T) {
+	p := Profile{
+		Name:                Production,
+		PortBinding:         PortLoopback,
+		SecretSource:        SecretAutoGenerateOrInput,
+		PasswordAlgorithm:   PasswordAllowPlaintext,
+		HeraldAuth:          HeraldAPIKeyOptional,
+		HeraldTestAPI:       HeraldTestAPIDisabled,
+		RedisPassword:       RedisAutoGenerate,
+		CookieSecure:        CookieOptional,
+		ContainerPrivileges: PrivLeastPrivilege,
+		ValidationMode:      ValidationWarnAndError,
+	}
+	findings := Validate(p, map[string]string{
+		EnvPasswords:    "plaintext:test1234",
+		EnvCookieSecure: "false",
+	}, baseOpts())
+	if !HasErrors(findings) {
+		t.Fatal("a directly constructed production profile disabled strict validation")
+	}
+
+	result := Apply(p, baseOpts(), nil, nil)
+	if result.Options.ExposePorts || !result.Options.ReadOnlyRootFS {
+		t.Fatal("a directly constructed production profile disabled generation hardening")
+	}
+}
