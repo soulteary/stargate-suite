@@ -22,7 +22,7 @@
 #   heraldAuth         : Herald 服务间鉴权模式
 #                          - apiKeyOptional      : API Key 可选（development）
 #                          - testApiKeyOrHmacV2  : 独立测试 API Key / HMAC v2（test）
-#                          - hmacV2OrMtls        : HMAC v2 或 mTLS，显式模式（production）
+#                          - hmacV2              : HMAC v2（production）
 #   heraldTestApi      : Herald 测试 API 策略（disabled / loopbackListener / forbidden）
 #   redisPassword      : Redis 密码策略
 #                          - autoGenerate : 可自动生成密码（development）
@@ -72,7 +72,7 @@ profiles:
     portBinding: reverseProxyOnly
     secretSource: userProvidedOrFile
     passwordAlgorithm: forbidPlaintext
-    heraldAuth: hmacV2OrMtls
+    heraldAuth: hmacV2
     heraldTestApi: forbidden
     redisPassword: required
     cookieSecure: required
