@@ -22,7 +22,10 @@ func TestCanonicalGenerationMatchesComposegen(t *testing.T) {
 		t.Fatalf("load canonical compose: %v", err)
 	}
 	applyManifestToComposegen()
-	envMeta, _ := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
+	envMeta, err := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
+	if err != nil {
+		t.Fatalf("load env-meta: %v", err)
+	}
 	ref, err := composegen.Generate(full, modes, "", nil, envMeta)
 	if err != nil {
 		t.Fatalf("reference generate: %v", err)

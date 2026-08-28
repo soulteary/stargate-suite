@@ -111,7 +111,10 @@ func generateForProfile(in profileGenInput) (*composegen.Generated, map[string]s
 	applyManifestToComposegen()
 
 	env := effectiveEnv(in.UserEnv, res.EnvOverrides)
-	envMeta, _ := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
+	envMeta, err := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
+	if err != nil {
+		return nil, nil, fmt.Errorf("load env-meta: %w", err)
+	}
 	gen, err := composegen.Generate(full, in.Modes, envBodyFromMap(env), res.Options, envMeta)
 	if err != nil {
 		return nil, nil, err

@@ -275,7 +275,10 @@ func generateCanonicalWithEnv(output, modesCSV string, jsonOut bool, lockedEnv m
 	// Feed manifest container ports (single source of truth) into composegen,
 	// matching the Web UI startup path.
 	applyManifestToComposegen()
-	envMeta, _ := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
+	envMeta, err := composegen.LoadEnvMetaFS(assetFS(), "config/env-meta.yaml")
+	if err != nil {
+		return fmt.Errorf("generate: load env-meta: %w", err)
+	}
 	// options:null + empty envOverride == the canonical defaults the Web API
 	// uses for `make gen`.
 	gen, err := composegen.Generate(full, modes, envBodyFromMap(lockedEnv), nil, envMeta)

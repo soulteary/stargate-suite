@@ -137,6 +137,18 @@ func TestMalformedConfigOverridesFailClosed(t *testing.T) {
 	}
 }
 
+func TestMalformedEnvMetaOverrideBlocksGeneration(t *testing.T) {
+	resetConfigDir(t)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "env-meta.yaml"), []byte("order: [BROKEN]\nvars: {}\n"), 0o644); err != nil {
+		t.Fatalf("write malformed env-meta override: %v", err)
+	}
+	configDirOverride = dir
+	if err := generateCanonical(t.TempDir(), "image", false); err == nil {
+		t.Fatal("canonical generation ignored invalid env-meta override")
+	}
+}
+
 func TestValidateRejectsUnknownScenarioOption(t *testing.T) {
 	resetConfigDir(t)
 	dir := t.TempDir()
