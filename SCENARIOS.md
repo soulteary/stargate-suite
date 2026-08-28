@@ -6,11 +6,24 @@ This document maps to `config/scenarios.json`, used to generate compose files an
 
 ## Usage
 
-Scenario-based generation is **Web UI only**. In the Web UI (`go run ./cmd/suite serve`), choose a scenario preset (S1–S5) in step 1; the generator fills options and env from that scenario and produces compose. Download or copy the result in the review step.
+Scenario-based generation is available via the **Web UI** and the **CLI**. In the Web UI (`go run ./cmd/suite serve`), step 1 first selects a **deployment profile** (`development` / `test` / `production`), then a scenario preset (S1–S5); the generator fills options and env from the scenario, applies the profile's security & runtime policy, and produces compose. Download or copy the result in the review step.
 
-To generate the default mode set (image, build, traefik, etc.) without a scenario, run `make gen` (via Web API).
+To generate the default mode set (image, build, traefik, etc.) without a scenario, run `make gen` (via Web API), or use the CLI `generate --profile <profile> --output <dir>`.
 
-There is no CLI `gen "scene:<id>"` or `make gen-scenarios`; scenario output is produced only through the Web UI.
+## Deployment profiles (policy, not just presets)
+
+Profiles come from `config/profiles.yaml` and are applied by the shared `internal/policy` model (same for CLI and Web UI). Key differences:
+
+| Policy | development | test | production |
+|---|---|---|---|
+| Port binding | loopback (`127.0.0.1`) | loopback (`127.0.0.1`) | reverse-proxy entry only (no host ports on internal services/Redis) |
+| Secrets | auto-generate or input | isolated deterministic test values | must be user-provided / secret file |
+| Password algorithm | plaintext allowed | test passwords | plaintext forbidden |
+| Cookie Secure | optional | optional | required |
+| HMAC v1 | forbidden | forbidden | forbidden |
+| Validation | warning + error | strict | strict (errors are hard, never bypassable) |
+
+`production` is experimental initially, but its strict rules are real errors: weak/test keys, plaintext passwords, published internal ports, Cookie Secure off, or HMAC v1 all block generation. Supply real secrets via process env or `--set KEY=VALUE`. For byte-stable dev/test output, pass `--seed <seed>` (dev/test only — never a real seed).
 
 ## Scenarios
 

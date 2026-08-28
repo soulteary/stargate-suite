@@ -10,6 +10,15 @@ Web UI 页面配置与场景预设（scenarios.json）。总览见 [../README.zh
 
 - **ports.yaml**：所有服务的端口集中配置（服务名、容器端口、默认主机端口、i18n 键）。向导 step-2「暴露端口」表格由此生成；**界面中**的端口类输入（如 step-5 的 HERALD_TOTP_PORT、Herald 的 PORT）的默认值与占位符在加载时由此文件覆盖，与端口表一致。生成逻辑中容器端口、HERALD_TOTP_PORT 与 compose 端口映射均与 ports.yaml 一致。
 
+## 组件清单（单一权威来源）
+
+- **components.yaml**：组件**版本、镜像、容器端口、健康路径、契约版本**的权威登记表，用于修复版本/端口漂移（M-01）：`env-meta.yaml`、`.env.example`、`compose/canonical` 与 `composegen` 容器端口默认值都须与其一致，`suite version` 从其中的 `verifiedCombo` 读取已验证的目标组合。
+  - `components.*` 登记**当前运行值**（迁移前旧值）。升级镜像到 v1 由后续 PR 原子完成，届时 `components.*` 与 `verifiedCombo` 才收敛一致。
+  - `verifiedCombo` 是 `suite version` 展示的已验证**目标 v1** 组合（在两者不同的阶段有意与 `components.*` 分开）。
+  - `dependencies` 登记非本套件的镜像（Redis、whoami），避免散落硬编码。
+  - 漂移由 `internal/contract`（`manifest_test.go`）中的测试强制校验。生成的 `build/*` 是被 gitignore 的产物，**不是**权威来源：以非失败的 advisory 提示 `build/*` 镜像 pin 过期，便于重新生成。
+- **components.lock.yaml**：镜像内容寻址 digest（`sha256:...`）的占位结构，正式发布时填入，使部署可复现。
+
 ## 预设与 compose 路径
 
 - **Makefile/E2E 默认 compose**：`COMPOSE_FILE` 默认为 `build/image/docker-compose.yml`；所有 compose 由 canonical 生成到 `build/`。
@@ -32,6 +41,7 @@ Web UI 页面配置与场景预设（scenarios.json）。总览见 [../README.zh
 1. **compose 源**：在 `compose/canonical/docker-compose.yml` 中为该服务添加或修改 `environment` 项（如 `- VAR=${VAR:-default}`）。
 2. **Web UI 配置**：在 `services.yaml` 或 `providers.yaml` 中对应服务的 `sections[].envVars` 增加条目（`env`、`type`、`labelKey`、`descKey` 等）。
 3. **env-meta**：在 `config/env-meta.yaml` 的 `order` 中加入新 key，并在 `vars` 下为该 key 配置 `comment`、`services`（所属服务列表）及可选 `default`。由此统一 .env 顺序、注释与默认内容，无需再改 `internal/composegen/composegen.go`。
+4. **components.yaml**（仅版本/镜像/端口变更时）：组件版本、镜像、容器端口与健康路径须在 `config/components.yaml` 更新；若 `env-meta.yaml`、`.env.example`、`compose/canonical` 或 `ports.yaml` 与其不一致，`internal/contract` 的漂移测试会失败。
 
 ## 新增场景或全局选项
 

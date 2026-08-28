@@ -21,6 +21,7 @@ type Options struct {
 	TraefikNetwork         bool   // 是否加入 Traefik 网络及相关 labels
 	TraefikNetworkName     string // Traefik 网络名称，默认 "traefik"
 	ExposePorts            bool   // true 保留 ports:，false 改为仅 expose
+	LoopbackBind           bool   // true 时暴露的宿主机端口仅绑定 127.0.0.1（development/test Profile 的端口绑定策略）
 	IncludeDingTalk        bool   // 全量 traefik 时是否包含 herald-dingtalk 服务
 	IncludeSmtp            bool   // 全量 traefik / traefik-herald 时是否包含 herald-smtp 服务
 	UseOwlmailForSmtp      bool   // 启用 SMTP 时是否搭配 OwlMail 进行测试（注入 owlmail 服务并让 herald-smtp 指向其 SMTP）
@@ -712,23 +713,23 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 			case "herald":
 				hostPort = strings.TrimSpace(opts.PortHerald)
 				if hostPort != "" {
-					ports[0] = hostPort + ":8082"
+					ports[0] = hostPort + ":" + containerPortStr("herald", "8082")
 				}
 			case "warden":
 				hostPort = strings.TrimSpace(opts.PortWarden)
 				if hostPort != "" {
-					ports[0] = hostPort + ":8081"
+					ports[0] = hostPort + ":" + containerPortStr("warden", "8081")
 				}
 			case "herald-redis":
 				hostPort = strings.TrimSpace(opts.PortHeraldRedis)
 				if hostPort != "" {
-					ports[0] = hostPort + ":6379"
+					ports[0] = hostPort + ":" + containerPortStr("herald-redis", "6379")
 				}
 			case "herald-totp":
 				hostPort = strings.TrimSpace(opts.PortHeraldTotp)
 				containerPort := strings.TrimSpace(opts.HeraldTotpContainerPort)
 				if containerPort == "" {
-					containerPort = "8084"
+					containerPort = containerPortStr("herald-totp", "8084")
 				}
 				if hostPort != "" {
 					ports[0] = hostPort + ":" + containerPort
@@ -736,12 +737,12 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 			case "herald-smtp":
 				hostPort = strings.TrimSpace(opts.PortHeraldSmtp)
 				if hostPort != "" {
-					ports[0] = hostPort + ":8085"
+					ports[0] = hostPort + ":" + containerPortStr("herald-smtp", "8085")
 				}
 			case "herald-dingtalk":
 				hostPort = strings.TrimSpace(opts.PortHeraldDingtalk)
 				if hostPort != "" {
-					ports[0] = hostPort + ":8083"
+					ports[0] = hostPort + ":" + containerPortStr("herald-dingtalk", "8083")
 				}
 			case "owlmail":
 				hostPort = strings.TrimSpace(opts.PortOwlmail)
@@ -756,16 +757,21 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 			case "warden-redis":
 				hostPort := strings.TrimSpace(opts.PortWardenRedis)
 				if hostPort != "" {
-					svc["ports"] = []interface{}{hostPort + ":6379"}
+					svc["ports"] = []interface{}{hostPort + ":" + containerPortStr("warden-redis", "6379")}
 					delete(svc, "expose")
 				}
 			case "stargate":
 				hostPort := strings.TrimSpace(opts.PortStargate)
 				if hostPort != "" {
-					svc["ports"] = []interface{}{hostPort + ":80"}
+					svc["ports"] = []interface{}{hostPort + ":" + containerPortStr("stargate", "80")}
 				}
 			}
 		}
+	}
+	// LoopbackBind：development/test Profile 要求暴露的宿主机端口仅绑定 127.0.0.1。
+	// 将 "host:container" 改写为 "127.0.0.1:host:container"（已带 IP 前缀者跳过）。
+	if opts.ExposePorts && opts.LoopbackBind {
+		bindPortsToLoopback(svc)
 	}
 	if opts.ContainerNamePrefix != "" {
 		if suffix, ok := serviceNameToContainerSuffix[serviceName]; ok {
@@ -777,15 +783,15 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 				for i, e := range env {
 					s, _ := e.(string)
 					if strings.HasPrefix(s, "WARDEN_URL=") {
-						env[i] = "WARDEN_URL=http://" + prefix + "warden:8081"
+						env[i] = "WARDEN_URL=http://" + prefix + "warden:" + containerPortStr("warden", "8081")
 					}
 					if strings.HasPrefix(s, "HERALD_URL=") {
-						env[i] = "HERALD_URL=http://" + prefix + "herald:8082"
+						env[i] = "HERALD_URL=http://" + prefix + "herald:" + containerPortStr("herald", "8082")
 					}
 					if strings.HasPrefix(s, "HERALD_TOTP_BASE_URL=") {
 						totpPort := strings.TrimSpace(opts.HeraldTotpContainerPort)
 						if totpPort == "" {
-							totpPort = "8084"
+							totpPort = containerPortStr("herald-totp", "8084")
 						}
 						env[i] = "HERALD_TOTP_BASE_URL=http://" + prefix + "herald-totp:" + totpPort
 					}
@@ -803,6 +809,28 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 	}
 	// EnvOverrides 仅用于生成 .env（在 Generate 中合并进 vars），不写入 compose 的 environment，
 	// 以便生成的 compose 保留 ${VAR:-default} 形式，用户通过 .env 覆盖即可生效。
+}
+
+// bindPortsToLoopback 将服务 ports 中的 "host:container" 改写为 "127.0.0.1:host:container"，
+// 已含 IP 前缀（形如 a.b.c.d:host:container）者保持不变。用于 development/test Profile 的 loopback 绑定策略。
+func bindPortsToLoopback(svc map[string]interface{}) {
+	ports, ok := svc["ports"].([]interface{})
+	if !ok || len(ports) == 0 {
+		return
+	}
+	for i, item := range ports {
+		s, ok := item.(string)
+		if !ok || s == "" {
+			continue
+		}
+		// 已是 "IP:host:container"（两个及以上冒号且首段为 IP）时跳过。
+		if strings.Count(s, ":") >= 2 {
+			continue
+		}
+		if strings.Contains(s, ":") {
+			ports[i] = "127.0.0.1:" + s
+		}
+	}
 }
 
 // applyOptionsToCompose 对整份 compose（out）应用 Options：每个服务 applyOptions，并处理 Traefik 网络。
@@ -1113,7 +1141,7 @@ func applyStargateSplitOverrides(svc map[string]interface{}, containerNamePrefix
 	if prefix == "" {
 		prefix = "the-gate-"
 	}
-	totpPort := "8084"
+	totpPort := containerPortStr("herald-totp", "8084")
 	if opts != nil && strings.TrimSpace(opts.HeraldTotpContainerPort) != "" {
 		totpPort = strings.TrimSpace(opts.HeraldTotpContainerPort)
 	}

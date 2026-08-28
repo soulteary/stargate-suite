@@ -1,4 +1,4 @@
-module github.com/soulteary/the-gate
+module github.com/soulteary/stargate-suite
 
 go 1.27.0
 

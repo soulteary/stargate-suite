@@ -1,0 +1,81 @@
+# Deployment profiles — 部署 Profile 的安全与运行策略单一来源（PR 5）。
+#
+# Profile 是安全与运行策略，而不只是预填表单（见 docs/upgrade/00-overview.md 5.4 表）。
+# CLI `generate --profile` 与 Web UI 首步选择 Profile 共用本文件 + internal/policy + internal/composegen，
+# 二者不各自实现策略。当前默认行为（PASSWORDS=plaintext:...、API_KEY=test-*、exposePorts 默认开启）
+# 归入 development/test 语义；production 初期标记 experimental，但所有严格规则均为真实错误、可测试。
+#
+# 字段说明：
+#   description        : 用途描述
+#   experimental       : 该 Profile 是否处于实验阶段（仅提示，不放宽校验）
+#   portBinding        : 端口绑定策略
+#                          - loopback  : 暴露端口时仅绑定 127.0.0.1（development/test）
+#                          - reverseProxyOnly : 仅反向代理入口，内部服务与 Redis 不发布宿主机端口（production）
+#   secretSource       : 密钥来源
+#                          - autoGenerateOrInput : 自动生成或用户输入（development）
+#                          - deterministicTest   : 隔离的确定性测试值（test）
+#                          - userProvidedOrFile  : 必须用户提供或引用 secret file（production）
+#   passwordAlgorithm  : 允许的登录密码算法策略
+#                          - allowPlaintext : 允许显式 plaintext（development）
+#                          - allowTest      : 允许测试密码（test）
+#                          - forbidPlaintext: 禁止 plaintext（production）
+#   heraldAuth         : Herald 服务间鉴权模式
+#                          - apiKeyOptional      : API Key 可选（development）
+#                          - testApiKeyOrHmacV2  : 独立测试 API Key / HMAC v2（test）
+#                          - hmacV2OrMtls        : HMAC v2 或 mTLS，显式模式（production）
+#   heraldTestApi      : Herald 测试 API 策略（disabled / loopbackListener / forbidden）
+#   redisPassword      : Redis 密码策略
+#                          - autoGenerate : 可自动生成密码（development）
+#                          - isolated     : 隔离测试密码（test）
+#                          - required     : 密码必需，且端口不发布（production）
+#   cookieSecure       : Cookie Secure 策略（optional / required）
+#   hmacV1             : HMAC v1 策略（永远 forbidden；兼容模式需显式确认，本套件不提供）
+#   containerPrivileges: 容器权限策略
+#                          - leastPrivilege        : 最小权限（development/test）
+#                          - leastPrivilegeReadonly: 最小权限 + 只读根文件系统（production）
+#   validationMode     : 校验模式（warnAndError / strict）
+
+schemaVersion: 1
+
+profiles:
+  development:
+    description: 本地体验（Local development experience）
+    experimental: false
+    portBinding: loopback
+    secretSource: autoGenerateOrInput
+    passwordAlgorithm: allowPlaintext
+    heraldAuth: apiKeyOptional
+    heraldTestApi: disabled
+    redisPassword: autoGenerate
+    cookieSecure: optional
+    hmacV1: forbidden
+    containerPrivileges: leastPrivilege
+    validationMode: warnAndError
+
+  test:
+    description: CI/E2E（Continuous integration and end-to-end tests）
+    experimental: false
+    portBinding: loopback
+    secretSource: deterministicTest
+    passwordAlgorithm: allowTest
+    heraldAuth: testApiKeyOrHmacV2
+    heraldTestApi: loopbackListener
+    redisPassword: isolated
+    cookieSecure: optional
+    hmacV1: forbidden
+    containerPrivileges: leastPrivilege
+    validationMode: strict
+
+  production:
+    description: 实际部署模板（Real deployment template）— 初期 experimental，但严格规则为真实错误
+    experimental: true
+    portBinding: reverseProxyOnly
+    secretSource: userProvidedOrFile
+    passwordAlgorithm: forbidPlaintext
+    heraldAuth: hmacV2OrMtls
+    heraldTestApi: forbidden
+    redisPassword: required
+    cookieSecure: required
+    hmacV1: forbidden
+    containerPrivileges: leastPrivilegeReadonly
+    validationMode: strict

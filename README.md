@@ -4,7 +4,9 @@ English | [中文](README.zh-CN.md)
 
 End-to-end integration test environment for **Stargate + Warden + Herald**: Compose setups, Web UI for config generation, and 50+ E2E tests (normal flow, errors, auth, idempotency, audit, metrics). Optional: **herald-totp**, **herald-dingtalk**, **herald-smtp**.
 
-Go module: `github.com/soulteary/the-gate`. Repo name: **stargate-suite**.
+Go module: `github.com/soulteary/stargate-suite`. Repo name: **stargate-suite**.
+
+> **Module rename:** the Go module path changed from `github.com/soulteary/the-gate` to `github.com/soulteary/stargate-suite`. This module hosts an internal tool (`cmd/suite`) and is not intended as an importable library, but if any external code imported the old path, update its imports to the new path.
 
 ## Docs
 
@@ -25,7 +27,7 @@ stargate-suite/
 ├── compose/canonical/ # single source → Web UI / make gen
 ├── build/             # generated (make gen via Web API or Web UI)
 ├── config/             # page.yaml, scenarios
-├── cmd/suite/          # Web UI (serve) + validate
+├── cmd/suite/          # Web UI (serve) + generate + validate
 ├── e2e/                # E2E tests
 ├── fixtures/warden/    # test users (data.json)
 └── scripts/run-e2e.sh
@@ -43,7 +45,27 @@ make up
 # or: make up-build | make up-traefik
 ```
 
-**CLI:** `go run ./cmd/suite help` — `validate`, `serve`. Config generation is **Web UI only** (or `make gen` which calls the Web API). The default config and canonical compose are **embedded in the binary** (`go:embed`), so `serve`/`validate` run without the repo source tree (e.g. from a release binary or the container). Use `--config-dir=<dir>` (or `CONFIG_DIR`) to override the embedded `config/` with an on-disk directory; anything missing there falls back to the embedded assets.
+**CLI:** `go run ./cmd/suite help` — `generate`, `validate`, `serve`. The default config and canonical compose are **embedded in the binary** (`go:embed`), so all subcommands run without the repo source tree (e.g. from a release binary or the container). Use `--config-dir=<dir>` (or `CONFIG_DIR`) to override the embedded `config/` with an on-disk directory; anything missing there falls back to the embedded assets.
+
+**Deployment profiles** (`config/profiles.yaml`): `development` / `test` / `production` are **security & runtime policy**, not just prefilled forms — they set port binding, secret source, password algorithm, Herald auth, Redis password, Cookie Secure, HMAC v1, container privileges and validation mode (see [docs/upgrade/00-overview.md](docs/upgrade/00-overview.md) §5.4). The CLI and Web UI share one model (`internal/policy` + `internal/composegen`):
+
+```bash
+# development: current defaults (loopback ports, plaintext test password, dev keys).
+# --seed makes auto-generated dev keys byte-stable (dev/test only, never a real seed).
+go run ./cmd/suite generate --profile development --output build/dev --seed pr5-golden
+
+# production is experimental and STRICT: plaintext passwords, test/placeholder keys,
+# published internal ports, Cookie Secure off, or HMAC v1 are hard errors (never bypassable).
+# Supply real secrets via the process env or repeated --set KEY=VALUE:
+go run ./cmd/suite generate --profile production --output build/prod \
+  --set PASSWORDS=bcrypt:... --set HERALD_API_KEY=... --set WARDEN_API_KEY=... \
+  --set HERALD_HMAC_SECRET=... --set HERALD_REDIS_PASSWORD=... --set WARDEN_REDIS_PASSWORD=...
+
+# validate a profile's policy; production/test are strict (errors, not warnings):
+go run ./cmd/suite validate --profile production --strict
+```
+
+Config generation is also available via the **Web UI** (first step selects the profile) or `make gen` (Web API).
 
 **Web UI:** `go run ./cmd/suite serve` (default http://localhost:8085). No auth — localhost only.
 

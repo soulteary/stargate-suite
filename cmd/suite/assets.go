@@ -11,7 +11,7 @@ import (
 	"path"
 	"strings"
 
-	assets "github.com/soulteary/the-gate"
+	assets "github.com/soulteary/stargate-suite"
 )
 
 // configDirOverride is the value of --config-dir; empty means use embedded assets only.

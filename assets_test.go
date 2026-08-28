@@ -14,6 +14,8 @@ var requiredAssets = []string{
 	"config/env-meta.yaml",
 	"config/services.yaml",
 	"config/ports.yaml",
+	"config/components.yaml",
+	"config/components.lock.yaml",
 	"config/config-sections.yaml",
 	"config/page.yaml",
 	"config/providers.yaml",

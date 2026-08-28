@@ -5,7 +5,7 @@ BUILD_DIR ?= build
 .PHONY: help gen up up-build up-image up-traefik down down-build down-image down-traefik logs test clean suite suite-build serve
 
 help: ## Show help information
-	@echo "the-gate End-to-End Integration Test Project"
+	@echo "stargate-suite End-to-End Integration Test Project"
 	@echo ""
 	@echo "Compose 生成到 $(BUILD_DIR)/，默认使用: $(COMPOSE_FILE)"
 	@echo "首次使用请执行: make gen（通过 Web API）或 make serve 在浏览器中配置生成"

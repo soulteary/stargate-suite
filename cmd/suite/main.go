@@ -38,6 +38,15 @@ type pageData struct {
 	KeysStepVars   []envVar              `yaml:"-"` // 从 config/keys-step.yaml 加载
 	Ports          []portDef             `yaml:"-"` // 从 config/ports.yaml 加载，集中展示与配置
 	PortValues     map[string]string     `yaml:"-"` // optionId -> 当前值，用于 Session 回填端口表
+	Profiles       []pageProfile         `yaml:"-"` // 从 config/profiles.yaml 加载，供 UI 第一步选择部署 Profile
+}
+
+// pageProfile 是 config/profiles.yaml 中一个部署 Profile 的展示信息，供向导第一步选择。
+type pageProfile struct {
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	Experimental bool   `json:"experimental"`
+	Strict       bool   `json:"strict"`
 }
 
 // portDef 与 config/ports.yaml 单条一致，用于向导 step-2 端口表格展示与表单绑定。
@@ -259,6 +268,10 @@ type keysStepYAML struct {
 
 var servePort string
 
+// cmdArgs holds CLI args after the subcommand name, for subcommands that parse
+// their own flag sets (generate, validate).
+var cmdArgs []string
+
 type command struct {
 	name, desc string
 	fn         func() error
@@ -270,7 +283,9 @@ func getCommands() []command {
 	if len(commands) == 0 {
 		commands = []command{
 			{"help", "Show help information", cmdHelp},
-			{"validate", "Validate that page config and merged config load without error", cmdValidate},
+			{"version", "Show version, build metadata, and verified component combination", cmdVersion},
+			{"generate", "Generate profile-aware compose + .env (--profile, --output, --modes)", cmdGenerate},
+			{"validate", "Validate config; with --profile [--strict] enforce deployment-profile policy", cmdValidate},
 			{"serve", "Start web UI for compose generation (default :8085)", cmdServe},
 		}
 	}
@@ -314,10 +329,15 @@ func main() {
 
 	configDirOverride = strings.TrimSpace(configutil.ResolveString(fs, "config-dir", "CONFIG_DIR", "", true))
 
+	// Feed component-manifest container ports into composegen so generated
+	// compose ports derive from config/components.yaml (single source, M-01).
+	applyManifestToComposegen()
+
 	args := fs.Args()
 	cmdName := "help"
 	if len(args) > 0 {
 		cmdName = strings.TrimSpace(args[0])
+		cmdArgs = args[1:]
 	}
 
 	if cmdName == "serve" {
