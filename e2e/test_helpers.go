@@ -446,8 +446,9 @@ func signHeraldReq(req *http.Request, body []byte) {
 	setHeraldV2Headers(req, sig)
 }
 
-// clearRateLimitKeys clears test state in Herald's isolated Redis so one
-// scenario cannot consume another scenario's rate-limit or cooldown budget.
+// clearRateLimitKeys clears Herald's Redis-backed state and restarts Stargate
+// so one scenario cannot consume another scenario's Redis or in-process
+// rate-limit budget.
 func clearRateLimitKeys(t *testing.T) error {
 	// Compose-based E2E runs intentionally do not publish Redis to the host.
 	// Execute FLUSHDB inside the isolated Redis container and reuse the password
@@ -461,6 +462,20 @@ func clearRateLimitKeys(t *testing.T) error {
 			return fmt.Errorf("failed to clear Herald Redis through Compose: %w: %s", err, strings.TrimSpace(string(out)))
 		}
 		t.Log("Cleared Herald Redis test state through Compose")
+
+		// Stargate v1.0.0 keeps the verification endpoint limiter in process,
+		// independently of Herald Redis. Restart only the Stargate container to
+		// give each isolated scenario a fresh five-request budget.
+		restart := exec.Command("docker", "compose", "restart", "stargate")
+		restart.Dir = dir
+		restartOut, restartErr := restart.CombinedOutput()
+		if restartErr != nil {
+			return fmt.Errorf("failed to reset Stargate rate limiter: %w: %s", restartErr, strings.TrimSpace(string(restartOut)))
+		}
+		if !waitForService(t, stargateURL+"/healthz", 30*time.Second) {
+			return fmt.Errorf("Stargate did not become ready after rate-limit reset")
+		}
+		t.Log("Reset Stargate in-process rate limiter through Compose")
 		return nil
 	}
 
