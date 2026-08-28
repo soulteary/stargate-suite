@@ -17,7 +17,7 @@ images:
     digest: ""
   warden:
     image: ghcr.io/soulteary/warden
-    version: 1.0.0
+    version: 1.1.0
     digest: ""
   herald:
     image: ghcr.io/soulteary/herald
@@ -25,15 +25,15 @@ images:
     digest: ""
   herald-totp:
     image: ghcr.io/soulteary/herald-totp
-    version: v0.3.0
+    version: 1.1.0
     digest: ""
   herald-dingtalk:
     image: ghcr.io/soulteary/herald-dingtalk
-    version: v0.5.0
+    version: 1.1.0
     digest: ""
   herald-smtp:
     image: ghcr.io/soulteary/herald-smtp
-    version: v0.2.0
+    version: 1.1.0
     digest: ""
   redis:
     image: redis

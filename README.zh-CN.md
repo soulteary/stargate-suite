@@ -45,7 +45,7 @@ stargate-suite/
 **生成并启动：**
 
 ```bash
-make gen    # 由 CLI 原生生成到 build/（不启动 Web 服务、无需 jq）
+make gen    # development Profile；自动生成 Redis/API 密钥并写入 build/*/.env
 make up
 # 或：make up-build | make up-traefik
 ```
@@ -77,7 +77,7 @@ go run ./cmd/suite doctor --compose build/dev/docker-compose.yml
 #（0 成功，校验失败或 doctor 硬失败时非零）。
 ```
 
-配置生成也可经 **Web UI**（第一步选择 Profile）或 `make gen`（原生 CLI，不启动 Web 服务）。
+配置生成也可经 **Web UI**（第一步选择 Profile）或 `make gen`（development Profile，原生 CLI，不启动 Web 服务）。CI 使用 `make gen-test` 生成隔离、确定性的 test Profile。若只需检查原始模板，可执行 `go run ./cmd/suite generate --canonical --output build`；原始模板不会补齐运行时必需的密钥。
 
 **Web UI：** `go run ./cmd/suite serve` **默认绑定 `127.0.0.1:8085`**（仅本地回环，本机无需鉴权）。对外暴露需显式开启且强制鉴权：`serve --listen 0.0.0.0:8085 --allow-remote`——未加 `--allow-remote` 会拒绝启动；remote 模式下必须携带 access token（未传 `--token` 时自动生成并打印）。状态变更 POST 会做 Origin/CSRF 校验，Cookie 为 HttpOnly + SameSite=Strict（非回环时置 Secure），且生成产物返回后即从服务端会话中清除运维密钥。监听端口被占用会直接报错，**绝不静默换端口**。
 
@@ -101,7 +101,7 @@ docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local  # �
 ## 端口与环境变量
 
 - **Stargate**：无宿主端口——`stargate` 服务 `ports: []`，容器内监听后端端口 **8080**（健康检查：`/healthz` 存活、`/readyz` 就绪），仅通过 Traefik 暴露（见 `compose/canonical/docker-compose.yml` 与 `config/ports.yaml`）。
-- **Warden** 8081（健康 `/healthcheck`）· **Herald** 8082（`/healthz`）· **Herald-TOTP** 8084 · **Herald-DingTalk** 8083 · **Herald-SMTP** 8085 · **Redis** 6379（仅在端口被暴露/映射时占用宿主端口）。组件版本、端口与健康路径均以 `config/components.yaml` 为唯一权威来源——当前锁定组合：Stargate `v1.0.0`、Warden `v1.0.0`、Herald `v1.1.0`。
+- **Warden** 8081（健康 `/healthcheck`）· **Herald** 8082（`/healthz`）· **Herald-TOTP** 8084 · **Herald-DingTalk** 8083 · **Herald-SMTP** 8085 · **Redis** 6379（仅在端口被暴露/映射时占用宿主端口）。组件版本、端口与健康路径均以 `config/components.yaml` 为唯一权威来源——当前核心组合：Stargate `v1.0.0`、Warden `v1.1.0`、Herald `v1.1.0`；可选服务统一锁定为 `v1.1.0`。
 - **Web UI** 默认 **8085**（`make serve`），与 **herald-smtp** 的默认端口相同。默认场景不会启动 herald-smtp，因此开箱即用无冲突；但若启用 herald-smtp 且同一台机器上同时执行 `make serve`，两者端口会冲突——需改其一（如用 `SERVE_PORT` 改 Web UI 端口，或改 herald-smtp 宿主端口）。
 - 复制 `.env.example` 为 `.env` 可覆盖镜像版本、`AUTH_HOST`、`PASSWORDS`、`WARDEN_API_KEY`、`HERALD_API_KEY`、`HERALD_HMAC_SECRET`。
 
