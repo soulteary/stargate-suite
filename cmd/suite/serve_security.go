@@ -73,10 +73,10 @@ func resolveServeConfig(listen, port, token string, allowRemote, allowInsecureCo
 	}
 
 	cfg := serveConfig{
-		listenAddr:  addr,
-		allowRemote: allowRemote,
-		token:       strings.TrimSpace(token),
-		loopback:    isLoopbackHost(host),
+		listenAddr:   addr,
+		allowRemote:  allowRemote,
+		token:        strings.TrimSpace(token),
+		loopback:     isLoopbackHost(host),
 		secureCookie: !allowInsecureCookie,
 	}
 
