@@ -58,10 +58,8 @@ const (
 	EnvHeraldTestAPIKey       = "HERALD_TEST_API_KEY"
 	EnvHeraldTestListenerAddr = "HERALD_TEST_LISTENER_ADDR"
 
-	// Warden v1.1 fields (PR8). Upstream Warden v1.0.0 (highest stable tag; no
-	// v1.1.0 exists) DOES parse WARDEN_HMAC_ALLOW_V1 (internal/cmd/validate.go)
-	// and WARDEN_METRICS_REQUIRE_AUTH (main_routes.go). The suite pins v1 off by
-	// default so the legacy replayable v1 canonical form is never accepted.
+	// Warden v1.1 fields (PR8). The suite pins v1 off by default so the legacy
+	// replayable v1 canonical form is never accepted.
 	EnvWardenHmacAllowV1        = "WARDEN_HMAC_ALLOW_V1"
 	EnvWardenMetricsRequireAuth = "WARDEN_METRICS_REQUIRE_AUTH"
 )

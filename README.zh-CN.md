@@ -101,7 +101,7 @@ docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local  # �
 ## 端口与环境变量
 
 - **Stargate**：无宿主端口——`stargate` 服务 `ports: []`，容器内监听后端端口 **8080**（健康检查：`/healthz` 存活、`/readyz` 就绪），仅通过 Traefik 暴露（见 `compose/canonical/docker-compose.yml` 与 `config/ports.yaml`）。
-- **Warden** 8081（健康 `/healthcheck`）· **Herald** 8082（`/healthz`）· **Herald-TOTP** 8084 · **Herald-DingTalk** 8083 · **Herald-SMTP** 8085 · **Redis** 6379（仅在端口被暴露/映射时占用宿主端口）。组件版本、端口与健康路径均以 `config/components.yaml` 为唯一权威来源——当前锁定组合：Stargate `v1.0.0`、Warden `v1.0.0`、Herald `v1.1.0`。
+- **Warden** 8081（健康 `/healthcheck`）· **Herald** 8082（`/healthz`）· **Herald-TOTP** 8084 · **Herald-DingTalk** 8083 · **Herald-SMTP** 8085 · **Redis** 6379（仅在端口被暴露/映射时占用宿主端口）。组件版本、端口与健康路径均以 `config/components.yaml` 为唯一权威来源——当前核心组合：Stargate `v1.0.0`、Warden `v1.1.0`、Herald `v1.1.0`；可选服务统一锁定为 `v1.1.0`。
 - **Web UI** 默认 **8085**（`make serve`），与 **herald-smtp** 的默认端口相同。默认场景不会启动 herald-smtp，因此开箱即用无冲突；但若启用 herald-smtp 且同一台机器上同时执行 `make serve`，两者端口会冲突——需改其一（如用 `SERVE_PORT` 改 Web UI 端口，或改 herald-smtp 宿主端口）。
 - 复制 `.env.example` 为 `.env` 可覆盖镜像版本、`AUTH_HOST`、`PASSWORDS`、`WARDEN_API_KEY`、`HERALD_API_KEY`、`HERALD_HMAC_SECRET`。
 

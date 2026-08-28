@@ -568,7 +568,7 @@ WARDEN_REDIS_PASSWORD=
 # HERALD_HMAC_KEYS=
 
 # DingTalk channel (optional): Herald calls herald-dingtalk via HTTP for verification code push
-# HERALD_DINGTALK_IMAGE=ghcr.io/soulteary/herald-dingtalk:v0.5.0
+# HERALD_DINGTALK_IMAGE=ghcr.io/soulteary/herald-dingtalk:1.1.0
 # HERALD_DINGTALK_API_URL=http://herald-dingtalk:8083
 # HERALD_DINGTALK_API_KEY=
 # DINGTALK_APP_KEY=
@@ -577,7 +577,7 @@ WARDEN_REDIS_PASSWORD=
 # DINGTALK_LOOKUP_MODE=none
 
 # Email channel (optional): Herald calls herald-smtp via HTTP for email verification codes
-# HERALD_SMTP_IMAGE=ghcr.io/soulteary/herald-smtp:v0.2.0
+# HERALD_SMTP_IMAGE=ghcr.io/soulteary/herald-smtp:1.1.0
 # HERALD_SMTP_API_URL=http://herald-smtp:8085
 # HERALD_SMTP_API_KEY=
 # SMTP_HOST=
@@ -592,7 +592,7 @@ WARDEN_REDIS_PASSWORD=
 # HERALD_TOTP_ENABLED=false
 # HERALD_TOTP_BASE_URL=http://herald-totp:8084
 # HERALD_TOTP_API_KEY=
-# HERALD_TOTP_IMAGE=ghcr.io/soulteary/herald-totp:v0.3.0
+# HERALD_TOTP_IMAGE=ghcr.io/soulteary/herald-totp:1.1.0
 # HERALD_TOTP_ENCRYPTION_KEY=   # 32-byte AES-256 key, required when herald-totp runs
 # HERALD_TOTP_PORT=:8084
 # HERALD_TOTP_REDIS_ADDR=herald-redis:6379

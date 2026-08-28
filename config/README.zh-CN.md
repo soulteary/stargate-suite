@@ -58,7 +58,7 @@ v1 契约（Stargate 1.0.0 / Warden 1.1.0 / Herald 1.1.0）新增了安全相关
 
 - **Stargate**：`COOKIE_SECURE`、`CALLBACK_ALLOWED_HOSTS`、`SESSION_EXCHANGE_SECRET`、`TRUSTED_PROXIES`、`PROXY_HEADER`、`PASSWORD_HEADER_AUTH_ENABLED`、`WARDEN_HMAC_KEY_ID` / `WARDEN_HMAC_SECRET`、`HERALD_HMAC_KEY_ID`、`WARDEN_TLS_*`。
 - **Herald**：`REQUEST_AUTH_MODE`、`HERALD_HMAC_DEFAULT_KEY_ID`、`HMAC_MAX_DRIFT`、`HMAC_V1_ENABLED`、`HERALD_IDEMPOTENCY_SECRET`、`HERALD_PII_PEPPER`、`HERALD_TRUSTED_PROXIES` / `HERALD_TRUSTED_PROXY_HEADER`、`HERALD_TEST_API_KEY`、`HERALD_TEST_LISTENER_ADDR`。
-- **Warden**：PR7 新增 `ENVIRONMENT`。PR8 额外接入 `WARDEN_HMAC_ALLOW_V1` 与 `WARDEN_METRICS_REQUIRE_AUTH`：交叉核对上游 Warden **v1.0.0**（当前最高稳定 Tag，不存在 `v1.1.0`）确认两者**均被解析**（`internal/cmd/validate.go` 的 `ParseHMACAllowV1`、`main_routes.go` 的 metrics 守卫），修正了 PR7 早前的判断。套件默认将 `WARDEN_HMAC_ALLOW_V1=false`，从不接受可重放的遗留 v1 规范串。
+- **Warden**：PR7 新增 `ENVIRONMENT`。PR8 额外接入 `WARDEN_HMAC_ALLOW_V1` 与 `WARDEN_METRICS_REQUIRE_AUTH`；Warden **v1.1.0** 已解析两者（`internal/cmd/validate.go` 的 `ParseHMACAllowV1`、`main_routes.go` 的 metrics 守卫）。套件默认将 `WARDEN_HMAC_ALLOW_V1=false`，从不接受可重放的遗留 v1 规范串。
 
 `./suite validate --profile <development|test|production>` 运行与 Web UI 相同的四层校验器（CLI 与 UI 共用 `validateForProfile` → `policy.Validate`）：
 
@@ -79,7 +79,7 @@ v1 契约（Stargate 1.0.0 / Warden 1.1.0 / Herald 1.1.0）新增了安全相关
 
 PR8 是一个**单一原子回滚单元**，把三大核心镜像升级到 v1 线并迁移通信契约：
 
-- **镜像（来自 `components.yaml` 单一来源）**：Stargate `v1.0.0`、Warden `v1.0.0`（上游最高稳定 Tag——计划中的 `v1.1.0` 并不存在）、Herald `v1.1.0`。`env-meta.yaml`、`.env.example`、`compose/canonical`、`ports.yaml` 与 `internal/contract` 漂移测试全部以清单为准。
+- **镜像（来自 `components.yaml` 单一来源）**：Stargate `v1.0.0`、Warden `v1.1.0`、Herald `v1.1.0`；可选通道服务统一为 `v1.1.0`。`env-meta.yaml`、`.env.example`、`compose/canonical`、`ports.yaml` 与 `internal/contract` 漂移测试全部以清单为准。
 - **Stargate 端口 80 → 8080**：容器端口、Host 映射、Traefik `loadbalancer.server.port` 与 `forwardauth.address` 全部改为 `8080`。
 - **健康/就绪路径**：Stargate liveness `/healthz` + readiness `/readyz`；Warden `/healthcheck`；Herald `/healthz`。`make health`、`.github/workflows/ci.yml`、`scripts/run-e2e.sh` 均探测新路径。
 - **Herald 显式认证**：显式设置 `REQUEST_AUTH_MODE=hmac_v2`（不再隐式在 API Key/HMAC 间选择）。仅配置单个 `HMAC_SECRET`（无 `HERALD_HMAC_KEYS`）时 Herald 解析出隐式 `default` key id，客户端可省略 `X-Key-Id`。
