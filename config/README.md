@@ -13,8 +13,8 @@ Web UI page config and scenario presets (`scenarios.json`). Overview: [../README
 ## Component manifest (single source of truth)
 
 - **components.yaml**: The authoritative registry of component **versions, images, container ports, health paths, and contract versions**. It fixes version/port drift (M-01): `env-meta.yaml`, `.env.example`, `compose/canonical`, and `composegen` container-port defaults must all match it, and `suite version` reads its `verifiedCombo` for the validated target combination.
-  - `components.*` registers the **current running values** (pre-migration). Bumping images to v1 is done atomically in a later PR; only then do `components.*` and `verifiedCombo` converge.
-  - `verifiedCombo` is the validated **target v1** combo shown by `suite version` (kept separate from `components.*` on purpose while the two differ).
+  - `components.*` registers the current v1 image and runtime contracts used by generation.
+  - `verifiedCombo` is the release-tested core combination shown by `suite version`; drift tests require it to match the registered component versions.
   - `dependencies` registers non-suite images (Redis, whoami) so they are not re-hardcoded elsewhere.
   - Drift is enforced by tests in `internal/contract` (`manifest_test.go`). Generated `build/*` is a gitignored artifact and is **not** a source of truth: a non-failing advisory flags stale `build/*` image pins so they can be regenerated.
 - **components.lock.yaml**: Placeholder structure for image content-address digests (`sha256:...`), filled at release time so deployments are reproducible.
@@ -22,7 +22,7 @@ Web UI page config and scenario presets (`scenarios.json`). Overview: [../README
 ## Presets & compose path
 
 - **Default compose file used by Makefile/E2E**: `COMPOSE_FILE` defaults to `build/image/docker-compose.yml`; all compose output is generated under `build/` from canonical.
-- **Generation is Web UI only** (or `make gen`, which runs `scripts/gen-via-api.sh` and calls the Web API). There is no CLI `gen` or `gen-split` command.
+- **Generation**: `make gen` invokes the native `suite generate` command. The Web UI uses the same policy and compose-generation packages.
 - **Modes**: `image`, `build`, `traefik`, `traefik-herald`, `traefik-warden`, `traefik-stargate` — outputs under `build/<mode>/`.
 - **scenarios.json**: Defines scenario presets (`modes` + `options` + `envOverrides`) for the Web UI; scenario output is produced only via the Web UI (choose preset and generate).
 - **canonical**: `compose/canonical/docker-compose.yml` is the base template; Web UI scenario presets (S1~S5) select modes and options.
@@ -54,13 +54,13 @@ When adding or changing a service’s environment variables, keep these in sync 
 
 Run `./suite validate` to check that `page.yaml` and the merged config load correctly, and (when `config/env-meta.yaml` and `config/scenarios.json` exist) consistency between canonical compose env vars and env-meta, and scenario option keys. Useful in CI or for a quick local check.
 
-## v1 config fields & four-layer profile validation (PR7)
+## v1 config fields & four-layer profile validation
 
 The v1 contracts (Stargate 1.0.0 / Warden 1.1.0 / Herald 1.1.0) add security-relevant env fields. They are registered in `env-meta.yaml` and declared in `config/schemas/env-fields.yaml` (the schema is mirrored by the validator; a drift test in `internal/policy` fails if the schema references a code the engine does not implement).
 
 - **Stargate**: `COOKIE_SECURE`, `CALLBACK_ALLOWED_HOSTS`, `SESSION_EXCHANGE_SECRET`, `TRUSTED_PROXIES`, `PROXY_HEADER`, `PASSWORD_HEADER_AUTH_ENABLED`, `WARDEN_HMAC_KEY_ID` / `WARDEN_HMAC_SECRET`, `HERALD_HMAC_KEY_ID`, `WARDEN_TLS_*`.
 - **Herald**: `REQUEST_AUTH_MODE`, `HERALD_HMAC_DEFAULT_KEY_ID`, `HMAC_MAX_DRIFT`, `HMAC_V1_ENABLED`, `HERALD_IDEMPOTENCY_SECRET`, `HERALD_PII_PEPPER`, `HERALD_TRUSTED_PROXIES` / `HERALD_TRUSTED_PROXY_HEADER`, `HERALD_TEST_API_KEY`, `HERALD_TEST_LISTENER_ADDR`.
-- **Warden**: PR7 added `ENVIRONMENT`. PR8 additionally wires `WARDEN_HMAC_ALLOW_V1` and `WARDEN_METRICS_REQUIRE_AUTH`; Warden **v1.1.0** parses both (`internal/cmd/validate.go` `ParseHMACAllowV1`, `main_routes.go` metrics guard). The suite pins `WARDEN_HMAC_ALLOW_V1=false` by default so the legacy replayable v1 canonical form is never accepted.
+- **Warden**: `ENVIRONMENT`, `WARDEN_HMAC_ALLOW_V1`, and `WARDEN_METRICS_REQUIRE_AUTH` are wired into the v1.1.0 configuration. The suite pins `WARDEN_HMAC_ALLOW_V1=false` by default so the legacy replayable v1 canonical form is never accepted.
 
 `./suite validate --profile <development|test|production>` runs the same four-layer validator used by the Web UI (CLI and UI share `validateForProfile` → `policy.Validate`):
 
@@ -77,9 +77,7 @@ Each finding carries a stable `code` (e.g. `HERALD_PII_PEPPER_WEAK`). Use `--jso
 
 Production is always strict (cannot be relaxed with `--strict=false`); `--strict` promotes test/dev findings to hard errors too.
 
-## v1 core-image upgrade & HMAC v2 (PR8)
-
-PR8 is a single atomic rollback unit that bumps the three core images to their v1 line and migrates the wire contract:
+## v1 core images & HMAC v2
 
 - **Images (from `components.yaml`, single source)**: Stargate `v1.0.0`, Warden `v1.1.0`, Herald `v1.1.0`; optional channel services are `v1.1.0`. `env-meta.yaml`, `.env.example`, `compose/canonical`, `ports.yaml` and the `internal/contract` drift tests all follow the manifest.
 - **Stargate port 80 → 8080**: container port, host mapping, Traefik `loadbalancer.server.port`, and the `forwardauth.address` all move to `8080`.
@@ -89,8 +87,6 @@ PR8 is a single atomic rollback unit that bumps the three core images to their v
 - **Herald test-code listener**: the `/v1/test/code` endpoint is served only on a dedicated loopback-only listener (`HERALD_TEST_LISTENER_ADDR`, default `127.0.0.1:8092`) guarded by `HERALD_TEST_API_KEY`; the main `:8082` listener never exposes codes. The E2E helper reaches it via `docker compose exec herald curl` (`HERALD_COMPOSE_DIR`).
 - **E2E signing migrated to HMAC v2**: the canonical string `HERALD-HMAC-V2\n<METHOD>\n<path>\n<query>\n<ts>\n<nonce>\n<service>\n<keyid>\n<sha256(body)>` mirrors `herald/internal/auth/hmac_v2.go` (v1.1.0) exactly and is cross-verified against the upstream `CanonicalRequest.Canonical()` field order. Former `X-API-Key` positive tests are inverted into negative tests asserting API keys are rejected under `hmac_v2`.
 
-Rollback the whole PR together (`git revert`); partial rollback breaks either runtime or tests.
-
 ## Commands
 
 ```bash
@@ -98,6 +94,6 @@ Rollback the whole PR together (`git revert`); partial rollback breaks either ru
 ./suite serve      # Web UI at http://localhost:8085 (-port or SERVE_PORT)
 ```
 
-Generate compose: use the Web UI, or run `make gen` (calls Web API via `scripts/gen-via-api.sh`).
+Generate compose with `make gen` (native CLI), or use the Web UI for interactive configuration.
 
 See [../README](../README.md) · [../compose/README](../compose/README.md).
