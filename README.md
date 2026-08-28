@@ -142,6 +142,21 @@ Full login flow is covered by e2e tests; see [e2e/README](e2e/README.md).
 - Local build: `make up-build`, then rebuild/restart
 - Lint: `golangci-lint run --max-same-issues=100000`
 
+## Releases & supply chain
+
+CI is split into tiers: `ci.yml` (fast PR feedback), `main.yml` (full E2E +
+image build + Trivy), and `nightly.yml` (multi-arch + cross-OS). All third-party
+GitHub Actions are pinned to commit SHAs; workflows default to
+`permissions: contents: read`.
+
+`release.yml` runs on a semver tag (`vX.Y.Z`) or a controlled
+`workflow_dispatch` re-run. It builds `-trimpath` binaries for
+linux/darwin/windows amd64+arm64, publishes a multi-arch image, and produces:
+SBOM (SPDX), a signed `checksums.txt` (keyless Cosign), keyless Cosign image
+signature, and GitHub build-provenance attestations. Stable tags update
+`latest`; pre-release tags (e.g. `v0.10.0-rc.1`) never move it. Release notes are
+extracted from the matching section of `CHANGELOG.md`.
+
 ## License
 
 Same as main project.

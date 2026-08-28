@@ -142,6 +142,19 @@ docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local  # �
 - 本地构建：`make up-build`，再重新构建/重启
 - 代码检查：`golangci-lint run --max-same-issues=100000`
 
+## 发布与供应链
+
+CI 分层：`ci.yml`（PR 快速反馈）、`main.yml`（完整 E2E + 镜像构建 + Trivy 扫描）、
+`nightly.yml`（多架构 + 跨 OS）。所有第三方 GitHub Action 均固定到 commit SHA；
+workflow 顶层默认 `permissions: contents: read`。
+
+`release.yml` 在推送语义化 tag（`vX.Y.Z`）或受控 `workflow_dispatch` 重跑时触发。
+它以 `-trimpath` 构建 linux/darwin/windows 的 amd64+arm64 二进制，发布多架构镜像，
+并生成：SBOM（SPDX）、签名的 `checksums.txt`（keyless Cosign）、镜像的 keyless Cosign
+签名、以及 GitHub 构建来源证明（attestation）。仅 stable tag 更新 `latest`；
+预发布 tag（如 `v0.10.0-rc.1`）不会移动 `latest`。Release 正文取自 `CHANGELOG.md`
+中对应版本的段落。
+
 ## 许可证
 
 与主项目一致。
