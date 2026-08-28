@@ -1211,16 +1211,20 @@ func generateImageOrBuild(full map[string]interface{}, mode string, opts *Option
 	out["networks"] = map[string]interface{}{
 		"the-gate-network": map[string]interface{}{"driver": "bridge"},
 	}
-	if opts == nil {
-		opts = &Options{}
+	// A nil options value means "preserve canonical defaults". Do not turn it
+	// into a zero-value Options: false booleans would otherwise remove health
+	// checks and published ports from raw canonical image/build output.
+	var modeOpts *Options
+	if opts != nil {
+		optsCopy := *opts
+		optsCopy.TraefikNetwork = false
+		modeOpts = &optsCopy
 	}
-	optsCopy := *opts
-	optsCopy.TraefikNetwork = false
-	applyOptionsToCompose(out, &optsCopy)
-	applyNetworkSegmentation(out, &optsCopy)
-	applyLeastPrivilege(out, &optsCopy)
-	if !optsCopy.UseNamedVolume {
-		applyRedisBindPaths(out, &optsCopy)
+	applyOptionsToCompose(out, modeOpts)
+	applyNetworkSegmentation(out, modeOpts)
+	applyLeastPrivilege(out, modeOpts)
+	if modeOpts != nil && !modeOpts.UseNamedVolume {
+		applyRedisBindPaths(out, modeOpts)
 	}
 	if mode == "build" {
 		svcs, _ := out["services"].(map[string]interface{})
