@@ -22,6 +22,22 @@ func loadManifestFromRoot(t *testing.T, root string) *Manifest {
 	return m
 }
 
+func TestComponentLockMatchesManifestSnapshot(t *testing.T) {
+	root := repoRoot(t)
+	manifest := loadManifestFromRoot(t, root)
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(LockPath)))
+	if err != nil {
+		t.Fatalf("read %s: %v", LockPath, err)
+	}
+	lock, err := ParseLock(data)
+	if err != nil {
+		t.Fatalf("parse %s: %v", LockPath, err)
+	}
+	if err := ValidateLock(manifest, lock, false); err != nil {
+		t.Fatalf("component lock drift: %v", err)
+	}
+}
+
 // TestVerifiedComboMatchesComponents prevents the CLI's advertised verified
 // matrix from drifting away from the images that generation actually uses.
 func TestVerifiedComboMatchesComponents(t *testing.T) {
