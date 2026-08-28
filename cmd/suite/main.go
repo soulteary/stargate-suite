@@ -10,8 +10,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/soulteary/cli-kit/configutil"
 )
 
 //go:embed static
@@ -22,6 +20,30 @@ const (
 	canonicalCompose     = "compose/canonical/docker-compose.yml"
 	maxGenerateBodyBytes = 1 << 20 // 1MB for /api/generate request body
 )
+
+// resolveString applies the CLI configuration precedence used by suite:
+// an explicitly supplied flag wins, then a non-empty environment value, then
+// the default. Environment whitespace is trimmed; explicit flag values are
+// returned exactly as parsed by flag.FlagSet.
+func resolveString(fs *flag.FlagSet, flagName, envKey, defaultValue string) string {
+	flagSet := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == flagName {
+			flagSet = true
+		}
+	})
+	if flagSet {
+		if f := fs.Lookup(flagName); f != nil {
+			return f.Value.String()
+		}
+	}
+	if value, ok := os.LookupEnv(envKey); ok {
+		if value = strings.TrimSpace(value); value != "" {
+			return value
+		}
+	}
+	return defaultValue
+}
 
 // pageData 与 config/page.yaml 对应，用于渲染 index 模板。
 type pageData struct {
@@ -329,7 +351,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	configDirOverride = strings.TrimSpace(configutil.ResolveString(fs, "config-dir", "CONFIG_DIR", "", true))
+	configDirOverride = strings.TrimSpace(resolveString(fs, "config-dir", "CONFIG_DIR", ""))
 
 	// Feed component-manifest container ports into composegen so generated
 	// compose ports derive from config/components.yaml (single source, M-01).
@@ -343,7 +365,7 @@ func main() {
 	}
 
 	if cmdName == "serve" {
-		servePort = strings.TrimSpace(configutil.ResolveString(fs, "port", "SERVE_PORT", "8085", true))
+		servePort = strings.TrimSpace(resolveString(fs, "port", "SERVE_PORT", "8085"))
 		if servePort == "" {
 			servePort = "8085"
 		}
