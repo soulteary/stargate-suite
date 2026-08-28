@@ -114,6 +114,8 @@ services:
   herald-redis:
     image: ${HERALD_REDIS_IMAGE:-redis:8.4-alpine}
     container_name: the-gate-herald-redis
+    environment:
+      HERALD_REDIS_PASSWORD: ${HERALD_REDIS_PASSWORD:?HERALD_REDIS_PASSWORD is required}
     command:
       - redis-server
       - --requirepass
@@ -284,6 +286,8 @@ services:
   warden-redis:
     image: ${WARDEN_REDIS_IMAGE:-redis:8.4-alpine}
     container_name: the-gate-warden-redis
+    environment:
+      WARDEN_REDIS_PASSWORD: ${WARDEN_REDIS_PASSWORD:?WARDEN_REDIS_PASSWORD is required}
     command:
       - redis-server
       - --requirepass
