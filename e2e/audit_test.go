@@ -38,7 +38,7 @@ func TestHeraldAuditLog(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req, bodyBytes)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -94,7 +94,7 @@ func TestHeraldAuditLog(t *testing.T) {
 
 	verifyReq.Header.Set("Content-Type", "application/json")
 	verifyReq.Header.Set("Accept", "application/json")
-	verifyReq.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(verifyReq, verifyBodyBytes)
 
 	verifyResp, err := client.Do(verifyReq)
 	testza.AssertNoError(t, err)
@@ -133,7 +133,7 @@ func TestHeraldAuditLog(t *testing.T) {
 
 	req2.Header.Set("Content-Type", "application/json")
 	req2.Header.Set("Accept", "application/json")
-	req2.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req2, bodyBytes2)
 
 	resp2, err := client.Do(req2)
 	testza.AssertNoError(t, err)
@@ -172,7 +172,7 @@ func TestHeraldAuditLog(t *testing.T) {
 
 	verifyReq2.Header.Set("Content-Type", "application/json")
 	verifyReq2.Header.Set("Accept", "application/json")
-	verifyReq2.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(verifyReq2, verifyBodyBytes2)
 
 	verifyResp2, err := client.Do(verifyReq2)
 	testza.AssertNoError(t, err)
@@ -212,7 +212,7 @@ func TestHeraldAuditLog(t *testing.T) {
 
 	req3.Header.Set("Content-Type", "application/json")
 	req3.Header.Set("Accept", "application/json")
-	req3.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req3, bodyBytes3)
 
 	resp3, err := client.Do(req3)
 	testza.AssertNoError(t, err)
@@ -240,7 +240,7 @@ func TestHeraldAuditLog(t *testing.T) {
 	testza.AssertNoError(t, err)
 
 	revokeReq.Header.Set("Accept", "application/json")
-	revokeReq.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(revokeReq, nil)
 
 	revokeResp, err := client.Do(revokeReq)
 	testza.AssertNoError(t, err)

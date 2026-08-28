@@ -58,20 +58,28 @@ const (
 	EnvHeraldTestAPIKey       = "HERALD_TEST_API_KEY"
 	EnvHeraldTestListenerAddr = "HERALD_TEST_LISTENER_ADDR"
 
-	// Warden v1.1 fields (PR7). NOTE: Warden v1.1 only exposes ENVIRONMENT
-	// among the new markers; WARDEN_HMAC_ALLOW_V1 / WARDEN_METRICS_REQUIRE_AUTH
-	// are NOT parsed by the upstream Warden config, so the suite does not
-	// invent them (see docs/upgrade/pr-07 report).
+	// Warden v1.1 fields (PR8). Upstream Warden v1.0.0 (highest stable tag; no
+	// v1.1.0 exists) DOES parse WARDEN_HMAC_ALLOW_V1 (internal/cmd/validate.go)
+	// and WARDEN_METRICS_REQUIRE_AUTH (main_routes.go). The suite pins v1 off by
+	// default so the legacy replayable v1 canonical form is never accepted.
+	EnvWardenHmacAllowV1        = "WARDEN_HMAC_ALLOW_V1"
+	EnvWardenMetricsRequireAuth = "WARDEN_METRICS_REQUIRE_AUTH"
 )
+
+// Deterministic loopback test-code listener address for the test profile.
+// Herald v1.1.0 mounts /v1/test/code only on this dedicated loopback listener
+// (LoopbackOnly is enforced), guarded by HERALD_TEST_API_KEY.
+const testHeraldTestListenerAddr = "127.0.0.1:8092"
 
 // Deterministic test values folded from the current default suite behaviour
 // (canonical uses these as ${VAR:-...} defaults). They are development/test-only.
 const (
-	testPasswords   = "plaintext:test1234|test1337"
-	testHeraldKey   = "test-herald-api-key"
-	testWardenKey   = "test-warden-api-key"
-	testHmacSecret  = "test-hmac-secret"
-	testRedisPasswd = "test-redis-password"
+	testPasswords     = "plaintext:test1234|test1337"
+	testHeraldKey     = "test-herald-api-key"
+	testWardenKey     = "test-warden-api-key"
+	testHmacSecret    = "test-hmac-secret"
+	testRedisPasswd   = "test-redis-password"
+	testHeraldTestKey = "test-herald-test-code-key"
 )
 
 // KeyGen produces deterministic-or-random secret material. In tests a
@@ -152,7 +160,12 @@ func Apply(p Profile, opts *composegen.Options, userEnv map[string]string, keyge
 	case HeraldTestAPIForbidden:
 		set(EnvHeraldTestMode, "false")
 	case HeraldTestAPILoopback:
+		// Herald v1.1.0 serves /v1/test/code only on a dedicated loopback-only
+		// listener guarded by HERALD_TEST_API_KEY; the main listener can never
+		// expose test codes. Wire both the mode and its dedicated listener.
 		set(EnvHeraldTestMode, "true")
+		set(EnvHeraldTestAPIKey, testHeraldTestKey)
+		set(EnvHeraldTestListenerAddr, testHeraldTestListenerAddr)
 	default:
 		set(EnvHeraldTestMode, "false")
 	}
@@ -168,8 +181,10 @@ func Apply(p Profile, opts *composegen.Options, userEnv map[string]string, keyge
 	case HeraldTestAPIKeyOrHmacV2:
 		set(EnvRequestAuthMode, "hmac_v2")
 	}
-	// HMAC v1 is always forbidden; make the intent explicit in the env.
+	// HMAC v1 is always forbidden; make the intent explicit in the env for both
+	// Herald and Warden (v1 canonical form is not replay-resistant).
 	set(EnvHmacV1Enabled, "false")
+	set(EnvWardenHmacAllowV1, "false")
 
 	// --- Cookie Secure ----------------------------------------------------
 	switch p.CookieSecure {

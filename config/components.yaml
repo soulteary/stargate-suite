@@ -12,24 +12,25 @@
 
 schemaVersion: 1
 
-# 当前运行组件（迁移前旧值；改变运行行为需走 PR 8 原子升级）。
+# 当前运行组件（迁移后 v1 目标值；PR 8 原子升级已把 components 收敛到 verifiedCombo）。
 components:
   stargate:
     image: ghcr.io/soulteary/stargate
-    version: v0.11.0
-    contractVersion: v0
-    containerPort: 80
-    livenessPath: /health
+    version: v1.0.0
+    contractVersion: v1
+    containerPort: 8080
+    livenessPath: /healthz
+    readinessPath: /readyz
   warden:
     image: ghcr.io/soulteary/warden
-    version: v0.13.0
-    contractVersion: v0
+    version: v1.0.0
+    contractVersion: v1
     containerPort: 8081
-    livenessPath: /health
+    livenessPath: /healthcheck
   herald:
     image: ghcr.io/soulteary/herald
-    version: v0.9.0
-    contractVersion: v0
+    version: v1.1.0
+    contractVersion: v1
     containerPort: 8082
     livenessPath: /healthz
 
@@ -63,8 +64,10 @@ dependencies:
     version: v1.11
 
 # 本 Suite 发布已验证的目标组件组合（只读契约来源，见 .cursor 规则 / PLAN.md）。
-# 供 `suite version` 展示；与 components.* 分开，因为 PR 4 阶段 components 仍登记旧值。
+# 供 `suite version` 展示；PR 8 已把 components.* 收敛到此组合。
+# 注意：Warden 上游最高稳定 Tag 为 v1.0.0（不存在 v1.1.0），故 Warden 目标定为 v1.0.0；
+# 其 v1 契约（HMAC v2、/healthcheck、WARDEN_HMAC_ALLOW_V1、ENVIRONMENT）已在 v1.0.0 落地。
 verifiedCombo:
   stargate: v1.0.0
-  warden: v1.1.0
+  warden: v1.0.0
   herald: v1.1.0

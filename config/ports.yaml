@@ -4,8 +4,8 @@
 ports:
   - serviceKey: stargate    # compose 服务名，用于 ApplyPorts 映射
     optionId: portStargate  # 表单字段名，与 cmd_gen options 一致
-    containerPort: "80"
-    defaultHostPort: "80"
+    containerPort: "8080"
+    defaultHostPort: "8080"
     labelKey: portStargateLabel
     descKey: portStargateDesc
     showWhenOption: exposePorts

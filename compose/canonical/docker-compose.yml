@@ -14,19 +14,37 @@
 services:
   # Herald（传令）- OTP/验证码服务，负责 challenge 创建、发送、校验与限流
   herald:
-    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v0.9.0}
+    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v1.1.0}
     container_name: the-gate-herald
     ports:
       - "8082:8082"
     environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
       - PORT=:8082
       - REDIS_ADDR=${HERALD_REDIS_ADDR:-herald-redis:6379}
       - REDIS_PASSWORD=${HERALD_REDIS_PASSWORD:-}
       - REDIS_DB=${HERALD_REDIS_DB:-0}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Service-to-service auth: explicit HMAC v2 mode (no implicit API_KEY/HMAC selection).
+      - REQUEST_AUTH_MODE=${REQUEST_AUTH_MODE:-hmac_v2}
       - API_KEY=${HERALD_API_KEY:-test-herald-api-key}
       - HMAC_SECRET=${HERALD_HMAC_SECRET:-test-hmac-secret}
+      - HERALD_HMAC_KEYS=${HERALD_HMAC_KEYS:-}
+      - HERALD_HMAC_DEFAULT_KEY_ID=${HERALD_HMAC_DEFAULT_KEY_ID:-}
+      - HMAC_MAX_DRIFT=${HMAC_MAX_DRIFT:-60s}
+      # Legacy HMAC v1 is disabled by default; only a migration window may enable it.
+      - HMAC_V1_ENABLED=${HMAC_V1_ENABLED:-false}
+      # PII/idempotency key derivation (production must set strong values).
+      - HERALD_IDEMPOTENCY_SECRET=${HERALD_IDEMPOTENCY_SECRET:-}
+      - HERALD_PII_PEPPER=${HERALD_PII_PEPPER:-}
+      # Trusted proxy for rate-limit peer IP.
+      - HERALD_TRUSTED_PROXIES=${HERALD_TRUSTED_PROXIES:-}
+      - HERALD_TRUSTED_PROXY_HEADER=${HERALD_TRUSTED_PROXY_HEADER:-}
+      # Test verification-code endpoint runs on a SEPARATE listener guarded by a
+      # dedicated key; the main listener can never expose test codes.
       - HERALD_TEST_MODE=${HERALD_TEST_MODE:-false}
+      - HERALD_TEST_LISTENER_ADDR=${HERALD_TEST_LISTENER_ADDR:-}
+      - HERALD_TEST_API_KEY=${HERALD_TEST_API_KEY:-}
       - PROVIDER_FAILURE_POLICY=${PROVIDER_FAILURE_POLICY:-soft}
       - CHALLENGE_EXPIRY=${CHALLENGE_EXPIRY:-5m}
       - CODE_LENGTH=${CODE_LENGTH:-6}
@@ -39,7 +57,6 @@ services:
       - RATE_LIMIT_PER_IP=${RATE_LIMIT_PER_IP:-5}
       - RATE_LIMIT_PER_DESTINATION=${RATE_LIMIT_PER_DESTINATION:-10}
       - SERVICE_NAME=${SERVICE_NAME:-herald}
-      - HERALD_HMAC_KEYS=${HERALD_HMAC_KEYS:-}
       # DingTalk channel (optional): Herald calls herald-dingtalk via HTTP; set when using DingTalk for verification code push
       - HERALD_DINGTALK_API_URL=${HERALD_DINGTALK_API_URL:-}
       - HERALD_DINGTALK_API_KEY=${HERALD_DINGTALK_API_KEY:-}
@@ -206,11 +223,12 @@ services:
 
   # Warden（看守）- 白名单用户服务，提供 user_id、email/phone 等供 Stargate 与 Herald 使用
   warden:
-    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v0.13.0}
+    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v1.0.0}
     container_name: the-gate-warden
     ports:
       - "8081:8081"
     environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
       - PORT=8081
       - REDIS=${WARDEN_REDIS_ADDR:-warden-redis:6379}
       - REDIS_PASSWORD=${WARDEN_REDIS_PASSWORD:-}
@@ -238,6 +256,9 @@ services:
       - IP_WHITELIST=${WARDEN_IP_WHITELIST:-}
       - WARDEN_HMAC_KEYS=${WARDEN_HMAC_KEYS:-}
       - WARDEN_HMAC_TIMESTAMP_TOLERANCE=${WARDEN_HMAC_TIMESTAMP_TOLERANCE:-}
+      # Legacy HMAC v1 disabled by default (secure default); metrics behind auth chain when required.
+      - WARDEN_HMAC_ALLOW_V1=${WARDEN_HMAC_ALLOW_V1:-false}
+      - WARDEN_METRICS_REQUIRE_AUTH=${WARDEN_METRICS_REQUIRE_AUTH:-false}
       - WARDEN_TLS_CERT=${WARDEN_TLS_CERT:-}
       - WARDEN_TLS_KEY=${WARDEN_TLS_KEY:-}
       - WARDEN_TLS_CA=${WARDEN_TLS_CA:-}
@@ -252,7 +273,7 @@ services:
     networks:
       - the-gate-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8081/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/healthcheck || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -282,12 +303,12 @@ services:
 
   # Stargate（门）- Forward Auth 鉴权与登录编排，依赖 Warden、Herald（内网）
   stargate:
-    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v0.11.0}
+    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v1.0.0}
     container_name: the-gate-stargate
     ports: []
     environment:
       - AUTH_HOST=${AUTH_HOST:-auth.test.localhost}
-      - PORT=${PORT:-}
+      - PORT=${PORT:-8080}
       - LOGIN_PAGE_TITLE=${LOGIN_PAGE_TITLE:-Stargate - Login}
       - LOGIN_PAGE_FOOTER_TEXT=${LOGIN_PAGE_FOOTER_TEXT:-Copyright © 2024 - Stargate}
       - COOKIE_DOMAIN=${COOKIE_DOMAIN:-}
@@ -353,13 +374,13 @@ services:
       - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.priority=100"
       - "traefik.http.routers.${STARGATE_PREFIX:-stargate}-https.service=${STARGATE_PREFIX:-stargate}-backend"
       - "traefik.http.services.${STARGATE_PREFIX:-stargate}-backend.loadbalancer.server.scheme=http"
-      - "traefik.http.services.${STARGATE_PREFIX:-stargate}-backend.loadbalancer.server.port=80"
-      - "traefik.http.middlewares.stargate-auth.forwardauth.address=http://stargate/_auth"
+      - "traefik.http.services.${STARGATE_PREFIX:-stargate}-backend.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.stargate-auth.forwardauth.address=http://stargate:8080/_auth"
       - "traefik.http.middlewares.stargate-auth.forwardauth.authResponseHeaders=${USER_HEADER_NAME:-X-Forwarded-User}"
       - "traefik.http.middlewares.stargate-auth.forwardauth.authResponseHeadersRegex=^(X-Forwarded-.*|X-Auth-.*)$"
       - "traefik.http.middlewares.stargate-auth.forwardauth.trustForwardHeader=true"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/healthz || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 3

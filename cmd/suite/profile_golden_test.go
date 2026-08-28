@@ -116,6 +116,39 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 				t.Errorf("%q compose must not publish Redis host port 6379 (S-03)", tc.profile)
 			}
 
+			// PR 8 invariants shared by all profiles: core images pinned to the
+			// v1 contract line, Stargate on 8080 (not 80), and the split health
+			// probes (Stargate /healthz, Warden /healthcheck, Herald /healthz).
+			for _, img := range []string{
+				"ghcr.io/soulteary/stargate:v1.0.0",
+				"ghcr.io/soulteary/warden:v1.0.0",
+				"ghcr.io/soulteary/herald:v1.1.0",
+			} {
+				if !strings.Contains(compose, img) {
+					t.Errorf("%q compose should pin core image %q (PR8)", tc.profile, img)
+				}
+			}
+			if !strings.Contains(compose, "http://stargate:8080/_auth") {
+				t.Errorf("%q compose forwardAuth must target Stargate on :8080 (PR8 port 80→8080)", tc.profile)
+			}
+			if strings.Contains(compose, "forwardauth.address=http://stargate/_auth") {
+				t.Errorf("%q compose must not keep the legacy port-80 forwardAuth address (PR8)", tc.profile)
+			}
+			if !strings.Contains(compose, "8080/healthz") {
+				t.Errorf("%q compose Stargate healthcheck must probe :8080/healthz (PR8)", tc.profile)
+			}
+			if !strings.Contains(compose, "8082/healthz") {
+				t.Errorf("%q compose Herald healthcheck must probe :8082/healthz (PR8)", tc.profile)
+			}
+			if !strings.Contains(compose, "8081/healthcheck") {
+				t.Errorf("%q compose Warden healthcheck must probe :8081/healthcheck (PR8)", tc.profile)
+			}
+			// HMAC v1 must be disabled for every profile (never a silent
+			// downgrade to the non-replay-resistant v1 canonical) — PR8 posture.
+			if !strings.Contains(env, "HMAC_V1_ENABLED=false") {
+				t.Errorf("%q env must forbid HMAC v1 (PR8)", tc.profile)
+			}
+
 			switch tc.profile {
 			case policy.Development, policy.Test:
 				if !strings.Contains(compose, "127.0.0.1:") {
@@ -123,6 +156,9 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 				}
 				if !strings.Contains(env, "ENVIRONMENT="+tc.profile) {
 					t.Errorf("%q env should set ENVIRONMENT=%s", tc.profile, tc.profile)
+				}
+				if tc.profile == policy.Test && !strings.Contains(env, "REQUEST_AUTH_MODE=hmac_v2") {
+					t.Errorf("test env must set REQUEST_AUTH_MODE=hmac_v2 so E2E signs with HMAC v2 (PR8)")
 				}
 				// development/test use leastPrivilege WITHOUT a read-only root
 				// filesystem (readonly is production-only).

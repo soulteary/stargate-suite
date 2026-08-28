@@ -187,12 +187,15 @@ order:
   - HERALD_TRUSTED_PROXY_HEADER
   - HERALD_TEST_API_KEY
   - HERALD_TEST_LISTENER_ADDR
+  # --- Warden v1 hardening (PR8) ---
+  - WARDEN_HMAC_ALLOW_V1
+  - WARDEN_METRICS_REQUIRE_AUTH
 
 # Per-key: comment (for .env and compose), services (which compose service may use this env), default (optional)
 vars:
-  HERALD_IMAGE: { comment: "Herald Service Image", services: [], default: "ghcr.io/soulteary/herald:v0.9.0" }
-  WARDEN_IMAGE: { comment: "Warden Service Image", services: [], default: "ghcr.io/soulteary/warden:v0.13.0" }
-  STARGATE_IMAGE: { comment: "Stargate Service Image", services: [], default: "ghcr.io/soulteary/stargate:v0.11.0" }
+  HERALD_IMAGE: { comment: "Herald Service Image", services: [], default: "ghcr.io/soulteary/herald:v1.1.0" }
+  WARDEN_IMAGE: { comment: "Warden Service Image", services: [], default: "ghcr.io/soulteary/warden:v1.0.0" }
+  STARGATE_IMAGE: { comment: "Stargate Service Image", services: [], default: "ghcr.io/soulteary/stargate:v1.0.0" }
   HERALD_REDIS_IMAGE: { comment: "Herald Redis Image", services: [], default: "redis:8.4-alpine" }
   WARDEN_REDIS_IMAGE: { comment: "Warden Redis Image", services: [], default: "redis:8.4-alpine" }
   STARGATE_REDIS_IMAGE: { comment: "Stargate Redis Image", services: [], default: "redis:8.4-alpine" }
@@ -381,3 +384,5 @@ vars:
   HERALD_TRUSTED_PROXY_HEADER: { comment: "Herald：真实客户端 IP 头名称", services: [herald] }
   HERALD_TEST_API_KEY: { comment: "Herald：测试验证码接口守护 API Key（仅测试模式）", services: [herald] }
   HERALD_TEST_LISTENER_ADDR: { comment: "Herald：测试验证码接口独立监听地址（与主端口隔离）", services: [herald] }
+  WARDEN_HMAC_ALLOW_V1: { comment: "Warden：是否接受遗留 HMAC v1（生产必须为 false）", services: [warden], default: "false" }
+  WARDEN_METRICS_REQUIRE_AUTH: { comment: "Warden：/metrics 是否要求鉴权", services: [warden], default: "false" }

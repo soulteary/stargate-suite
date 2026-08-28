@@ -91,9 +91,9 @@ restart-stargate: ## Restart Stargate service
 
 health: ## Check service health status
 	@echo "Checking Stargate..."
-	@docker compose -f $(COMPOSE_FILE) exec -T stargate curl -sf http://localhost:80/health > /dev/null 2>&1 && echo "✓ Stargate Healthy" || echo "✗ Stargate Unhealthy"
+	@docker compose -f $(COMPOSE_FILE) exec -T stargate curl -sf http://localhost:8080/healthz > /dev/null 2>&1 && echo "✓ Stargate Healthy" || echo "✗ Stargate Unhealthy"
 	@echo "Checking Warden..."
-	@curl -sf http://localhost:8081/health > /dev/null && echo "✓ Warden Healthy" || echo "✗ Warden Unhealthy"
+	@curl -sf http://localhost:8081/healthcheck > /dev/null && echo "✓ Warden Healthy" || echo "✗ Warden Unhealthy"
 	@echo "Checking Herald..."
 	@curl -sf http://localhost:8082/healthz > /dev/null && echo "✓ Herald Healthy" || echo "✗ Herald Unhealthy"
 

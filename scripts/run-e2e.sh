@@ -19,6 +19,15 @@ echo "=========================================="
 echo "Using compose: $COMPOSE_FILE"
 echo ""
 
+# Herald v1.1.0 serves the test-code endpoint only on a dedicated loopback-only
+# listener inside the container (127.0.0.1:8092), never on the main :8082
+# listener. getTestCode therefore fetches it via `docker compose exec herald curl`.
+# Export the compose dir + test listener wiring so the E2E helper takes that path.
+# COMPOSE_FILE is already exported, so the exec'd `docker compose` honors it.
+export HERALD_COMPOSE_DIR="${HERALD_COMPOSE_DIR:-$PROJECT_DIR}"
+export HERALD_TEST_LISTENER_ADDR="${HERALD_TEST_LISTENER_ADDR:-127.0.0.1:8092}"
+export HERALD_TEST_API_KEY="${HERALD_TEST_API_KEY:-test-herald-test-code-key}"
+
 # Ensure compose config is applied (recreates services if env/volumes changed, e.g. Warden DATA_FILE)
 docker compose -f "$COMPOSE_FILE" up -d 2>/dev/null || true
 

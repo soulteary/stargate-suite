@@ -62,6 +62,13 @@ jobs:
     env:
       COMPOSE_FILE: ${{ github.workspace }}/build/image/docker-compose.yml
       TEST_WAIT_TIMEOUT: 180
+      # Herald v1.1.0 exposes the test-code endpoint only on a dedicated
+      # loopback-only listener inside the container (never on :8082), so the E2E
+      # helper fetches it via `docker compose exec herald curl`. COMPOSE_FILE is
+      # absolute, so the exec'd compose targets the right project from any dir.
+      HERALD_COMPOSE_DIR: ${{ github.workspace }}
+      HERALD_TEST_LISTENER_ADDR: 127.0.0.1:8092
+      HERALD_TEST_API_KEY: test-herald-test-code-key
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -104,7 +111,7 @@ jobs:
           start=$(date +%s)
           while true; do
             all_ok=true
-            for endpoint in "8080/health" "8081/health" "8082/healthz"; do
+            for endpoint in "8080/healthz" "8081/healthcheck" "8082/healthz"; do
               port="${endpoint%%/*}"
               path="${endpoint#*/}"
               if ! curl -sf --connect-timeout 3 "http://127.0.0.1:$port/$path" > /dev/null 2>&1; then

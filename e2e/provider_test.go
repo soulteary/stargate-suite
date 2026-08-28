@@ -38,7 +38,7 @@ func TestHeraldProviderFailure(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req, bodyBytes)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -80,7 +80,7 @@ func TestHeraldProviderFailure(t *testing.T) {
 
 		verifyReq.Header.Set("Content-Type", "application/json")
 		verifyReq.Header.Set("Accept", "application/json")
-		verifyReq.Header.Set("X-API-Key", heraldAPIKey)
+		signHeraldReq(verifyReq, verifyBodyBytes)
 
 		verifyResp, err := client.Do(verifyReq)
 		testza.AssertNoError(t, err)
@@ -127,7 +127,7 @@ func TestHeraldProviderRetry(t *testing.T) {
 
 	req1.Header.Set("Content-Type", "application/json")
 	req1.Header.Set("Accept", "application/json")
-	req1.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req1, bodyBytes)
 	req1.Header.Set("Idempotency-Key", idempotencyKey)
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -153,7 +153,7 @@ func TestHeraldProviderRetry(t *testing.T) {
 
 	req2.Header.Set("Content-Type", "application/json")
 	req2.Header.Set("Accept", "application/json")
-	req2.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req2, bodyBytes2)
 	req2.Header.Set("Idempotency-Key", idempotencyKey)
 
 	time.Sleep(1 * time.Second)
@@ -198,7 +198,7 @@ func TestHeraldProviderErrorCodes(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req, bodyBytes)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -248,7 +248,7 @@ func TestHeraldProviderEmail(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req, bodyBytes)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -292,7 +292,7 @@ func TestHeraldProviderSMS(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req, bodyBytes)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
