@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// This file holds PR9 production-reject / contract tests for the shared
+// This file holds production-reject and failure-contract tests for the shared
 // validator (the same policy.Validate used by CLI and Web UI). They cover the
 // validation layers not already exercised by policy_test.go:
 //   - Layer 1 (field type) errors fire in EVERY profile (malformed shape is

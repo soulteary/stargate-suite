@@ -15,8 +15,8 @@ import (
 	"github.com/MarvinJWendt/testza"
 )
 
-// This file holds the PR9 v1 failure / replay / recovery contract tests. They
-// assert the security posture pinned by PR8 against the real v1 services:
+// This file holds the v1 failure, replay, and recovery contract tests. They
+// assert the current security posture against the real v1 services:
 //   - liveness vs readiness are DISTINCT endpoints (a dependency outage must
 //     not flap liveness),
 //   - Herald HMAC v2 nonces are single-use (replay is rejected),
@@ -33,7 +33,7 @@ import (
 // TestLivenessReadinessAreDistinct asserts every core service exposes a
 // liveness probe that does not touch dependencies AND a separate readiness
 // probe, so an orchestrator can tell "process up" from "ready to serve". This
-// is the liveness/readiness separation required by PR9 (source plan 9.3).
+// is the required liveness/readiness separation.
 func TestLivenessReadinessAreDistinct(t *testing.T) {
 	ensureServicesReady(t)
 

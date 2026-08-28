@@ -1,4 +1,4 @@
-# Deployment profiles — 部署 Profile 的安全与运行策略单一来源（PR 5）。
+# Deployment profiles — 部署 Profile 的安全与运行策略单一来源。
 #
 # Profile 是安全与运行策略，而不只是预填表单（见 docs/deployment.md）。
 # CLI `generate --profile` 与 Web UI 首步选择 Profile 共用本文件 + internal/policy + internal/composegen，

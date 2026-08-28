@@ -56,7 +56,7 @@ make up
 ```bash
 # development: current defaults (loopback ports, plaintext test password, dev keys).
 # --seed makes auto-generated dev keys byte-stable (dev/test only, never a real seed).
-go run ./cmd/suite generate --profile development --output build/dev --seed pr5-golden
+go run ./cmd/suite generate --profile development --output build/dev --seed profile-golden
 
 # production is experimental and STRICT: plaintext passwords, test/placeholder keys,
 # published internal ports, Cookie Secure off, or HMAC v1 are hard errors (never bypassable).
