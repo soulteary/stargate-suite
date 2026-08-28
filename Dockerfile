@@ -21,11 +21,14 @@ RUN BUILD_DATE=${BUILD_DATE:-$(date +%FT%T%z)} && \
 # Runtime stage
 FROM alpine:3.22
 # curl is used by the container HEALTHCHECK and by compose-level health probes.
-RUN apk add --no-cache ca-certificates curl
-COPY --from=builder /app/stargate-suite /bin/stargate-suite
+RUN apk add --no-cache ca-certificates curl && \
+    addgroup -S stargate-suite && \
+    adduser -S -D -H -G stargate-suite stargate-suite
+COPY --from=builder --chown=stargate-suite:stargate-suite /app/stargate-suite /bin/stargate-suite
 # Config and the canonical compose file are embedded in the binary (go:embed),
 # so the runtime image is self-contained and needs no source tree mounted.
 EXPOSE 8085
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8085/ >/dev/null || exit 1
+USER stargate-suite:stargate-suite
 CMD ["stargate-suite", "serve"]

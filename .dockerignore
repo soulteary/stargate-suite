@@ -1,0 +1,13 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+build
+bin
+dist
+coverage.out
+*.pem
+*.key
+*.crt
+secrets
