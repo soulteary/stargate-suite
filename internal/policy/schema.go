@@ -18,6 +18,7 @@ import (
 const (
 	CodePasswordsRequired       = "STARGATE_PASSWORDS_REQUIRED"
 	CodePasswordsPlaintext      = "STARGATE_PASSWORDS_PLAINTEXT_FORBIDDEN"
+	CodePasswordsHashRequired   = "STARGATE_PASSWORDS_HASH_REQUIRED"
 	CodeCookieSecureRequired    = "STARGATE_COOKIE_SECURE_REQUIRED"
 	CodeSessionExchangeSecret   = "STARGATE_SESSION_EXCHANGE_SECRET_REQUIRED"
 	CodeStepUpPathsRequired     = "STARGATE_STEP_UP_PATHS_REQUIRED"
@@ -50,6 +51,11 @@ const (
 // exchange secret, PII pepper, idempotency secret, HMAC secret) in strict
 // profiles. 32 chars ~ 128+ bits of entropy for hex/base64 material.
 const minSecretLen = 32
+
+const (
+	minAPIKeyLen        = 16
+	minRedisPasswordLen = 16
+)
 
 // isValidDuration reports whether s parses as a Go duration (e.g. 5m, 60s, 1h).
 func isValidDuration(s string) bool {
@@ -112,6 +118,10 @@ func isValidHostList(s string) bool {
 // characters. Used for session-exchange / pepper / idempotency / HMAC secrets
 // in strict profiles.
 func strongSecret(v string) bool {
+	return strongCredential(v, minSecretLen)
+}
+
+func strongCredential(v string, minLen int) bool {
 	v = strings.TrimSpace(v)
-	return len(v) >= minSecretLen && !looksWeakOrTest(v)
+	return len(v) >= minLen && !looksWeakOrTest(v)
 }

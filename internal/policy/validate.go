@@ -45,11 +45,14 @@ func (f Finding) String() string {
 }
 
 // weakOrTestValues are placeholder/test secrets that must never reach a
-// production deployment. Matching is case-insensitive substring for the "test"
-// family plus exact well-known defaults.
+// production deployment. Matching is case-insensitive and intentionally
+// catches the common separators used by generated templates (CHANGE_ME,
+// REPLACE-WITH, and so on).
 var weakOrTestValues = []string{
 	"test-herald-api-key", "test-warden-api-key", "test-hmac-secret",
-	"test-redis-password", "changeme", "placeholder", "example",
+	"test-redis-password", "changeme", "change_me", "change-me",
+	"replace_with", "replace-with", "replacewith", "placeholder", "example",
+	"dummy", "sample",
 }
 
 // looksWeakOrTest reports whether v is empty, a known test/placeholder value,
@@ -60,17 +63,21 @@ func looksWeakOrTest(v string) bool {
 		return true
 	}
 	for _, w := range weakOrTestValues {
-		if t == w {
+		if strings.Contains(t, w) {
 			return true
 		}
 	}
-	return strings.Contains(t, "test") || strings.Contains(t, "dummy") || strings.Contains(t, "sample")
+	return strings.Contains(t, "test")
 }
 
 // isPlaintextPasswords reports whether a PASSWORDS value uses the plaintext
 // algorithm (e.g. "plaintext:test1234|test1337").
 func isPlaintextPasswords(v string) bool {
 	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(v)), "plaintext:")
+}
+
+func isHashedPasswords(v string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(v)), "bcrypt:")
 }
 
 // Validate checks env + opts against profile p. Findings are returned in a
@@ -132,24 +139,26 @@ func Validate(p Profile, env map[string]string, opts *composegen.Options) []Find
 		if pw == "" {
 			add(CodePasswordsRequired, EnvPasswords, "PASSWORDS must be provided (production forbids the default plaintext test password)", false)
 		} else if isPlaintextPasswords(pw) {
-			add(CodePasswordsPlaintext, EnvPasswords, "PASSWORDS uses plaintext algorithm; production requires bcrypt/argon2/etc.", false)
+			add(CodePasswordsPlaintext, EnvPasswords, "PASSWORDS uses plaintext algorithm; production requires bcrypt", false)
+		} else if !isHashedPasswords(pw) || looksWeakOrTest(pw) {
+			add(CodePasswordsHashRequired, EnvPasswords, "PASSWORDS must contain a real bcrypt credential, not a placeholder or an unqualified value", false)
 		}
 	}
 
 	// --- Service-to-service keys ---
 	if p.SecretSource == SecretUserProvidedOrFile {
-		if looksWeakOrTest(get(EnvHeraldAPIKey)) {
-			add(CodeHeraldAPIKeyWeak, EnvHeraldAPIKey, "HERALD_API_KEY must be a user-provided key or secret-file reference (test/placeholder/empty rejected)", false)
+		if !strongCredential(get(EnvHeraldAPIKey), minAPIKeyLen) {
+			add(CodeHeraldAPIKeyWeak, EnvHeraldAPIKey, "HERALD_API_KEY must be a user-provided key of at least 16 characters (test/placeholder/empty rejected)", false)
 		}
-		if looksWeakOrTest(get(EnvWardenAPIKey)) {
-			add(CodeWardenAPIKeyWeak, EnvWardenAPIKey, "WARDEN_API_KEY must be a user-provided key or secret-file reference (test/placeholder/empty rejected)", false)
+		if !strongCredential(get(EnvWardenAPIKey), minAPIKeyLen) {
+			add(CodeWardenAPIKeyWeak, EnvWardenAPIKey, "WARDEN_API_KEY must be a user-provided key of at least 16 characters (test/placeholder/empty rejected)", false)
 		}
 		hmac := get(EnvHeraldHmacSecret)
 		if hmac == "" {
 			hmac = get(EnvHmacSecret)
 		}
-		if looksWeakOrTest(hmac) {
-			add(CodeHmacSecretWeak, EnvHeraldHmacSecret, "HMAC secret must be a strong user-provided value (test/placeholder/empty rejected)", false)
+		if !strongSecret(hmac) {
+			add(CodeHmacSecretWeak, EnvHeraldHmacSecret, "HMAC secret must be a strong user-provided value of at least 32 characters (test/placeholder/empty rejected)", false)
 		}
 		// Herald v1.1 PII pepper + idempotency secret must be strong when set;
 		// production requires them to be set (fail-closed on missing).
@@ -178,11 +187,11 @@ func Validate(p Profile, env map[string]string, opts *composegen.Options) []Find
 
 	// --- Redis password ---
 	if p.RedisPassword == RedisRequired {
-		if get(EnvHeraldRedisPassword) == "" {
-			add(CodeRedisPasswordRequired, EnvHeraldRedisPassword, "HERALD_REDIS_PASSWORD is required in production (Redis must be authenticated)", false)
+		if !strongCredential(get(EnvHeraldRedisPassword), minRedisPasswordLen) {
+			add(CodeRedisPasswordRequired, EnvHeraldRedisPassword, "HERALD_REDIS_PASSWORD must be a user-provided password of at least 16 characters", false)
 		}
-		if get(EnvWardenRedisPassword) == "" {
-			add(CodeRedisPasswordRequired, EnvWardenRedisPassword, "WARDEN_REDIS_PASSWORD is required in production (Redis must be authenticated)", false)
+		if !strongCredential(get(EnvWardenRedisPassword), minRedisPasswordLen) {
+			add(CodeRedisPasswordRequired, EnvWardenRedisPassword, "WARDEN_REDIS_PASSWORD must be a user-provided password of at least 16 characters", false)
 		}
 	}
 

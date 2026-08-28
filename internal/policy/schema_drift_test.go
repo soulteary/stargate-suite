@@ -14,6 +14,7 @@ import (
 var knownCodes = map[string]bool{
 	CodePasswordsRequired:       true,
 	CodePasswordsPlaintext:      true,
+	CodePasswordsHashRequired:   true,
 	CodeCookieSecureRequired:    true,
 	CodeSessionExchangeSecret:   true,
 	CodeStepUpPathsRequired:     true,
