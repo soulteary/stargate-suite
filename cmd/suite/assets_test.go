@@ -112,6 +112,52 @@ func TestNonexistentConfigDirFallsBack(t *testing.T) {
 	}
 }
 
+func TestMalformedConfigOverridesFailClosed(t *testing.T) {
+	resetConfigDir(t)
+	cases := []struct {
+		name    string
+		path    string
+		content string
+	}{
+		{"services yaml", "services.yaml", "services: [\n"},
+		{"scenarios json", "scenarios.json", "{not-json"},
+		{"profiles yaml", "profiles.yaml", "profiles: [\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, tc.path), []byte(tc.content), 0o644); err != nil {
+				t.Fatalf("write malformed override: %v", err)
+			}
+			configDirOverride = dir
+			if _, err := loadPageData(pageYAMLPath); err == nil {
+				t.Fatalf("loadPageData accepted malformed %s", tc.path)
+			}
+		})
+	}
+}
+
+func TestValidateRejectsUnknownScenarioOption(t *testing.T) {
+	resetConfigDir(t)
+	dir := t.TempDir()
+	const scenarios = `{
+  "invalid": {
+    "modes": ["traefik"],
+    "options": {"unknownOption": true}
+  }
+}`
+	if err := os.WriteFile(filepath.Join(dir, "scenarios.json"), []byte(scenarios), 0o644); err != nil {
+		t.Fatalf("write scenarios override: %v", err)
+	}
+	configDirOverride = dir
+	prevArgs := cmdArgs
+	cmdArgs = nil
+	t.Cleanup(func() { cmdArgs = prevArgs })
+	if err := cmdValidate(); err == nil {
+		t.Fatal("cmdValidate accepted an unknown scenario option")
+	}
+}
+
 func chdir(t *testing.T, dir string) func() {
 	t.Helper()
 	prev, err := os.Getwd()
