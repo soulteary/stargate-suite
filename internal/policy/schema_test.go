@@ -77,6 +77,33 @@ func TestLayer2SecretStrength(t *testing.T) {
 	}
 }
 
+func TestLayer2RejectsShortAndPlaceholderCredentials(t *testing.T) {
+	p := getProfile(t, Production)
+	cases := []struct {
+		name  string
+		key   string
+		value string
+		code  string
+	}{
+		{"unqualified passwords", EnvPasswords, "x", CodePasswordsHashRequired},
+		{"placeholder bcrypt", EnvPasswords, "bcrypt:REPLACE_WITH_REAL_HASH", CodePasswordsHashRequired},
+		{"short Herald API key", EnvHeraldAPIKey, "short", CodeHeraldAPIKeyWeak},
+		{"placeholder Warden API key", EnvWardenAPIKey, "CHANGE_ME_WARDEN_API_KEY", CodeWardenAPIKeyWeak},
+		{"short HMAC secret", EnvHeraldHmacSecret, "short", CodeHmacSecretWeak},
+		{"short Herald Redis password", EnvHeraldRedisPassword, "short", CodeRedisPasswordRequired},
+		{"placeholder Warden Redis password", EnvWardenRedisPassword, "REPLACE_WITH_REDIS_PASSWORD", CodeRedisPasswordRequired},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			env := prodStrongEnv()
+			env[tc.key] = tc.value
+			if _, ok := findByCode(Validate(p, env, prodOpts()), tc.code); !ok {
+				t.Fatalf("expected %q for %s=%q", tc.code, tc.key, tc.value)
+			}
+		})
+	}
+}
+
 // TestLayer3CrossFieldSessionExchange: cross-domain callback requires a strong
 // SESSION_EXCHANGE_SECRET.
 func TestLayer3CrossFieldSessionExchange(t *testing.T) {
