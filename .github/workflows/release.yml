@@ -139,12 +139,6 @@ jobs:
               -o "dist/stargate-suite-$os-$arch$ext" ./cmd/suite
           done
 
-      - name: Generate checksums
-        run: |
-          cd dist
-          # Stable ordering; exclude the manifest itself so `sha256sum -c` stays valid.
-          sha256sum $(ls | grep -v '^checksums.txt$' | sort) > checksums.txt
-
       - name: Generate SBOM (source + binaries)
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
@@ -161,6 +155,15 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve component image lock
+        run: go run ./cmd/lock-images --output dist/components.lock.yaml
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          # Stable ordering; exclude the manifest itself so `sha256sum -c` stays valid.
+          sha256sum $(ls | grep -v '^checksums.txt$' | sort) > checksums.txt
 
       - name: Extract metadata
         id: meta

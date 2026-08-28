@@ -52,12 +52,18 @@ output the internal services (Warden, Herald, Redis) are not published.
 
 ```bash
 docker build -t stargate-suite:local .
-docker run --rm -p 127.0.0.1:8085:8085 stargate-suite:local
-docker run --rm --read-only --tmpfs /tmp -p 127.0.0.1:8085:8085 stargate-suite:local
+docker run --rm -p 127.0.0.1:8085:8085 stargate-suite:local \
+  serve --listen 0.0.0.0:8085 --allow-remote --allow-insecure-cookie
+docker run --rm --read-only --tmpfs /tmp -p 127.0.0.1:8085:8085 stargate-suite:local \
+  serve --listen 0.0.0.0:8085 --allow-remote --allow-insecure-cookie
 ```
 
 Config and canonical compose are embedded (`go:embed`), so the binary/container
 runs without the repo source tree. Override with `--config-dir` / `CONFIG_DIR`.
+These loopback-published HTTP examples explicitly enable
+`--allow-insecure-cookie`. Behind an HTTPS reverse proxy, use
+`serve --listen 0.0.0.0:8085 --allow-remote` (and no insecure-cookie
+flag), so the token and session cookies remain Secure.
 
 ### Post-deploy diagnostics
 
@@ -112,12 +118,18 @@ Herald、Redis）不对外发布端口。
 
 ```bash
 docker build -t stargate-suite:local .
-docker run --rm -p 127.0.0.1:8085:8085 stargate-suite:local
-docker run --rm --read-only --tmpfs /tmp -p 127.0.0.1:8085:8085 stargate-suite:local
+docker run --rm -p 127.0.0.1:8085:8085 stargate-suite:local \
+  serve --listen 0.0.0.0:8085 --allow-remote --allow-insecure-cookie
+docker run --rm --read-only --tmpfs /tmp -p 127.0.0.1:8085:8085 stargate-suite:local \
+  serve --listen 0.0.0.0:8085 --allow-remote --allow-insecure-cookie
 ```
 
 配置与 canonical compose 已 `go:embed` 内嵌，二进制/容器无需仓库源码即可运行。
 可用 `--config-dir` / `CONFIG_DIR` 覆盖。
+以上绑定到宿主机回环地址的 HTTP 示例显式启用 `--allow-insecure-cookie`。
+HTTPS 反向代理场景请改用
+`serve --listen 0.0.0.0:8085 --allow-remote`（不要携带 insecure-cookie 参数），
+以确保 token 与会话 Cookie 保持 Secure。
 
 ### 部署后诊断
 

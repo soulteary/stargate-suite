@@ -2,7 +2,9 @@
 COMPOSE_FILE ?= build/image/docker-compose.yml
 BUILD_DIR ?= build
 
-.PHONY: help gen up up-build up-image up-traefik down down-build down-image down-traefik logs test clean suite suite-build serve
+GEN_MODES ?= image,build,traefik,traefik-herald,traefik-warden,traefik-stargate
+
+.PHONY: help gen gen-test up up-build up-image up-traefik down down-build down-image down-traefik logs test clean suite suite-build serve
 
 help: ## Show help information
 	@echo "stargate-suite End-to-End Integration Test Project"
@@ -13,8 +15,11 @@ help: ## Show help information
 	@echo "Available commands:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
 
-gen: ## Generate docker-compose and .env into build/ via the CLI (run before up)
-	@go run ./cmd/suite generate --canonical --output $(BUILD_DIR)
+gen: ## Generate development compose and secrets into build/ (run before up)
+	@go run ./cmd/suite generate --profile development --modes $(GEN_MODES) --output $(BUILD_DIR)
+
+gen-test: ## Generate deterministic test-profile compose into build/ for E2E
+	@go run ./cmd/suite generate --profile test --modes $(GEN_MODES) --output $(BUILD_DIR)
 
 up: ## Start all services（默认 build/image）
 	docker compose -f $(COMPOSE_FILE) up -d

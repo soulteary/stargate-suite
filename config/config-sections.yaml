@@ -12,8 +12,8 @@ configSections:
         envName: HERALD_TOTP_IMAGE
         labelKey: heraldTotpImageLabel
         descKey: heraldTotpImageDesc
-        default: "ghcr.io/soulteary/herald-totp:v0.3.0"
-        placeholder: "ghcr.io/soulteary/herald-totp:v0.3.0"
+        default: "ghcr.io/soulteary/herald-totp:1.1.0"
+        placeholder: "ghcr.io/soulteary/herald-totp:1.1.0"
         showWhenOption: totpEnabled
       - type: imageEnv
         envName: WARDEN_IMAGE

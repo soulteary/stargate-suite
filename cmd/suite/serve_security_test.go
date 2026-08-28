@@ -18,7 +18,7 @@ func okHandler() (http.Handler, *bool) {
 }
 
 func TestResolveServeConfigLoopbackDefault(t *testing.T) {
-	cfg, err := resolveServeConfig("", "8085", "", false)
+	cfg, err := resolveServeConfig("", "8085", "", false, false)
 	if err != nil {
 		t.Fatalf("default config should succeed: %v", err)
 	}
@@ -34,11 +34,11 @@ func TestResolveServeConfigLoopbackDefault(t *testing.T) {
 }
 
 func TestResolveServeConfigRemoteRequiresAllowRemote(t *testing.T) {
-	if _, err := resolveServeConfig("0.0.0.0:8085", "", "", false); err == nil {
+	if _, err := resolveServeConfig("0.0.0.0:8085", "", "", false, false); err == nil {
 		t.Fatalf("non-loopback without --allow-remote must be refused")
 	}
 	// With --allow-remote a token is auto-generated.
-	cfg, err := resolveServeConfig("0.0.0.0:8085", "", "", true)
+	cfg, err := resolveServeConfig("0.0.0.0:8085", "", "", true, false)
 	if err != nil {
 		t.Fatalf("allow-remote should succeed: %v", err)
 	}
@@ -52,13 +52,13 @@ func TestResolveServeConfigRemoteRequiresAllowRemote(t *testing.T) {
 
 func TestResolveServeConfigBarePortIsNotLoopback(t *testing.T) {
 	// ":8085" binds all interfaces → must require --allow-remote.
-	if _, err := resolveServeConfig(":8085", "", "", false); err == nil {
+	if _, err := resolveServeConfig(":8085", "", "", false, false); err == nil {
 		t.Fatalf(":8085 (all interfaces) without --allow-remote must be refused")
 	}
 }
 
 func TestResolveServeConfigInvalidListen(t *testing.T) {
-	if _, err := resolveServeConfig("not-a-host-port", "", "", true); err == nil {
+	if _, err := resolveServeConfig("not-a-host-port", "", "", true, false); err == nil {
 		t.Fatalf("invalid listen must error")
 	}
 }
@@ -121,23 +121,25 @@ func TestSecurityMiddlewareHealthzBypassesAuthentication(t *testing.T) {
 	}
 }
 
-func TestTokenHandoffCookieSecurityUsesRequestHost(t *testing.T) {
-	cfg := serveConfig{listenAddr: "0.0.0.0:8085", allowRemote: true, token: "abc123", loopback: false}
+func TestTokenHandoffCookieSecurityUsesExplicitConfig(t *testing.T) {
+	cfg := serveConfig{listenAddr: "0.0.0.0:8085", allowRemote: true, token: "abc123", loopback: false, secureCookie: true}
 	h, _ := okHandler()
 	mw := securityMiddleware(cfg, h)
 
-	local := httptest.NewRecorder()
-	localReq := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8085/?token=abc123", nil)
-	mw.ServeHTTP(local, localReq)
-	if strings.Contains(local.Header().Get("Set-Cookie"), "; Secure") {
-		t.Fatalf("loopback HTTP cookie must not be Secure: %q", local.Header().Get("Set-Cookie"))
+	proxied := httptest.NewRecorder()
+	proxiedReq := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8085/?token=abc123", nil)
+	mw.ServeHTTP(proxied, proxiedReq)
+	if !strings.Contains(proxied.Header().Get("Set-Cookie"), "; Secure") {
+		t.Fatalf("request Host must not disable Secure behind a proxy: %q", proxied.Header().Get("Set-Cookie"))
 	}
 
-	remote := httptest.NewRecorder()
-	remoteReq := httptest.NewRequest(http.MethodGet, "http://suite.example.com/?token=abc123", nil)
-	mw.ServeHTTP(remote, remoteReq)
-	if !strings.Contains(remote.Header().Get("Set-Cookie"), "; Secure") {
-		t.Fatalf("remote cookie must be Secure: %q", remote.Header().Get("Set-Cookie"))
+	insecureCfg := cfg
+	insecureCfg.secureCookie = false
+	insecure := httptest.NewRecorder()
+	insecureMW := securityMiddleware(insecureCfg, h)
+	insecureMW.ServeHTTP(insecure, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8085/?token=abc123", nil))
+	if strings.Contains(insecure.Header().Get("Set-Cookie"), "; Secure") {
+		t.Fatalf("explicit local HTTP mode must omit Secure: %q", insecure.Header().Get("Set-Cookie"))
 	}
 }
 

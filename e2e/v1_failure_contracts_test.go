@@ -22,7 +22,7 @@ import (
 //     listener (only the dedicated loopback listener serves it).
 //
 // The endpoint/contract details are cross-verified against upstream stable
-// tags (Stargate v1.0.0, Warden v1.0.0, Herald v1.1.0):
+// tags (Stargate v1.0.0, Warden v1.1.0, Herald v1.1.0):
 //   - Stargate: /healthz = SimpleFiberHandler (no deps), /readyz = aggregator.
 //   - Herald:   /livez = no deps, /readyz = Redis ping (503 when down),
 //               /v1/test/code only on the dedicated test listener.

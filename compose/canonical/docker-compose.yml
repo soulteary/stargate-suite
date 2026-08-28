@@ -135,7 +135,7 @@ services:
 
   # herald-totp - TOTP 2FA（可选）：Stargate 调用，用于绑定/验证 TOTP 与恢复码
   herald-totp:
-    image: ${HERALD_TOTP_IMAGE:-ghcr.io/soulteary/herald-totp:v0.3.0}
+    image: ${HERALD_TOTP_IMAGE:-ghcr.io/soulteary/herald-totp:1.1.0}
     container_name: the-gate-herald-totp
     ports:
       - "8084:8084"
@@ -173,7 +173,7 @@ services:
 
   # herald-dingtalk - 钉钉验证码推送（可选）：Herald 通过 HTTP 调用，钉钉凭证仅在此服务
   herald-dingtalk:
-    image: ${HERALD_DINGTALK_IMAGE:-ghcr.io/soulteary/herald-dingtalk:v0.5.0}
+    image: ${HERALD_DINGTALK_IMAGE:-ghcr.io/soulteary/herald-dingtalk:1.1.0}
     container_name: the-gate-herald-dingtalk
     ports:
       - "8083:8083"
@@ -198,7 +198,7 @@ services:
 
   # herald-smtp - 邮件验证码发送（可选）：Herald 通过 HTTP 调用，SMTP 凭证仅在此服务
   herald-smtp:
-    image: ${HERALD_SMTP_IMAGE:-ghcr.io/soulteary/herald-smtp:v0.2.0}
+    image: ${HERALD_SMTP_IMAGE:-ghcr.io/soulteary/herald-smtp:1.1.0}
     container_name: the-gate-herald-smtp
     ports:
       - "8085:8085"
@@ -225,7 +225,7 @@ services:
 
   # Warden（看守）- 白名单用户服务，提供 user_id、email/phone 等供 Stargate 与 Herald 使用
   warden:
-    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:1.0.0}
+    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:1.1.0}
     container_name: the-gate-warden
     ports:
       - "8081:8081"

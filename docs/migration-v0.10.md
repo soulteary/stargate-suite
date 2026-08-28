@@ -16,14 +16,13 @@
 | Service | v0.9 baseline (drifted) | v0.10 |
 |---------|-------------------------|-------|
 | Stargate | `v0.9.2` | **`v1.0.0`** |
-| Warden | `v0.10.0` | **`v1.0.0`** |
+| Warden | `v0.10.0` | **`v1.1.0`** |
 | Herald | `v0.6.1` | **`v1.1.0`** |
-| herald-dingtalk | `:latest` (drift) | `v0.5.0` |
+| herald-dingtalk | `:latest` (drift) | `v1.1.0` |
 
-> Warden's highest stable upstream tag is `v1.0.0` — there is **no `v1.1.0`**.
-> The Warden v1 contract (HMAC v2, `/healthcheck`, `WARDEN_HMAC_ALLOW_V1`,
-> `ENVIRONMENT`) already shipped in `v1.0.0`. Always take versions from
-> `config/components.yaml`.
+> Warden `v1.1.0` and the optional herald-totp, herald-dingtalk, and
+> herald-smtp `v1.1.0` releases are the current pinned v1 matrix. Always take
+> exact image versions from `config/components.yaml`.
 
 ### Breaking changes
 
@@ -85,13 +84,12 @@
 | 服务 | v0.9 基线（已漂移） | v0.10 |
 |------|--------------------|-------|
 | Stargate | `v0.9.2` | **`v1.0.0`** |
-| Warden | `v0.10.0` | **`v1.0.0`** |
+| Warden | `v0.10.0` | **`v1.1.0`** |
 | Herald | `v0.6.1` | **`v1.1.0`** |
-| herald-dingtalk | `:latest`（漂移） | `v0.5.0` |
+| herald-dingtalk | `:latest`（漂移） | `v1.1.0` |
 
-> Warden 上游最高稳定 Tag 为 `v1.0.0`，**不存在 `v1.1.0`**。其 v1 契约
-> （HMAC v2、`/healthcheck`、`WARDEN_HMAC_ALLOW_V1`、`ENVIRONMENT`）已在
-> `v1.0.0` 落地。版本一律以 `config/components.yaml` 为准。
+> 当前锁定 Warden `v1.1.0`，以及 herald-totp、herald-dingtalk、
+> herald-smtp `v1.1.0`。镜像精确版本一律以 `config/components.yaml` 为准。
 
 ### 破坏性变更
 

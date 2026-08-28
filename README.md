@@ -45,7 +45,7 @@ stargate-suite/
 **Generate then start:**
 
 ```bash
-make gen    # generates into build/ natively via the CLI (no Web server, no jq)
+make gen    # development profile; generates Redis/API secrets into build/*/.env
 make up
 # or: make up-build | make up-traefik
 ```
@@ -77,22 +77,27 @@ go run ./cmd/suite doctor --compose build/dev/docker-compose.yml
 # (0 ok, non-zero on validation failure or doctor hard failure).
 ```
 
-Config generation is also available via the **Web UI** (first step selects the profile) or `make gen` (native CLI, no Web server).
+Config generation is also available via the **Web UI** (first step selects the profile) or `make gen` (development profile, native CLI, no Web server). CI uses `make gen-test` for an isolated deterministic test profile. The raw canonical generator remains available as `go run ./cmd/suite generate --canonical --output build` for template inspection; it intentionally does not supply required runtime secrets.
 
-**Web UI:** `go run ./cmd/suite serve` binds **`127.0.0.1:8085` by default** (loopback only, no auth needed locally). Exposing it off-host is opt-in and always authenticated: `serve --listen 0.0.0.0:8085 --allow-remote` refuses to start without `--allow-remote` and, in remote mode, requires an access token (auto-generated and printed if you don't pass `--token`). State-changing POSTs are Origin/CSRF-checked, cookies are HttpOnly + SameSite=Strict (Secure off loopback), and operator secrets are dropped from the server session after the artifacts are returned. The listener never silently switches ports — a busy port is a hard error.
+**Web UI:** `go run ./cmd/suite serve` binds **`127.0.0.1:8085` by default** (loopback only, no auth needed locally). Exposing it off-host is opt-in and always authenticated: `serve --listen 0.0.0.0:8085 --allow-remote` refuses to start without `--allow-remote` and, in remote mode, requires an access token (auto-generated and printed if you don't pass `--token`). State-changing POSTs are Origin/CSRF-checked, cookies are HttpOnly + SameSite=Strict and Secure by default, and operator secrets are dropped from the server session after the artifacts are returned. `--allow-insecure-cookie` is reserved for an explicitly loopback-published HTTP container port; do not use it behind a reverse proxy. The listener never silently switches ports — a busy port is a hard error.
 
 **Container (self-contained, no source mount):**
 
 ```bash
 docker build -t stargate-suite:local .
-docker run --rm -p 127.0.0.1:8085:8085 stargate-suite:local        # Web UI, no repo mount
-docker run --rm --read-only --tmpfs /tmp -p 127.0.0.1:8085:8085 stargate-suite:local  # read-only root fs
+docker run --rm -p 127.0.0.1:8085:8085 stargate-suite:local \
+  serve --listen 0.0.0.0:8085 --allow-remote --allow-insecure-cookie
+docker run --rm --read-only --tmpfs /tmp -p 127.0.0.1:8085:8085 stargate-suite:local \
+  serve --listen 0.0.0.0:8085 --allow-remote --allow-insecure-cookie
 ```
 
 The container binds all container interfaces so Docker port publishing works,
 but still requires an access token. Open the tokenized URL printed in the
-container logs. Keep the host-side port bound to `127.0.0.1`; use an HTTPS
-reverse proxy for access from another machine.
+container logs. The explicit insecure-cookie opt-in is safe only while the
+host-side port remains bound to `127.0.0.1`. For access from
+another machine, put an HTTPS reverse proxy in front and override the image
+command without `--allow-insecure-cookie`, so authentication and session
+cookies remain Secure.
 
 **Test:**
 
@@ -106,7 +111,7 @@ reverse proxy for access from another machine.
 ## Ports & env
 
 - **Stargate**: no host port — the `stargate` service uses `ports: []` and listens on backend port **8080** inside the container (health: `/healthz` liveness, `/readyz` readiness); it is reachable only via Traefik (see `compose/canonical/docker-compose.yml` and `config/ports.yaml`).
-- **Warden** 8081 (health `/healthcheck`) · **Herald** 8082 (`/healthz`) · **Herald-TOTP** 8084 · **Herald-DingTalk** 8083 · **Herald-SMTP** 8085 · **Redis** 6379 (host ports only when the port is exposed / mapped). Component versions, ports and health paths come from `config/components.yaml` (single source of truth) — current pinned combo: Stargate `v1.0.0`, Warden `v1.0.0`, Herald `v1.1.0`.
+- **Warden** 8081 (health `/healthcheck`) · **Herald** 8082 (`/healthz`) · **Herald-TOTP** 8084 · **Herald-DingTalk** 8083 · **Herald-SMTP** 8085 · **Redis** 6379 (host ports only when the port is exposed / mapped). Component versions, ports and health paths come from `config/components.yaml` (single source of truth) — current pinned core combo: Stargate `v1.0.0`, Warden `v1.1.0`, Herald `v1.1.0`; optional services are pinned to `v1.1.0`.
 - **Web UI** defaults to **8085** (`make serve`), which is the same default port as **herald-smtp**. The default scenarios do not run herald-smtp, so there is no conflict out of the box; but if you enable herald-smtp and also run `make serve` on the same host, the ports collide — change one of them (e.g. `SERVE_PORT` for the Web UI or the herald-smtp host port).
 - Copy `.env.example` → `.env` to override image versions, `AUTH_HOST`, `PASSWORDS`, `WARDEN_API_KEY`, `HERALD_API_KEY`, `HERALD_HMAC_SECRET`.
 
