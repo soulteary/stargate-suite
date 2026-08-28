@@ -120,9 +120,9 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 			// v1 contract line, Stargate on 8080 (not 80), and the split health
 			// probes (Stargate /healthz, Warden /healthcheck, Herald /healthz).
 			for _, img := range []string{
-				"ghcr.io/soulteary/stargate:v1.0.0",
-				"ghcr.io/soulteary/warden:v1.0.0",
-				"ghcr.io/soulteary/herald:v1.1.0",
+				"ghcr.io/soulteary/stargate:1.0.0",
+				"ghcr.io/soulteary/warden:1.0.0",
+				"ghcr.io/soulteary/herald:1.1.0",
 			} {
 				if !strings.Contains(compose, img) {
 					t.Errorf("%q compose should pin core image %q (PR8)", tc.profile, img)
