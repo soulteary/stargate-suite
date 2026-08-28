@@ -11,8 +11,8 @@ import (
 //     always wrong, never a warning).
 //   - Layer 3 (cross-field) rules: session-exchange secret, step-up prereqs,
 //     TLS client cert/key pairing.
-//   - Layer 4 (cross-service) Herald auth resolution: production rejects
-//     API-key-only and flags mTLS+HMAC ambiguity.
+//   - Layer 4 (cross-service) Herald auth resolution: production requires the
+//     generated HMAC v2 path and rejects API-key-only or mTLS-only input.
 
 // findingByCode returns the first finding with the given code, or a zero
 // Finding and false.
@@ -138,8 +138,7 @@ func TestCrossFieldTLSPairMustBeComplete(t *testing.T) {
 }
 
 // TestCrossServiceProductionRejectsAPIKeyOnly asserts production Herald auth
-// (heraldAuth=hmacV2OrMtls) rejects an API-key-only configuration: neither an
-// HMAC secret nor an mTLS client pair is present — Layer 4.
+// rejects an API-key-only configuration with no HMAC secret — Layer 4.
 func TestCrossServiceProductionRejectsAPIKeyOnly(t *testing.T) {
 	p := getProfile(t, Production)
 	env := map[string]string{
@@ -147,30 +146,31 @@ func TestCrossServiceProductionRejectsAPIKeyOnly(t *testing.T) {
 	}
 	findings := Validate(p, env, baseOpts())
 	if f, ok := findingByCode(findings, CodeAuthModeMismatch); !ok || !f.IsError {
-		t.Errorf("production must reject API-key-only Herald auth (needs HMAC v2 or mTLS)")
+		t.Errorf("production must reject API-key-only Herald auth (needs HMAC v2)")
 	}
 }
 
-// TestCrossServiceAmbiguousAuthFlagged asserts that configuring BOTH mTLS and
-// HMAC without an explicit REQUEST_AUTH_MODE is flagged as ambiguous, so the
-// operator must pin exactly one server-side mode — Layer 4.
-func TestCrossServiceAmbiguousAuthFlagged(t *testing.T) {
+// TestCrossServiceProductionRejectsMtlsOnly keeps the built-in production
+// profile honest: generated deployments do not manage certificate mounts yet,
+// so mTLS-only must not be advertised or accepted as the profile auth mode.
+func TestCrossServiceProductionRejectsMtlsOnly(t *testing.T) {
 	p := getProfile(t, Production)
-	env := map[string]string{
-		EnvHeraldHmacSecret:           "0011223344556677889900112233445566778899",
-		"HERALD_TLS_CLIENT_CERT_FILE": "/etc/tls/herald-client.crt",
-		"HERALD_TLS_CLIENT_KEY_FILE":  "/etc/tls/herald-client.key",
-		// no REQUEST_AUTH_MODE -> ambiguous
-	}
+	env := prodStrongEnv()
+	delete(env, EnvHeraldHmacSecret)
+	env[EnvHeraldTLSClientCert] = "/etc/tls/herald-client.crt"
+	env[EnvHeraldTLSClientKey] = "/etc/tls/herald-client.key"
+	env[EnvRequestAuthMode] = "mtls"
 	findings := Validate(p, env, baseOpts())
-	if f, ok := findingByCode(findings, CodeAuthModeAmbiguous); !ok || !f.IsError {
-		t.Errorf("mTLS + HMAC without explicit REQUEST_AUTH_MODE must be flagged ambiguous in production")
+	if f, ok := findingByCode(findings, CodeAuthModeMismatch); !ok || !f.IsError {
+		t.Errorf("mTLS-only input must be rejected by the built-in HMAC v2 production profile")
 	}
 
-	// Pinning the mode explicitly clears the ambiguity.
+	// Adding HMAC v2 and selecting it allows TLS client material to coexist as
+	// transport configuration without changing the request-auth contract.
+	env[EnvHeraldHmacSecret] = "0011223344556677889900112233445566778899"
 	env[EnvRequestAuthMode] = "hmac_v2"
 	findings = Validate(p, env, baseOpts())
-	if _, ok := findingByCode(findings, CodeAuthModeAmbiguous); ok {
-		t.Errorf("explicit REQUEST_AUTH_MODE should clear the ambiguity finding")
+	if _, ok := findingByCode(findings, CodeAuthModeMismatch); ok {
+		t.Errorf("HMAC v2 with optional TLS transport material should satisfy the profile")
 	}
 }
