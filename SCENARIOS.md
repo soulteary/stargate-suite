@@ -6,9 +6,9 @@ This document maps to `config/scenarios.json`, used to generate compose files an
 
 ## Usage
 
-Scenario-based generation is available via the **Web UI** and the **CLI**. In the Web UI (`go run ./cmd/suite serve`), step 1 first selects a **deployment profile** (`development` / `test` / `production`), then a scenario preset (S1–S5); the generator fills options and env from the scenario, applies the profile's security & runtime policy, and produces compose. Download or copy the result in the review step.
+Scenario presets are currently selected through the **Web UI**. In the Web UI (`go run ./cmd/suite serve`), step 1 first selects a **deployment profile** (`development` / `test` / `production`), then a scenario preset (S1–S5); the generator fills options and env from the scenario, applies the profile's security & runtime policy, and produces compose. Download or copy the result in the review step. The CLI supports profiles and explicit mode selection, but it does not currently expose a `--scenario` option.
 
-To generate the default mode set (image, build, traefik, etc.) without a scenario, run `make gen` (via Web API), or use the CLI `generate --profile <profile> --output <dir>`.
+To generate the default mode set (image, build, traefik, etc.) without a scenario, run `make gen` (native CLI), or use `suite generate --profile <profile> --output <dir>`.
 
 ## Deployment profiles (policy, not just presets)
 
