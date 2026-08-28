@@ -21,7 +21,10 @@ RUN BUILD_DATE=${BUILD_DATE:-$(date +%FT%T%z)} && \
 # Runtime stage
 FROM alpine:3.22
 # curl is used by the container HEALTHCHECK and by compose-level health probes.
-RUN apk add --no-cache ca-certificates curl
+# Upgrade the base packages before installing runtime dependencies so a cached
+# Alpine point-release layer cannot retain security fixes published after it.
+RUN apk upgrade --no-cache && \
+    apk add --no-cache ca-certificates curl
 COPY --from=builder /app/stargate-suite /bin/stargate-suite
 # Config and the canonical compose file are embedded in the binary (go:embed),
 # so the runtime image is self-contained and needs no source tree mounted.
