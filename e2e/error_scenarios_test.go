@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"net/http"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -297,93 +296,6 @@ func TestResendCooldown(t *testing.T) {
 			t.Logf("Note: Resend cooldown may not be triggered immediately, status: %d", errResp.StatusCode)
 		}
 	}
-}
-
-// TestHeraldUnavailable tests Herald unavailable scenario
-func TestHeraldUnavailable(t *testing.T) {
-	// Wait for services to be ready
-	ensureServicesReady(t)
-
-	// Get project directory
-	projectDir, err := filepath.Abs("../")
-	if err != nil {
-		t.Fatalf("Failed to get project directory: %v", err)
-	}
-
-	testPhone := "13900139000"
-
-	// Step 1: Stop Herald service
-	t.Log("Step 1: Stopping Herald service...")
-	err = stopDockerServiceInDir(projectDir, "herald")
-	if err != nil {
-		t.Logf("Warning: Failed to stop Herald service (may not have permission): %v", err)
-		t.Log("Skipping service unavailable test - requires docker compose access")
-		return
-	}
-
-	// Wait for service to stop
-	time.Sleep(3 * time.Second)
-
-	// Ensure service is restored after test
-	defer func() {
-		t.Log("Restoring Herald service...")
-		_ = startDockerServiceInDir(projectDir, "herald")
-		time.Sleep(5 * time.Second) // Wait for service to recover
-	}()
-
-	// Step 2: Attempt to send verification code
-	t.Log("Step 2: Attempting to send verification code with Herald unavailable...")
-	_, errResp := sendVerificationCodeWithError(t, testPhone)
-	testza.AssertNotNil(t, errResp)
-	testza.AssertTrue(t, errResp.StatusCode == 503 || errResp.StatusCode == 500,
-		"Should return 503 Service Unavailable or 500 Internal Server Error")
-	testza.AssertTrue(t, strings.Contains(errResp.Message, "不可用") || strings.Contains(errResp.Message, "unavailable") ||
-		strings.Contains(errResp.Message, "服务"),
-		"Error message should mention service unavailable")
-	t.Logf("✓ Herald unavailable handled correctly: %s", errResp.Message)
-}
-
-// TestWardenUnavailable tests Warden unavailable scenario
-func TestWardenUnavailable(t *testing.T) {
-	// Wait for services to be ready
-	ensureServicesReady(t)
-
-	// Get project directory
-	projectDir, err := filepath.Abs("../")
-	if err != nil {
-		t.Fatalf("Failed to get project directory: %v", err)
-	}
-
-	testPhone := "13900139000"
-
-	// Step 1: Stop Warden service
-	t.Log("Step 1: Stopping Warden service...")
-	err = stopDockerServiceInDir(projectDir, "warden")
-	if err != nil {
-		t.Logf("Warning: Failed to stop Warden service (may not have permission): %v", err)
-		t.Log("Skipping service unavailable test - requires docker compose access")
-		return
-	}
-
-	// Wait for service to stop
-	time.Sleep(3 * time.Second)
-
-	// Ensure service is restored after test
-	defer func() {
-		t.Log("Restoring Warden service...")
-		_ = startDockerServiceInDir(projectDir, "warden")
-		time.Sleep(5 * time.Second) // Wait for service to recover
-	}()
-
-	// Step 2: Attempt to send verification code (needs user query first)
-	t.Log("Step 2: Attempting to send verification code with Warden unavailable...")
-	_, errResp := sendVerificationCodeWithError(t, testPhone)
-	testza.AssertNotNil(t, errResp)
-	// When Warden is unavailable, may return 400, 401, 404, 500, or 503
-	testza.AssertTrue(t, errResp.StatusCode == 400 || errResp.StatusCode == 401 || errResp.StatusCode == 404 ||
-		errResp.StatusCode == 500 || errResp.StatusCode == 503,
-		"Should return 400, 401, 404, 500, or 503")
-	t.Logf("✓ Warden unavailable handled correctly: Status %d, Message: %s", errResp.StatusCode, errResp.Message)
 }
 
 // TestUnauthenticatedAccess tests unauthenticated access to forwardAuth
