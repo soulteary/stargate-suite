@@ -24,10 +24,10 @@ Go module: `github.com/soulteary/stargate-suite`. Repo name: **stargate-suite**.
 ```
 stargate-suite/
 ├── compose/example/   # optional; image | build generated from canonical
-├── compose/canonical/ # single source → Web UI / make gen
-├── build/             # generated (make gen via Web API or Web UI)
+├── compose/canonical/ # single source → CLI / Web UI / make gen
+├── build/             # generated (make gen via CLI, or CLI / Web UI)
 ├── config/             # page.yaml, scenarios
-├── cmd/suite/          # Web UI (serve) + generate + validate
+├── cmd/suite/          # Web UI (serve) + generate + validate + doctor
 ├── e2e/                # E2E tests
 ├── fixtures/warden/    # test users (data.json)
 └── scripts/run-e2e.sh
@@ -40,12 +40,12 @@ stargate-suite/
 **Generate then start:**
 
 ```bash
-make gen    # generates into build/ via Web API (no CLI gen command)
+make gen    # generates into build/ natively via the CLI (no Web server, no jq)
 make up
 # or: make up-build | make up-traefik
 ```
 
-**CLI:** `go run ./cmd/suite help` — `generate`, `validate`, `serve`. The default config and canonical compose are **embedded in the binary** (`go:embed`), so all subcommands run without the repo source tree (e.g. from a release binary or the container). Use `--config-dir=<dir>` (or `CONFIG_DIR`) to override the embedded `config/` with an on-disk directory; anything missing there falls back to the embedded assets.
+**CLI:** `go run ./cmd/suite help` — `generate`, `validate`, `doctor`, `serve`. The default config and canonical compose are **embedded in the binary** (`go:embed`), so all subcommands run without the repo source tree (e.g. from a release binary or the container). Use `--config-dir=<dir>` (or `CONFIG_DIR`) to override the embedded `config/` with an on-disk directory; anything missing there falls back to the embedded assets. `generate` and `validate` call the **same** `internal/composegen` / `internal/policy` functions as the Web UI's `/api/generate`, so the CLI produces byte-identical output without ever starting a Web server.
 
 **Deployment profiles** (`config/profiles.yaml`): `development` / `test` / `production` are **security & runtime policy**, not just prefilled forms — they set port binding, secret source, password algorithm, Herald auth, Redis password, Cookie Secure, HMAC v1, container privileges and validation mode (see [docs/upgrade/00-overview.md](docs/upgrade/00-overview.md) §5.4). The CLI and Web UI share one model (`internal/policy` + `internal/composegen`):
 
@@ -63,9 +63,16 @@ go run ./cmd/suite generate --profile production --output build/prod \
 
 # validate a profile's policy; production/test are strict (errors, not warnings):
 go run ./cmd/suite validate --profile production --strict
+
+# read-only diagnostics for a generated compose (parse, image↔manifest drift,
+# published ports & local port usage, networks; --probe adds liveness/readiness):
+go run ./cmd/suite doctor --compose build/dev/docker-compose.yml
+
+# every subcommand supports --json for CI / Cursor; exit codes are stable
+# (0 ok, non-zero on validation failure or doctor hard failure).
 ```
 
-Config generation is also available via the **Web UI** (first step selects the profile) or `make gen` (Web API).
+Config generation is also available via the **Web UI** (first step selects the profile) or `make gen` (native CLI, no Web server).
 
 **Web UI:** `go run ./cmd/suite serve` (default http://localhost:8085). No auth — localhost only.
 
@@ -110,7 +117,7 @@ Run one: `go test -v ./e2e/... -run TestCompleteLoginFlow`
 
 ## Makefile (see `make help`)
 
-Common: `make gen` (via Web API), `make up` / `make up-image` / `make up-build` / `make up-traefik`, `make down`, `make ps`, `make logs`, `make test-wait`, `make health`, `make serve`, `make suite-build`.
+Common: `make gen` (native CLI), `make up` / `make up-image` / `make up-build` / `make up-traefik`, `make down`, `make ps`, `make logs`, `make test-wait`, `make health`, `make serve`, `make suite-build`.
 
 ## Services (brief)
 

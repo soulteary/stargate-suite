@@ -1,4 +1,5 @@
-// Package main 提供 Web UI 与 compose 生成（help、validate、serve；配置生成仅通过网页）。
+// Package main 提供 suite CLI（help、version、generate、validate、doctor、serve）
+// 与 Web UI；CLI 与 Web UI 共用同一套 compose 生成与策略校验模型。
 package main
 
 import (
@@ -284,9 +285,10 @@ func getCommands() []command {
 		commands = []command{
 			{"help", "Show help information", cmdHelp},
 			{"version", "Show version, build metadata, and verified component combination", cmdVersion},
-			{"generate", "Generate profile-aware compose + .env (--profile, --output, --modes)", cmdGenerate},
+			{"generate", "Generate profile-aware compose + .env (--profile, --output, --modes, --json)", cmdGenerate},
 			{"validate", "Validate config; with --profile [--strict] enforce deployment-profile policy", cmdValidate},
-			{"serve", "Start web UI for compose generation (default :8085)", cmdServe},
+			{"doctor", "Read-only diagnostics for a generated compose (--compose, --json, --probe)", cmdDoctor},
+			{"serve", "Start web UI for compose generation (default 127.0.0.1:8085)", cmdServe},
 		}
 	}
 	return commands
@@ -300,7 +302,7 @@ func cmdHelp() error {
 		fmt.Printf("  %-22s %s\n", c.name, c.desc)
 	}
 	fmt.Println()
-	fmt.Println("Compose generation is done in the Web UI (make serve). E2E: scripts/run-e2e.sh. Service lifecycle: Makefile (make up, make down) or docker compose.")
+	fmt.Println("CLI generate/validate/doctor share the same Go generation + policy model as the Web UI (make serve). E2E: scripts/run-e2e.sh. Service lifecycle: Makefile (make up, make down) or docker compose.")
 	return nil
 }
 

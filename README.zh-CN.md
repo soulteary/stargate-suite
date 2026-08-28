@@ -24,10 +24,10 @@ Go 模块：`github.com/soulteary/stargate-suite`。仓库名：**stargate-suite
 ```
 stargate-suite/
 ├── compose/example/   # 可选；image | build 由 canonical 生成
-├── compose/canonical/ # 单一数据源 → Web UI / make gen
-├── build/             # 生成输出（make gen 经 Web API 或 Web UI）
+├── compose/canonical/ # 单一数据源 → CLI / Web UI / make gen
+├── build/             # 生成输出（make gen 经 CLI，或 CLI / Web UI）
 ├── config/            # page.yaml, scenarios
-├── cmd/suite/         # Web UI（serve）+ generate + validate
+├── cmd/suite/         # Web UI（serve）+ generate + validate + doctor
 ├── e2e/               # E2E 测试
 ├── fixtures/warden/   # 测试用户 data.json
 └── scripts/run-e2e.sh
@@ -40,12 +40,12 @@ stargate-suite/
 **生成并启动：**
 
 ```bash
-make gen    # 经 Web API 生成到 build/（无 CLI gen 子命令）
+make gen    # 由 CLI 原生生成到 build/（不启动 Web 服务、无需 jq）
 make up
 # 或：make up-build | make up-traefik
 ```
 
-**CLI：** `go run ./cmd/suite help` — `generate`、`validate`、`serve`。默认配置与 canonical compose 已通过 `go:embed` **嵌入二进制**，因此各子命令无需仓库源码目录即可运行（如 release 二进制或容器内）。可用 `--config-dir=<目录>`（或环境变量 `CONFIG_DIR`）以磁盘目录覆盖内置 `config/`；覆盖目录中缺失的文件会回退到嵌入资产。
+**CLI：** `go run ./cmd/suite help` — `generate`、`validate`、`doctor`、`serve`。默认配置与 canonical compose 已通过 `go:embed` **嵌入二进制**，因此各子命令无需仓库源码目录即可运行（如 release 二进制或容器内）。可用 `--config-dir=<目录>`（或环境变量 `CONFIG_DIR`）以磁盘目录覆盖内置 `config/`；覆盖目录中缺失的文件会回退到嵌入资产。`generate` 与 `validate` 调用与 Web UI `/api/generate` **完全相同**的 `internal/composegen` / `internal/policy` 函数，因此 CLI 无需启动 Web 服务即可产出字节一致的结果。
 
 **部署 Profile**（`config/profiles.yaml`）：`development` / `test` / `production` 是**安全与运行策略**，而非单纯预填表单——涵盖端口绑定、密钥来源、密码算法、Herald 认证、Redis 密码、Cookie Secure、HMAC v1、容器权限与校验模式（见 [docs/upgrade/00-overview.md](docs/upgrade/00-overview.md) §5.4）。CLI 与 Web UI 共用同一模型（`internal/policy` + `internal/composegen`）：
 
@@ -63,9 +63,16 @@ go run ./cmd/suite generate --profile production --output build/prod \
 
 # 校验某个 Profile 的策略；production/test 为 strict（错误而非警告）：
 go run ./cmd/suite validate --profile production --strict
+
+# 对已生成的 compose 做只读诊断（解析、镜像↔manifest 漂移、宿主端口与本地占用、
+# 网络；加 --probe 主动探测 liveness/readiness）：
+go run ./cmd/suite doctor --compose build/dev/docker-compose.yml
+
+# 每个子命令都支持 --json，便于 CI / Cursor 解析；退出码稳定
+#（0 成功，校验失败或 doctor 硬失败时非零）。
 ```
 
-配置生成也可经 **Web UI**（第一步选择 Profile）或 `make gen`（Web API）。
+配置生成也可经 **Web UI**（第一步选择 Profile）或 `make gen`（原生 CLI，不启动 Web 服务）。
 
 **Web UI：** `go run ./cmd/suite serve`（默认 http://localhost:8085）。无鉴权，仅限本地。
 
@@ -110,7 +117,7 @@ docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local  # �
 
 ## Makefile（见 `make help`）
 
-常用：`make gen`（经 Web API）、`make up` / `make up-image` / `make up-build` / `make up-traefik`，`make down`，`make ps`，`make logs`，`make test-wait`，`make health`，`make serve`，`make suite-build`。
+常用：`make gen`（原生 CLI）、`make up` / `make up-image` / `make up-build` / `make up-traefik`，`make down`，`make ps`，`make logs`，`make test-wait`，`make health`，`make serve`，`make suite-build`。
 
 ## 服务简述
 
