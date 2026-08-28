@@ -257,14 +257,22 @@ func triggerRateLimit(t *testing.T, phone string, count int) []*ErrorResponse {
 func stopDockerServiceInDir(dir, serviceName string) error {
 	cmd := exec.Command("docker", "compose", "stop", serviceName)
 	cmd.Dir = dir
-	return cmd.Run()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("docker compose stop %s: %w: %s", serviceName, err, strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 // startDockerServiceInDir starts a Docker service in the specified directory
 func startDockerServiceInDir(dir, serviceName string) error {
 	cmd := exec.Command("docker", "compose", "start", serviceName)
 	cmd.Dir = dir
-	return cmd.Run()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("docker compose start %s: %w: %s", serviceName, err, strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 // sendVerificationCodeWithEmail sends a verification code using email
@@ -478,7 +486,7 @@ func clearRateLimitKeys(t *testing.T) error {
 		if restartErr != nil {
 			return fmt.Errorf("failed to reset Stargate rate limiter: %w: %s", restartErr, strings.TrimSpace(string(restartOut)))
 		}
-		if !waitForService(t, stargateURL+"/healthz", 30*time.Second) {
+		if !waitForService(t, stargateURL+"/readyz", 30*time.Second) {
 			return fmt.Errorf("stargate did not become ready after rate-limit reset")
 		}
 		t.Log("Reset Stargate in-process rate limiter through Compose")
@@ -510,7 +518,7 @@ func clearRateLimitKeys(t *testing.T) error {
 	return nil
 }
 
-// waitForService waits for the service to be ready (HTTP status < 500).
+// waitForService waits for an explicit successful readiness response.
 // Returns false on timeout; on failure the last error or status is logged for debugging.
 func waitForService(t *testing.T, url string, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
@@ -530,7 +538,7 @@ func waitForService(t *testing.T, url string, timeout time.Duration) bool {
 		if closeErr := resp.Body.Close(); closeErr != nil {
 			t.Logf("Warning: failed to close response body: %v", closeErr)
 		}
-		if resp.StatusCode < 500 {
+		if serviceReadyStatus(resp.StatusCode) {
 			return true
 		}
 		lastErr = nil
@@ -545,15 +553,19 @@ func waitForService(t *testing.T, url string, timeout time.Duration) bool {
 	return false
 }
 
+func serviceReadyStatus(status int) bool {
+	return status >= http.StatusOK && status < http.StatusMultipleChoices
+}
+
 // ensureServicesReady ensures all services (Stargate, Warden, Herald) are ready and clears rate-limit state.
 func ensureServicesReady(t *testing.T) {
-	if !waitForService(t, stargateURL+"/health", 30*time.Second) {
+	if !waitForService(t, stargateURL+"/readyz", 30*time.Second) {
 		t.Fatalf("Stargate service is not ready")
 	}
-	if !waitForService(t, heraldURL+"/healthz", 30*time.Second) {
+	if !waitForService(t, heraldURL+"/readyz", 30*time.Second) {
 		t.Fatalf("Herald service is not ready")
 	}
-	if !waitForService(t, wardenURL+"/health", 30*time.Second) {
+	if !waitForService(t, wardenURL+"/healthcheck", 30*time.Second) {
 		t.Fatalf("Warden service is not ready")
 	}
 
@@ -563,7 +575,7 @@ func ensureServicesReady(t *testing.T) {
 }
 
 // waitForServiceDown polls the URL until it returns non-2xx or connection error, or timeout.
-// Returns true if the service is down (connection failed or status >= 400) within timeout, false on timeout.
+// Returns true if the service is down within timeout, false on timeout.
 // Use in tests that stop a service and need to assert it is down (e.g. service-down scenarios).
 //
 //nolint:unused
@@ -578,7 +590,7 @@ func waitForServiceDown(t *testing.T, url string, timeout time.Duration) bool {
 		}
 		code := resp.StatusCode
 		_ = resp.Body.Close()
-		if code >= 400 {
+		if !serviceReadyStatus(code) {
 			return true // non-2xx, service considered down
 		}
 		time.Sleep(500 * time.Millisecond)

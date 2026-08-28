@@ -8,7 +8,7 @@
 
 - e2e_test.go — 正常流程
 - error_scenarios_test.go — 错误/过期/锁定验证码、非白名单、非活跃、限流、服务宕机、鉴权、边界
-- v1_failure_contracts_test.go — PR9 v1 契约测试：存活/就绪为独立端点、HMAC v2 nonce 重放被拒、Herald 测试验证码端点不在公开监听器暴露
+- v1_failure_contracts_test.go — v1 契约：严格 2xx 就绪判定、依赖故障时的存活/就绪与恢复、带原因的 HMAC v2 nonce 重放拒绝，以及 Herald 测试验证码监听器隔离
 - auth_test.go、herald_api_test.go、warden_api_test.go、idempotency_test.go、audit_test.go、provider_test.go、metrics_test.go
 - test_helpers.go — ensureServicesReady、sendVerificationCodeWithError、loginWithError、clearRateLimitKeys、停止/启动 Docker，以及 HMAC v2 签名助手（signHeraldV2 / signHeraldReq / signHeraldV2Fixed）
 
@@ -45,6 +45,7 @@ go test -v ./e2e/... -run TestInvalid
 go test -v ./e2e/... -run TestHeraldUnavailable
 go test -v ./e2e/... -run TestWardenUnavailable
 go test -v ./e2e/... -run TestLivenessReadinessAreDistinct
+go test -v ./e2e/... -run TestDependencyFailureRecoveryContracts
 go test -v ./e2e/... -run TestHeraldNonceReplayRejected
 go test -v ./e2e/... -run TestHeraldTestCodeNotOnMainListener
 ```
@@ -53,8 +54,10 @@ Traefik 部署：`export PROTECTED_URL=https://whoami.test.localhost` 后运行 
 
 ## 注意
 
-- 先启动服务（`make up`）。测试会调用 ensureServicesReady 并清理限流状态。
-- 服务不可用测试需要 docker compose，可能被跳过。
+- 建议使用 `./scripts/run-e2e.sh`；它会先校验 Compose、明确启动服务（不再吞掉
+  错误），并等待真实 readiness 端点后再运行测试。
+- 依赖故障/恢复测试需要 Docker Compose 与 `HERALD_COMPOSE_DIR`（runner 与 CI
+  会自动设置）。
 - 验证码过期：可调整 Herald CHALLENGE_EXPIRY。
 - 受保护 whoami：未设置 PROTECTED_URL 时跳过（如无 Traefik 的 build/image）。
 
