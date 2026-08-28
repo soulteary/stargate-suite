@@ -323,8 +323,6 @@ services:
       - WARDEN_ENABLED=${WARDEN_ENABLED:-true}
       - WARDEN_API_KEY=${WARDEN_API_KEY:-test-warden-api-key}
       - WARDEN_CACHE_TTL=${WARDEN_CACHE_TTL:-300}
-      - WARDEN_OTP_ENABLED=${WARDEN_OTP_ENABLED:-false}
-      - WARDEN_OTP_SECRET_KEY=${WARDEN_OTP_SECRET_KEY:-}
       - HERALD_URL=${HERALD_URL:-http://herald:8082}
       - HERALD_ENABLED=${HERALD_ENABLED:-true}
       - HERALD_API_KEY=${HERALD_API_KEY:-test-herald-api-key}
