@@ -42,11 +42,32 @@ func TestNewResolvedLockAndValidate(t *testing.T) {
 }
 
 func TestNewResolvedLockRejectsInvalidDigest(t *testing.T) {
-	_, err := NewResolvedLock(lockTestManifest(), func(ref string) (string, error) {
-		return "not-a-digest", nil
-	})
-	if err == nil {
-		t.Fatal("expected invalid digest error")
+	for _, digest := range []string{
+		"not-a-digest",
+		"sha256:",
+		"sha256:abc123",
+		"sha256:" + strings.Repeat("g", 64),
+		"sha256:" + strings.Repeat("a", 65),
+	} {
+		t.Run(digest, func(t *testing.T) {
+			_, err := NewResolvedLock(lockTestManifest(), func(string) (string, error) {
+				return digest, nil
+			})
+			if err == nil {
+				t.Fatal("expected invalid digest error")
+			}
+		})
+	}
+}
+
+func TestValidateLockRejectsMalformedOptionalDigest(t *testing.T) {
+	manifest := lockTestManifest()
+	lock := &ComponentLock{SchemaVersion: 1, Images: map[string]LockedImage{
+		"app":   {Image: "ghcr.io/example/app", Version: "1.2.3", Digest: "sha256:short"},
+		"redis": {Image: "redis", Version: "8-alpine"},
+	}}
+	if err := ValidateLock(manifest, lock, false); err == nil {
+		t.Fatal("development lock accepted a supplied malformed digest")
 	}
 }
 

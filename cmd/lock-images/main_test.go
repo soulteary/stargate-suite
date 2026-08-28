@@ -1,14 +1,18 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseInspectDigest(t *testing.T) {
-	output := "Name: example.invalid/app:1.0\nMediaType: application/vnd.oci.image.index.v1+json\nDigest: sha256:0123456789abcdef\n"
+	want := "sha256:" + strings.Repeat("a", 64)
+	output := "Name: example.invalid/app:1.0\nMediaType: application/vnd.oci.image.index.v1+json\nDigest: " + want + "\n"
 	digest, err := parseInspectDigest(output)
 	if err != nil {
 		t.Fatalf("parseInspectDigest: %v", err)
 	}
-	if digest != "sha256:0123456789abcdef" {
+	if digest != want {
 		t.Fatalf("digest = %q", digest)
 	}
 }

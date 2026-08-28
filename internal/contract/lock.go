@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io/fs"
 	"sort"
@@ -70,7 +71,7 @@ func NewResolvedLock(manifest *Manifest, resolve DigestResolver) (*ComponentLock
 			return nil, fmt.Errorf("resolve %s (%s): %w", name, ref, err)
 		}
 		item.Digest = strings.TrimSpace(digest)
-		if !strings.HasPrefix(item.Digest, "sha256:") {
+		if err := validateDigest(item.Digest); err != nil {
 			return nil, fmt.Errorf("resolve %s (%s): invalid digest %q", name, ref, item.Digest)
 		}
 		refs[name] = item
@@ -107,12 +108,32 @@ func ValidateLock(manifest *Manifest, lock *ComponentLock, requireDigests bool) 
 		if actual.Image != expected.Image || actual.Version != expected.Version {
 			return fmt.Errorf("lock image %q is %s:%s, want %s:%s", name, actual.Image, actual.Version, expected.Image, expected.Version)
 		}
-		if requireDigests && !strings.HasPrefix(actual.Digest, "sha256:") {
-			return fmt.Errorf("lock image %q has no sha256 digest", name)
+		if actual.Digest == "" {
+			if requireDigests {
+				return fmt.Errorf("lock image %q has no sha256 digest", name)
+			}
+		} else if err := validateDigest(actual.Digest); err != nil {
+			return fmt.Errorf("lock image %q has invalid digest %q: %w", name, actual.Digest, err)
 		}
 	}
 	if len(lock.Images) != len(want) {
 		return fmt.Errorf("lock has %d images, manifest has %d", len(lock.Images), len(want))
+	}
+	return nil
+}
+
+func validateDigest(digest string) error {
+	const prefix = "sha256:"
+	const encodedLength = 64
+	if !strings.HasPrefix(digest, prefix) {
+		return fmt.Errorf("must use sha256")
+	}
+	encoded := strings.TrimPrefix(digest, prefix)
+	if len(encoded) != encodedLength {
+		return fmt.Errorf("sha256 value must contain exactly %d hexadecimal characters", encodedLength)
+	}
+	if _, err := hex.DecodeString(encoded); err != nil {
+		return fmt.Errorf("sha256 value is not hexadecimal")
 	}
 	return nil
 }
