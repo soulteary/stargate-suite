@@ -478,7 +478,6 @@ zh:
   loadIntoGenerate: "加载到生成配置"
   applying: "加载中…"
   applyFailed: "加载失败"
-  importComposeRequired: "请粘贴 docker-compose 内容。"
   parseServicesLabel: "服务"
   parseEnvVarsLabel: "环境变量"
   parseEnvNameLabel: "解析项目名称"
