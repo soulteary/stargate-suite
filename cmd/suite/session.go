@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"strings"
 	"sync"
 	"time"
 )
@@ -140,4 +141,41 @@ func SaveSession(ctx context.Context, data *SessionData) {
 		return
 	}
 	defaultStore.Set(id, data)
+}
+
+// ClearSecrets zeroes the secret-bearing fields of a session after generation
+// so operator-supplied API keys / passwords / HMAC secrets are not retained in
+// server memory once the artifacts have been returned. Non-secret wizard state
+// (profile, modes) is left intact so the operator can regenerate if needed.
+func (d *SessionData) ClearSecrets() {
+	if d == nil {
+		return
+	}
+	d.KeysOverrides = nil
+	if d.EnvOverrides != nil {
+		for k := range d.EnvOverrides {
+			if isSecretEnvKey(k) {
+				delete(d.EnvOverrides, k)
+			}
+		}
+	}
+	if d.ImportApplied != nil && d.ImportApplied.EnvVars != nil {
+		for k := range d.ImportApplied.EnvVars {
+			if isSecretEnvKey(k) {
+				delete(d.ImportApplied.EnvVars, k)
+			}
+		}
+	}
+}
+
+// isSecretEnvKey reports whether an env var name denotes a sensitive value that
+// must not linger in the session store or be echoed in cleartext.
+func isSecretEnvKey(key string) bool {
+	k := strings.ToUpper(key)
+	for _, marker := range []string{"PASSWORD", "SECRET", "API_KEY", "APIKEY", "TOKEN", "PRIVATE_KEY", "HMAC", "PEPPER", "PASSWORDS"} {
+		if strings.Contains(k, marker) {
+			return true
+		}
+	}
+	return false
 }

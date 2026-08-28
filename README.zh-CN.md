@@ -74,7 +74,7 @@ go run ./cmd/suite doctor --compose build/dev/docker-compose.yml
 
 配置生成也可经 **Web UI**（第一步选择 Profile）或 `make gen`（原生 CLI，不启动 Web 服务）。
 
-**Web UI：** `go run ./cmd/suite serve`（默认 http://localhost:8085）。无鉴权，仅限本地。
+**Web UI：** `go run ./cmd/suite serve` **默认绑定 `127.0.0.1:8085`**（仅本地回环，本机无需鉴权）。对外暴露需显式开启且强制鉴权：`serve --listen 0.0.0.0:8085 --allow-remote`——未加 `--allow-remote` 会拒绝启动；remote 模式下必须携带 access token（未传 `--token` 时自动生成并打印）。状态变更 POST 会做 Origin/CSRF 校验，Cookie 为 HttpOnly + SameSite=Strict（非回环时置 Secure），且生成产物返回后即从服务端会话中清除运维密钥。监听端口被占用会直接报错，**绝不静默换端口**。
 
 **容器（自包含，无需挂载源码）：**
 

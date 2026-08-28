@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -13,7 +14,6 @@ import (
 	"os/signal"
 	"path"
 	"sort"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -236,7 +236,7 @@ func cacheControlHandler(value string, h http.Handler) http.Handler {
 }
 
 // sessionMiddleware injects session (and new cookie if needed) into request context.
-func sessionMiddleware(h http.Handler) http.Handler {
+func sessionMiddleware(cfg serveConfig, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sid string
 		var data *SessionData
@@ -260,7 +260,10 @@ func sessionMiddleware(h http.Handler) http.Handler {
 				Path:     "/",
 				MaxAge:   int(sessionTTL.Seconds()),
 				HttpOnly: true,
-				SameSite: http.SameSiteLaxMode,
+				// Secure when not plain-loopback; Strict SameSite (the UI has no
+				// cross-site flows) further hardens against CSRF.
+				Secure:   !cfg.loopback,
+				SameSite: http.SameSiteStrictMode,
 			})
 		}
 		r = r.WithContext(WithSessionID(WithSession(r.Context(), data), sid))
@@ -685,6 +688,10 @@ func handleGeneratePost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeGenerateJSON(w, pgen, findings)
+		// Artifacts returned; drop operator secrets from the server session so
+		// they are not persisted in memory after download.
+		sess.ClearSecrets()
+		SaveSession(r.Context(), sess)
 		return
 	}
 
@@ -704,6 +711,8 @@ func handleGeneratePost(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(res)
+	sess.ClearSecrets()
+	SaveSession(r.Context(), sess)
 }
 
 // policyKnownProfile reports whether name is one of the three canonical profiles.
@@ -844,6 +853,22 @@ func applyPortsConfigToOptions(opts *composegen.Options, ports []portDef) {
 }
 
 func cmdServe() error {
+	// Serve owns its flag set (--listen / --allow-remote / --token) so the Web
+	// UI security posture is explicit. Legacy --port / SERVE_PORT (parsed in
+	// main) is honored only when --listen is absent, for backward compatibility.
+	sfs := flag.NewFlagSet("serve", flag.ContinueOnError)
+	sfs.SetOutput(os.Stderr)
+	listen := sfs.String("listen", "", "host:port to bind (default 127.0.0.1:8085; loopback-only unless --allow-remote)")
+	allowRemote := sfs.Bool("allow-remote", false, "permit binding a non-loopback address (requires and, if unset, generates an access token)")
+	token := sfs.String("token", "", "access token required on every request (auto-generated in remote mode when empty)")
+	if err := sfs.Parse(cmdArgs); err != nil {
+		return err
+	}
+	cfg, err := resolveServeConfig(*listen, servePort, *token, *allowRemote)
+	if err != nil {
+		return err
+	}
+
 	page, err := loadPageData(pageYAMLPath)
 	if err != nil {
 		return fmt.Errorf("load page config (%s): %w", pageYAMLPath, err)
@@ -1059,28 +1084,17 @@ func cmdServe() error {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(res)
 	})
-	addr := ":" + servePort
-	srv := &http.Server{Addr: addr, Handler: sessionMiddleware(mux)}
+	addr := cfg.listenAddr
+	srv := newSecureHTTPServer(addr, securityMiddleware(cfg, sessionMiddleware(cfg, mux)))
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
+		// No silent port hopping: if the requested address is unavailable we
+		// surface it and stop, so the operator always knows exactly where the
+		// UI is (or is not) listening.
 		if strings.Contains(err.Error(), "address already in use") {
-			start, _ := strconv.Atoi(servePort)
-			if start <= 0 {
-				start = 8085
-			}
-			for p := start + 1; p < start+10; p++ {
-				tryAddr := ":" + strconv.Itoa(p)
-				listener, err = net.Listen("tcp", tryAddr)
-				if err == nil {
-					fmt.Fprintf(os.Stderr, "Port %s in use, using %s instead.\n", addr, tryAddr)
-					addr = tryAddr
-					break
-				}
-			}
+			return fmt.Errorf("listen %s: address already in use (choose another --listen or free the port; the Web UI will not silently switch ports)", addr)
 		}
-		if err != nil {
-			return fmt.Errorf("listen %s: %w", addr, err)
-		}
+		return fmt.Errorf("listen %s: %w", addr, err)
 	}
 	go func() {
 		tick := time.NewTicker(5 * time.Minute)
@@ -1094,7 +1108,15 @@ func cmdServe() error {
 			fmt.Fprintf(os.Stderr, "serve: %v\n", err)
 		}
 	}()
-	fmt.Printf("Web UI: http://localhost%s\n", addr)
+	scheme := "http"
+	fmt.Printf("Web UI: %s://%s\n", scheme, addr)
+	if !cfg.loopback {
+		fmt.Printf("Remote access enabled. Access token required.\n")
+		fmt.Printf("  Open: %s://%s/?token=%s\n", scheme, addr, cfg.token)
+		fmt.Printf("  Or send header: Authorization: Bearer %s\n", cfg.token)
+	} else if cfg.token != "" {
+		fmt.Printf("Access token required: %s\n", cfg.token)
+	}
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	<-sigCh

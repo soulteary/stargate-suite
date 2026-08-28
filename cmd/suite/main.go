@@ -288,7 +288,7 @@ func getCommands() []command {
 			{"generate", "Generate profile-aware compose + .env (--profile, --output, --modes, --json)", cmdGenerate},
 			{"validate", "Validate config; with --profile [--strict] enforce deployment-profile policy", cmdValidate},
 			{"doctor", "Read-only diagnostics for a generated compose (--compose, --json, --probe)", cmdDoctor},
-			{"serve", "Start web UI for compose generation (default 127.0.0.1:8085)", cmdServe},
+			{"serve", "Start web UI for compose generation (loopback-only by default; --listen/--allow-remote/--token)", cmdServe},
 		}
 	}
 	return commands

@@ -74,7 +74,7 @@ go run ./cmd/suite doctor --compose build/dev/docker-compose.yml
 
 Config generation is also available via the **Web UI** (first step selects the profile) or `make gen` (native CLI, no Web server).
 
-**Web UI:** `go run ./cmd/suite serve` (default http://localhost:8085). No auth — localhost only.
+**Web UI:** `go run ./cmd/suite serve` binds **`127.0.0.1:8085` by default** (loopback only, no auth needed locally). Exposing it off-host is opt-in and always authenticated: `serve --listen 0.0.0.0:8085 --allow-remote` refuses to start without `--allow-remote` and, in remote mode, requires an access token (auto-generated and printed if you don't pass `--token`). State-changing POSTs are Origin/CSRF-checked, cookies are HttpOnly + SameSite=Strict (Secure off loopback), and operator secrets are dropped from the server session after the artifacts are returned. The listener never silently switches ports — a busy port is a hard error.
 
 **Container (self-contained, no source mount):**
 
