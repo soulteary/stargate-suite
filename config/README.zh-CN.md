@@ -52,6 +52,43 @@ Web UI 页面配置与场景预设（scenarios.json）。总览见 [../README.zh
 
 运行 `./suite validate` 可检查 `page.yaml` 与合并后的 config 是否能正确加载，并在存在 `config/env-meta.yaml` 与 `config/scenarios.json` 时做一致性检查（canonical compose 与 env-meta、场景 options 键集合）；用于 CI 或本地快速检查。
 
+## v1 配置字段与四层 Profile 校验（PR7）
+
+v1 契约（Stargate 1.0.0 / Warden 1.1.0 / Herald 1.1.0）新增了安全相关的环境变量，均已登记在 `env-meta.yaml`，并在 `config/schemas/env-fields.yaml` 声明（该 schema 与校验器保持一致；`internal/policy` 中的漂移测试会在 schema 引用了引擎未实现的 code 时失败）。
+
+- **Stargate**：`COOKIE_SECURE`、`CALLBACK_ALLOWED_HOSTS`、`SESSION_EXCHANGE_SECRET`、`TRUSTED_PROXIES`、`PROXY_HEADER`、`PASSWORD_HEADER_AUTH_ENABLED`、`WARDEN_HMAC_KEY_ID` / `WARDEN_HMAC_SECRET`、`HERALD_HMAC_KEY_ID`、`WARDEN_TLS_*`。
+- **Herald**：`REQUEST_AUTH_MODE`、`HERALD_HMAC_DEFAULT_KEY_ID`、`HMAC_MAX_DRIFT`、`HMAC_V1_ENABLED`、`HERALD_IDEMPOTENCY_SECRET`、`HERALD_PII_PEPPER`、`HERALD_TRUSTED_PROXIES` / `HERALD_TRUSTED_PROXY_HEADER`、`HERALD_TEST_API_KEY`、`HERALD_TEST_LISTENER_ADDR`。
+- **Warden**：PR7 新增 `ENVIRONMENT`。PR8 额外接入 `WARDEN_HMAC_ALLOW_V1` 与 `WARDEN_METRICS_REQUIRE_AUTH`：交叉核对上游 Warden **v1.0.0**（当前最高稳定 Tag，不存在 `v1.1.0`）确认两者**均被解析**（`internal/cmd/validate.go` 的 `ParseHMACAllowV1`、`main_routes.go` 的 metrics 守卫），修正了 PR7 早前的判断。套件默认将 `WARDEN_HMAC_ALLOW_V1=false`，从不接受可重放的遗留 v1 规范串。
+
+`./suite validate --profile <development|test|production>` 运行与 Web UI 相同的四层校验器（CLI 与 UI 共用 `validateForProfile` → `policy.Validate`）：
+
+1. **第一层 · 字段类型**：已设置字段的形状（端口 / URL / 布尔 / 时长 / CIDR 列表 / Host 列表）。形状错误在任何 Profile 下都是硬错误。
+2. **第二层 · 单字段安全**：密钥强度（≥32 字符、非占位符）、禁止明文密码、Redis 密码必填。
+3. **第三层 · 跨字段**：跨域回跳/Cookie 需要强 `SESSION_EXCHANGE_SECRET`；`STEP_UP_ENABLED` 需要 `STEP_UP_PATHS` + `TRUSTED_PROXIES`；TLS 客户端证书/私钥必须成对。
+4. **第四层 · 跨服务**：Stargate→Herald 鉴权必须收敛到唯一显式模式；生产拒绝仅 API Key 且禁止 HMAC v1。
+
+每条结论带有稳定 `code`（如 `HERALD_PII_PEPPER_WEAK`）。用 `--json` 输出可脚本化：
+
+```bash
+./suite validate --profile production --json   # 存在任一 error 结论即非零退出
+```
+
+生产始终 strict（不可被 `--strict=false` 绕过）；`--strict` 会把 test/dev 的结论也提升为硬错误。
+
+## v1 核心镜像升级与 HMAC v2（PR8）
+
+PR8 是一个**单一原子回滚单元**，把三大核心镜像升级到 v1 线并迁移通信契约：
+
+- **镜像（来自 `components.yaml` 单一来源）**：Stargate `v1.0.0`、Warden `v1.0.0`（上游最高稳定 Tag——计划中的 `v1.1.0` 并不存在）、Herald `v1.1.0`。`env-meta.yaml`、`.env.example`、`compose/canonical`、`ports.yaml` 与 `internal/contract` 漂移测试全部以清单为准。
+- **Stargate 端口 80 → 8080**：容器端口、Host 映射、Traefik `loadbalancer.server.port` 与 `forwardauth.address` 全部改为 `8080`。
+- **健康/就绪路径**：Stargate liveness `/healthz` + readiness `/readyz`；Warden `/healthcheck`；Herald `/healthz`。`make health`、`.github/workflows/ci.yml`、`scripts/run-e2e.sh` 均探测新路径。
+- **Herald 显式认证**：显式设置 `REQUEST_AUTH_MODE=hmac_v2`（不再隐式在 API Key/HMAC 间选择）。仅配置单个 `HMAC_SECRET`（无 `HERALD_HMAC_KEYS`）时 Herald 解析出隐式 `default` key id，客户端可省略 `X-Key-Id`。
+- **全面 HMAC v2、v1 关闭**：策略层固定 `HMAC_V1_ENABLED=false`（Herald）与 `WARDEN_HMAC_ALLOW_V1=false`（Warden），从不接受可重放的 v1 规范串。
+- **Herald 测试验证码独立监听器**：`/v1/test/code` 仅在独立的 loopback-only 监听器（`HERALD_TEST_LISTENER_ADDR`，默认 `127.0.0.1:8092`）上提供，由 `HERALD_TEST_API_KEY` 守护；主 `:8082` 监听器从不暴露验证码。E2E 通过 `docker compose exec herald curl`（`HERALD_COMPOSE_DIR`）访问。
+- **E2E 签名迁移到 HMAC v2**：规范串 `HERALD-HMAC-V2\n<METHOD>\n<path>\n<query>\n<ts>\n<nonce>\n<service>\n<keyid>\n<sha256(body)>` 与 `herald/internal/auth/hmac_v2.go`（v1.1.0）完全一致，并与上游 `CanonicalRequest.Canonical()` 字段顺序交叉验证。原先的 `X-API-Key` 正向测试被反转为负向测试，断言 `hmac_v2` 下 API Key 会被拒绝。
+
+整体一起回滚（`git revert`）；部分回滚会破坏运行或测试。
+
 ## 命令
 
 ```bash

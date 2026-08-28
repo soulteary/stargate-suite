@@ -48,6 +48,15 @@ type Options struct {
 	StargateSessionRedisUseBuiltin bool
 	// Warden 无 Redis 场景：为 true 时移除 warden-redis 服务与其卷，并清理 warden 的 depends_on
 	DisableWardenRedisService bool
+	// NetworkSegmentation：为 true 时将扁平的 the-gate-network 拆分为分段内部网络
+	// （auth-internal / warden-data / herald-data，配合 traefik 边缘入口 edge），
+	// 使每个服务仅加入其实际需要的网络（问题 S-03 的网络面缩减）。三种 Profile 均启用。
+	NetworkSegmentation bool
+	// LeastPrivilege：为 true 时为适用服务加最小权限（cap_drop: ALL、no-new-privileges、
+	// 按需 tmpfs）。ReadOnlyRootFS 进一步要求只读根文件系统（production）。
+	LeastPrivilege bool
+	// ReadOnlyRootFS：为 true 时在 LeastPrivilege 基础上加 read_only: true（production Profile）。
+	ReadOnlyRootFS bool
 }
 
 // serviceNameToContainerSuffix 逻辑服务名 -> container_name 后缀（前缀由 Options 提供）
@@ -1208,6 +1217,8 @@ func generateImageOrBuild(full map[string]interface{}, mode string, opts *Option
 	optsCopy := *opts
 	optsCopy.TraefikNetwork = false
 	applyOptionsToCompose(out, &optsCopy)
+	applyNetworkSegmentation(out, &optsCopy)
+	applyLeastPrivilege(out, &optsCopy)
 	if !optsCopy.UseNamedVolume {
 		applyRedisBindPaths(out, &optsCopy)
 	}
@@ -1373,6 +1384,11 @@ func generateOneImpl(full map[string]interface{}, mode string, opts *Options, me
 	}
 
 	applyOptionsToCompose(out, opts)
+
+	// 网络分段与容器最小权限（PR 6，S-01/S-03）。在端口/网络基础处理之后应用，
+	// 使分段网络覆盖扁平的 the-gate-network，并为适用服务加最小权限。
+	applyNetworkSegmentation(out, opts)
+	applyLeastPrivilege(out, opts)
 
 	// Redis 数据：命名卷 vs 绑定路径
 	if opts != nil && !opts.UseNamedVolume {

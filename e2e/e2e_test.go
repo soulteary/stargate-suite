@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -75,18 +77,56 @@ func sendVerificationCode(t *testing.T, phone string) (string, error) {
 	return challengeID, nil
 }
 
-// getTestCode gets the verification code from Herald test endpoint
+// getTestCode gets the verification code from Herald's dedicated test-code
+// listener. Herald v1.1.0 serves /v1/test/code ONLY on a loopback-only listener
+// (HERALD_TEST_LISTENER_ADDR) guarded by HERALD_TEST_API_KEY (sent as
+// X-Test-Api-Key); the main :8082 listener never exposes test codes.
+//
+// Because the listener is loopback-only inside the Herald container, it cannot
+// be published to the host. Resolution order:
+//  1. HERALD_TEST_CODE_URL (explicit base, e.g. a reachable forwarder) — used
+//     directly when set.
+//  2. HERALD_COMPOSE_DIR set → `docker compose exec herald` curls the loopback
+//     listener from inside the container (the faithful path for v1.1.0).
+//  3. Fallback: heraldURL (works only if a legacy/main-listener test route is
+//     reachable, e.g. older Herald or a host-published listener).
 func getTestCode(t *testing.T, challengeID string) (string, error) {
 	if challengeID == "" {
 		return "", fmt.Errorf("challengeID cannot be empty")
 	}
+	testKey := os.Getenv("HERALD_TEST_API_KEY")
+	if testKey == "" {
+		testKey = "test-herald-test-code-key"
+	}
 
-	url := fmt.Sprintf("%s/v1/test/code/%s", heraldURL, challengeID)
+	// Path 2: exec into the container to reach the loopback-only listener.
+	if dir := os.Getenv("HERALD_COMPOSE_DIR"); dir != "" && os.Getenv("HERALD_TEST_CODE_URL") == "" {
+		addr := os.Getenv("HERALD_TEST_LISTENER_ADDR")
+		if addr == "" {
+			addr = "127.0.0.1:8092"
+		}
+		url := fmt.Sprintf("http://%s/v1/test/code/%s", addr, challengeID)
+		cmd := exec.Command("docker", "compose", "exec", "-T", "herald",
+			"curl", "-sf", "-H", "X-Test-Api-Key: "+testKey, url)
+		cmd.Dir = dir
+		out, err := cmd.Output()
+		if err != nil {
+			return "", fmt.Errorf("exec test-code fetch failed: %w", err)
+		}
+		return parseTestCode(out)
+	}
+
+	base := os.Getenv("HERALD_TEST_CODE_URL")
+	if base == "" {
+		base = heraldURL
+	}
+	url := fmt.Sprintf("%s/v1/test/code/%s", base, challengeID)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
 	}
+	req.Header.Set("X-Test-Api-Key", testKey)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -104,20 +144,26 @@ func getTestCode(t *testing.T, challengeID string) (string, error) {
 		return "", fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
 	}
 
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return parseTestCode(bodyBytes)
+}
+
+// parseTestCode decodes the {ok, challenge_id, code} test-code response.
+func parseTestCode(b []byte) (string, error) {
 	var result struct {
 		OK          bool   `json:"ok"`
 		ChallengeID string `json:"challenge_id"`
 		Code        string `json:"code"`
 	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.Unmarshal(b, &result); err != nil {
 		return "", err
 	}
-
 	if !result.OK {
 		return "", fmt.Errorf("get test code failed")
 	}
-
 	return result.Code, nil
 }
 

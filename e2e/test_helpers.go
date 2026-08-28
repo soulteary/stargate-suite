@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -330,13 +331,118 @@ func sendVerificationCodeWithEmail(t *testing.T, email string) (string, *ErrorRe
 	return result.ChallengeID, nil
 }
 
-// calculateHMAC calculates HMAC-SHA256 signature
-// Signature format: HMAC-SHA256(timestamp:service:body, secret)
-func calculateHMAC(timestamp int64, service, body, secret string) string {
-	message := fmt.Sprintf("%d:%s:%s", timestamp, service, body)
+// heraldV2Signature holds the headers required for a Herald HMAC v2 request.
+type heraldV2Signature struct {
+	Signature string
+	Timestamp string
+	Nonce     string
+	Service   string
+	KeyID     string
+}
+
+// signHeraldV2 computes a Herald HMAC v2 signature over the canonical string:
+//
+//	HERALD-HMAC-V2\n<UPPER(METHOD)>\n<path>\n<query>\n<ts>\n<nonce>\n<service>\n<keyID>\n<hex(sha256(body))>
+//
+// This mirrors herald/internal/auth/hmac_v2.go (v1.1.0) exactly and is
+// cross-verified against the upstream CanonicalRequest.Canonical() field order.
+// With a single HMAC_SECRET (no key map) the server resolves the secret via an
+// implicit "default" key id, so keyID may be empty and no X-Key-Id is sent; the
+// empty keyID is still bound into the signature as the server does.
+func signHeraldV2(method, path, query, service, keyID, secret string, body []byte) heraldV2Signature {
+	ts := strconv.FormatInt(time.Now().Unix(), 10)
+	nonce := hex.EncodeToString([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
+	bodyHash := sha256.Sum256(body)
+
+	var b strings.Builder
+	b.WriteString("HERALD-HMAC-V2")
+	b.WriteByte('\n')
+	b.WriteString(strings.ToUpper(method))
+	b.WriteByte('\n')
+	b.WriteString(path)
+	b.WriteByte('\n')
+	b.WriteString(query)
+	b.WriteByte('\n')
+	b.WriteString(ts)
+	b.WriteByte('\n')
+	b.WriteString(nonce)
+	b.WriteByte('\n')
+	b.WriteString(service)
+	b.WriteByte('\n')
+	b.WriteString(keyID)
+	b.WriteByte('\n')
+	b.WriteString(hex.EncodeToString(bodyHash[:]))
+
 	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(message))
+	mac.Write([]byte(b.String()))
+	return heraldV2Signature{
+		Signature: hex.EncodeToString(mac.Sum(nil)),
+		Timestamp: ts,
+		Nonce:     nonce,
+		Service:   service,
+		KeyID:     keyID,
+	}
+}
+
+// signHeraldV2Fixed is like signHeraldV2 but takes an explicit timestamp and
+// nonce instead of generating them. It is used by negative tests that need to
+// sign over an out-of-drift timestamp so the only failing server check is the
+// timestamp bound (drift is checked before signature verification upstream).
+func signHeraldV2Fixed(method, path, query, ts, nonce, service, keyID, secret string, body []byte) string {
+	bodyHash := sha256.Sum256(body)
+	var b strings.Builder
+	b.WriteString("HERALD-HMAC-V2")
+	b.WriteByte('\n')
+	b.WriteString(strings.ToUpper(method))
+	b.WriteByte('\n')
+	b.WriteString(path)
+	b.WriteByte('\n')
+	b.WriteString(query)
+	b.WriteByte('\n')
+	b.WriteString(ts)
+	b.WriteByte('\n')
+	b.WriteString(nonce)
+	b.WriteByte('\n')
+	b.WriteString(service)
+	b.WriteByte('\n')
+	b.WriteString(keyID)
+	b.WriteByte('\n')
+	b.WriteString(hex.EncodeToString(bodyHash[:]))
+
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(b.String()))
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// setHeraldV2Headers applies the v2 auth headers to a request. X-Key-Id is only
+// sent when keyID is non-empty (empty keyID → implicit default on the server).
+func setHeraldV2Headers(req *http.Request, sig heraldV2Signature) {
+	req.Header.Set("X-Signature-Version", "v2")
+	req.Header.Set("X-Signature", sig.Signature)
+	req.Header.Set("X-Timestamp", sig.Timestamp)
+	req.Header.Set("X-Nonce", sig.Nonce)
+	req.Header.Set("X-Service", sig.Service)
+	if sig.KeyID != "" {
+		req.Header.Set("X-Key-Id", sig.KeyID)
+	}
+}
+
+// signHeraldReq signs an already-built Herald request with HMAC v2 using the
+// shared test secret, deriving method/path/query from the request and hashing
+// the provided raw body. It replaces the legacy `X-API-Key` header the tests
+// used to set, since Herald v1.1.0 runs REQUEST_AUTH_MODE=hmac_v2 and never
+// downgrades to API-key auth. Pass nil body for requests without a body.
+func signHeraldReq(req *http.Request, body []byte) {
+	query := ""
+	if req.URL != nil {
+		query = req.URL.RawQuery
+	}
+	path := ""
+	if req.URL != nil {
+		path = req.URL.Path
+	}
+	sig := signHeraldV2(req.Method, path, query, "e2e-suite", "", heraldHMACSecret, body)
+	setHeraldV2Headers(req, sig)
 }
 
 // clearRateLimitKeys clears test state in Redis to avoid previous tests affecting current test

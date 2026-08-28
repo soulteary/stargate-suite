@@ -97,7 +97,7 @@ func TestHeraldMetrics(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req, bodyBytes)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -132,7 +132,7 @@ func TestHeraldMetrics(t *testing.T) {
 
 	verifyReq.Header.Set("Content-Type", "application/json")
 	verifyReq.Header.Set("Accept", "application/json")
-	verifyReq.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(verifyReq, verifyBodyBytes)
 
 	verifyResp, err := client.Do(verifyReq)
 	testza.AssertNoError(t, err)

@@ -34,7 +34,7 @@ func TestHeraldIdempotencyKey(t *testing.T) {
 
 	req1.Header.Set("Content-Type", "application/json")
 	req1.Header.Set("Accept", "application/json")
-	req1.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req1, bodyBytes)
 	req1.Header.Set("Idempotency-Key", idempotencyKey)
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -64,7 +64,7 @@ func TestHeraldIdempotencyKey(t *testing.T) {
 
 	req2.Header.Set("Content-Type", "application/json")
 	req2.Header.Set("Accept", "application/json")
-	req2.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req2, bodyBytes2)
 	req2.Header.Set("Idempotency-Key", idempotencyKey)
 
 	// Short delay to ensure within TTL
@@ -118,7 +118,7 @@ func TestHeraldIdempotencyKeyDifferent(t *testing.T) {
 
 	req1.Header.Set("Content-Type", "application/json")
 	req1.Header.Set("Accept", "application/json")
-	req1.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req1, bodyBytes)
 	req1.Header.Set("Idempotency-Key", idempotencyKey1)
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -148,7 +148,7 @@ func TestHeraldIdempotencyKeyDifferent(t *testing.T) {
 
 	req2.Header.Set("Content-Type", "application/json")
 	req2.Header.Set("Accept", "application/json")
-	req2.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req2, bodyBytes2)
 	req2.Header.Set("Idempotency-Key", idempotencyKey2)
 
 	time.Sleep(1 * time.Second)
@@ -194,7 +194,7 @@ func TestHeraldIdempotencyKeyWithoutHeader(t *testing.T) {
 
 	req1.Header.Set("Content-Type", "application/json")
 	req1.Header.Set("Accept", "application/json")
-	req1.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req1, bodyBytes)
 	// Do not set Idempotency-Key
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -218,7 +218,7 @@ func TestHeraldIdempotencyKeyWithoutHeader(t *testing.T) {
 
 	req2.Header.Set("Content-Type", "application/json")
 	req2.Header.Set("Accept", "application/json")
-	req2.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req2, bodyBytes2)
 	// Do not set Idempotency-Key
 
 	time.Sleep(1 * time.Second)

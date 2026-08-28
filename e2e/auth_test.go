@@ -30,11 +30,6 @@ func TestHeraldHMACSignature(t *testing.T) {
 
 	bodyBytes, err := json.Marshal(reqBody)
 	testza.AssertNoError(t, err)
-	bodyStr := string(bodyBytes)
-
-	timestamp := time.Now().Unix()
-	service := "stargate"
-	signature := calculateHMAC(timestamp, service, bodyStr, heraldHMACSecret)
 
 	url := fmt.Sprintf("%s/v1/otp/challenges", heraldURL)
 	req, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
@@ -42,9 +37,9 @@ func TestHeraldHMACSignature(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Signature", signature)
-	req.Header.Set("X-Timestamp", strconv.FormatInt(timestamp, 10))
-	req.Header.Set("X-Service", service)
+	// HMAC v2: bind method/path/query/timestamp/nonce/service/keyID/body-hash.
+	sig := signHeraldV2("POST", "/v1/otp/challenges", "", "stargate", "", heraldHMACSecret, bodyBytes)
+	setHeraldV2Headers(req, sig)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -60,14 +55,14 @@ func TestHeraldHMACSignature(t *testing.T) {
 		t.Logf("⚠ Rate limited, skipping this test. Status: %d", resp.StatusCode)
 		return
 	}
-	testza.AssertEqual(t, http.StatusOK, resp.StatusCode, "Should return 200 OK with valid HMAC signature")
+	testza.AssertEqual(t, http.StatusOK, resp.StatusCode, "Should return 200 OK with valid HMAC v2 signature")
 
 	var challengeResp HeraldChallengeResponse
 	err = json.NewDecoder(resp.Body).Decode(&challengeResp)
 	testza.AssertNoError(t, err)
 
 	testza.AssertNotNil(t, challengeResp.ChallengeID)
-	t.Logf("✓ Valid HMAC signature accepted: %+v", challengeResp)
+	t.Logf("✓ Valid HMAC v2 signature accepted: %+v", challengeResp)
 }
 
 // TestHeraldHMACSignatureInvalid tests that invalid signatures are rejected
@@ -84,20 +79,19 @@ func TestHeraldHMACSignatureInvalid(t *testing.T) {
 	bodyBytes, err := json.Marshal(reqBody)
 	testza.AssertNoError(t, err)
 
-	timestamp := time.Now().Unix()
-	service := "stargate"
-	// Use incorrect signature
-	invalidSignature := "invalid_signature_12345"
-
 	url := fmt.Sprintf("%s/v1/otp/challenges", heraldURL)
 	req, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
 	testza.AssertNoError(t, err)
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Signature", invalidSignature)
-	req.Header.Set("X-Timestamp", strconv.FormatInt(timestamp, 10))
-	req.Header.Set("X-Service", service)
+	// v2 headers with a deliberately wrong signature: version is present so the
+	// server evaluates v2 (no v1 fallback) and must reject the bad signature.
+	req.Header.Set("X-Signature-Version", "v2")
+	req.Header.Set("X-Signature", "invalid_signature_12345")
+	req.Header.Set("X-Timestamp", strconv.FormatInt(time.Now().Unix(), 10))
+	req.Header.Set("X-Nonce", "e2e-nonce-invalid-sig")
+	req.Header.Set("X-Service", "stargate")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -133,12 +127,15 @@ func TestHeraldHMACSignatureExpired(t *testing.T) {
 
 	bodyBytes, err := json.Marshal(reqBody)
 	testza.AssertNoError(t, err)
-	bodyStr := string(bodyBytes)
 
-	// Use expired timestamp (6 minutes ago, exceeding the default 5-minute window)
+	// Use expired timestamp (6 minutes ago, exceeding the default 60s drift and
+	// 5-minute window). Compute a valid v2 signature over the expired timestamp
+	// so the ONLY failing check is the timestamp drift bound.
 	expiredTimestamp := time.Now().Unix() - 360
 	service := "stargate"
-	signature := calculateHMAC(expiredTimestamp, service, bodyStr, heraldHMACSecret)
+	nonce := "e2e-nonce-expired"
+	sig := signHeraldV2Fixed("POST", "/v1/otp/challenges", "",
+		strconv.FormatInt(expiredTimestamp, 10), nonce, service, "", heraldHMACSecret, bodyBytes)
 
 	url := fmt.Sprintf("%s/v1/otp/challenges", heraldURL)
 	req, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
@@ -146,8 +143,10 @@ func TestHeraldHMACSignatureExpired(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Signature", signature)
+	req.Header.Set("X-Signature-Version", "v2")
+	req.Header.Set("X-Signature", sig)
 	req.Header.Set("X-Timestamp", strconv.FormatInt(expiredTimestamp, 10))
+	req.Header.Set("X-Nonce", nonce)
 	req.Header.Set("X-Service", service)
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -163,9 +162,10 @@ func TestHeraldHMACSignatureExpired(t *testing.T) {
 		"Should return 401 Unauthorized or 403 Forbidden with expired timestamp")
 
 	bodyBytes, _ = io.ReadAll(resp.Body)
-	bodyStr = string(bodyBytes)
+	bodyStr := string(bodyBytes)
 	testza.AssertTrue(t, strings.Contains(bodyStr, "expired") || strings.Contains(bodyStr, "timestamp") ||
 		strings.Contains(bodyStr, "time") || strings.Contains(bodyStr, "过期") ||
+		strings.Contains(bodyStr, "range") ||
 		strings.Contains(bodyStr, "unauthorized"),
 		"Error message should mention expired timestamp or authentication failure")
 
@@ -188,11 +188,12 @@ func TestHeraldHMACWithXKeyId(t *testing.T) {
 
 	bodyBytes, err := json.Marshal(reqBody)
 	testza.AssertNoError(t, err)
-	bodyStr := string(bodyBytes)
 
-	timestamp := time.Now().Unix()
 	service := "stargate"
-	signature := calculateHMAC(timestamp, service, bodyStr, heraldHMACSecret)
+	// v2 with an explicit X-Key-Id: the keyID is bound into the signature and
+	// used to resolve the secret. With a single HMAC_SECRET, GetHMACSecret
+	// returns that secret for any key id, so an explicit id still verifies.
+	sig := signHeraldV2("POST", "/v1/otp/challenges", "", service, "stargate", heraldHMACSecret, bodyBytes)
 
 	url := fmt.Sprintf("%s/v1/otp/challenges", heraldURL)
 	req, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
@@ -200,10 +201,7 @@ func TestHeraldHMACWithXKeyId(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Signature", signature)
-	req.Header.Set("X-Timestamp", strconv.FormatInt(timestamp, 10))
-	req.Header.Set("X-Service", service)
-	req.Header.Set("X-Key-Id", "stargate")
+	setHeraldV2Headers(req, sig)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -327,8 +325,11 @@ func TestWardenAPIKeyInvalid(t *testing.T) {
 	t.Logf("✓ Invalid API Key rejected: Status %d", resp.StatusCode)
 }
 
-// TestHeraldAPIKeyAuth tests Herald API Key authentication
-func TestHeraldAPIKeyAuth(t *testing.T) {
+// TestHeraldAPIKeyRejectedUnderHMACV2 verifies that under REQUEST_AUTH_MODE=hmac_v2
+// (the test/production posture, no downgrade), a bare X-API-Key is rejected: the
+// main endpoints only accept replay-resistant HMAC v2, never API-key auth. This
+// is the security invariant of PR8 (Herald v1.1.0 explicit auth, no fallback).
+func TestHeraldAPIKeyRejectedUnderHMACV2(t *testing.T) {
 	ensureServicesReady(t)
 
 	// Add delay to avoid rate limiting
@@ -350,6 +351,8 @@ func TestHeraldAPIKeyAuth(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	// Only an API key, no HMAC v2 headers: hmac_v2 mode requires the
+	// X-Signature-Version header and never falls back to API-key auth.
 	req.Header.Set("X-API-Key", heraldAPIKey)
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -361,19 +364,10 @@ func TestHeraldAPIKeyAuth(t *testing.T) {
 		}
 	}()
 
-	// Handle rate limiting (429)
-	if resp.StatusCode == http.StatusTooManyRequests {
-		t.Logf("⚠ Rate limited, skipping this test. Status: %d", resp.StatusCode)
-		return
-	}
-	testza.AssertEqual(t, http.StatusOK, resp.StatusCode, "Should return 200 OK with valid API Key")
+	testza.AssertTrue(t, resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden,
+		"API key alone must be rejected under hmac_v2 (no downgrade), got %d", resp.StatusCode)
 
-	var challengeResp HeraldChallengeResponse
-	err = json.NewDecoder(resp.Body).Decode(&challengeResp)
-	testza.AssertNoError(t, err)
-
-	testza.AssertNotNil(t, challengeResp.ChallengeID)
-	t.Logf("✓ Valid API Key accepted: %+v", challengeResp)
+	t.Logf("✓ API key rejected under hmac_v2: Status %d", resp.StatusCode)
 }
 
 // TestHeraldAPIKeyInvalid tests Herald invalid API Key

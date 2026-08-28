@@ -25,6 +25,7 @@ func cmdValidate() error {
 	fs.SetOutput(os.Stderr)
 	profileName := fs.String("profile", "", "validate against a deployment profile: development|test|production")
 	strict := fs.Bool("strict", false, "treat profile policy violations as hard errors (implied by test/production)")
+	jsonOut := fs.Bool("json", false, "emit profile findings as JSON (stable Code/Field/Profile per finding)")
 	var sets stringSliceFlag
 	fs.Var(&sets, "set", "override an env value as KEY=VALUE (repeatable); also read from process env for known secret keys")
 	if err := fs.Parse(cmdArgs); err != nil {
@@ -101,8 +102,24 @@ func cmdValidate() error {
 			return err
 		}
 		findings := validateForProfile(prof, nil, collectUserEnv(sets))
-		for _, f := range findings {
-			fmt.Fprintln(os.Stderr, "  "+f.String())
+		if *jsonOut {
+			type jsonFinding struct {
+				Code    string `json:"code"`
+				Field   string `json:"field"`
+				Profile string `json:"profile"`
+				Message string `json:"message"`
+				IsError bool   `json:"is_error"`
+			}
+			out := make([]jsonFinding, 0, len(findings))
+			for _, f := range findings {
+				out = append(out, jsonFinding{Code: f.Code, Field: f.Field, Profile: f.Profile, Message: f.Message, IsError: f.IsError})
+			}
+			b, _ := json.MarshalIndent(out, "", "  ")
+			fmt.Println(string(b))
+		} else {
+			for _, f := range findings {
+				fmt.Fprintln(os.Stderr, "  "+f.String())
+			}
 		}
 		// production 始终 strict；显式 --strict 亦提升为严格。
 		hardFail := policy.HasErrors(findings)
@@ -112,7 +129,9 @@ func cmdValidate() error {
 		if *strict && len(findings) > 0 {
 			return fmt.Errorf("profile %q validation produced %d finding(s) under --strict", prof.Name, len(findings))
 		}
-		fmt.Printf("profile %q OK\n", prof.Name)
+		if !*jsonOut {
+			fmt.Printf("profile %q OK\n", prof.Name)
+		}
 		return nil
 	}
 

@@ -6,16 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"testing"
 	"time"
 
 	"github.com/MarvinJWendt/testza"
-)
-
-const (
-	heraldAPIKey     = "test-herald-api-key"
-	heraldHMACSecret = "test-hmac-secret"
 )
 
 // HeraldChallengeRequest represents the request to create a challenge
@@ -100,7 +94,7 @@ func TestHeraldCreateChallenge(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req, bodyBytes)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -147,7 +141,7 @@ func TestHeraldCreateChallengeEmail(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req, bodyBytes)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -191,7 +185,7 @@ func TestHeraldVerifyChallenge(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req, bodyBytes)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -225,7 +219,7 @@ func TestHeraldVerifyChallenge(t *testing.T) {
 
 	verifyReq.Header.Set("Content-Type", "application/json")
 	verifyReq.Header.Set("Accept", "application/json")
-	verifyReq.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(verifyReq, verifyBodyBytes)
 
 	verifyResp, err := client.Do(verifyReq)
 	testza.AssertNoError(t, err)
@@ -269,7 +263,7 @@ func TestHeraldChallengeExpired(t *testing.T) {
 
 	verifyReq.Header.Set("Content-Type", "application/json")
 	verifyReq.Header.Set("Accept", "application/json")
-	verifyReq.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(verifyReq, verifyBodyBytes)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	verifyResp, err := client.Do(verifyReq)
@@ -316,7 +310,7 @@ func TestHeraldInvalidCode(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req, bodyBytes)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -344,7 +338,7 @@ func TestHeraldInvalidCode(t *testing.T) {
 
 	verifyReq.Header.Set("Content-Type", "application/json")
 	verifyReq.Header.Set("Accept", "application/json")
-	verifyReq.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(verifyReq, verifyBodyBytes)
 
 	verifyResp, err := client.Do(verifyReq)
 	testza.AssertNoError(t, err)
@@ -389,7 +383,7 @@ func TestHeraldVerifyLockedAfterMaxAttempts(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req, bodyBytes)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -410,7 +404,7 @@ func TestHeraldVerifyLockedAfterMaxAttempts(t *testing.T) {
 		verifyReq, _ := http.NewRequest("POST", heraldURL+"/v1/otp/verifications", bytes.NewReader(verifyBodyBytes))
 		verifyReq.Header.Set("Content-Type", "application/json")
 		verifyReq.Header.Set("Accept", "application/json")
-		verifyReq.Header.Set("X-API-Key", heraldAPIKey)
+		signHeraldReq(verifyReq, verifyBodyBytes)
 		verifyResp, err := client.Do(verifyReq)
 		testza.AssertNoError(t, err)
 		_, _ = io.ReadAll(verifyResp.Body)
@@ -428,7 +422,7 @@ func TestHeraldVerifyLockedAfterMaxAttempts(t *testing.T) {
 	testza.AssertNoError(t, err)
 	verifyReq.Header.Set("Content-Type", "application/json")
 	verifyReq.Header.Set("Accept", "application/json")
-	verifyReq.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(verifyReq, verifyBodyBytes)
 
 	verifyResp, err := client.Do(verifyReq)
 	testza.AssertNoError(t, err)
@@ -474,7 +468,7 @@ func TestHeraldRateLimit(t *testing.T) {
 
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Accept", "application/json")
-		req.Header.Set("X-API-Key", heraldAPIKey)
+		signHeraldReq(req, bodyBytes)
 
 		client := &http.Client{Timeout: 10 * time.Second}
 		resp, err := client.Do(req)
@@ -520,7 +514,7 @@ func TestHeraldRevokeChallenge(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(req, bodyBytes)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -539,7 +533,7 @@ func TestHeraldRevokeChallenge(t *testing.T) {
 	testza.AssertNoError(t, err)
 
 	revokeReq.Header.Set("Accept", "application/json")
-	revokeReq.Header.Set("X-API-Key", heraldAPIKey)
+	signHeraldReq(revokeReq, nil)
 
 	revokeResp, err := client.Do(revokeReq)
 	testza.AssertNoError(t, err)
@@ -579,11 +573,6 @@ func TestHeraldHMACAuth(t *testing.T) {
 
 	bodyBytes, err := json.Marshal(reqBody)
 	testza.AssertNoError(t, err)
-	bodyStr := string(bodyBytes)
-
-	timestamp := time.Now().Unix()
-	service := "test-service"
-	signature := calculateHMAC(timestamp, service, bodyStr, heraldHMACSecret)
 
 	url := fmt.Sprintf("%s/v1/otp/challenges", heraldURL)
 	req, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
@@ -591,9 +580,11 @@ func TestHeraldHMACAuth(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Signature", signature)
-	req.Header.Set("X-Timestamp", strconv.FormatInt(timestamp, 10))
-	req.Header.Set("X-Service", service)
+
+	// HMAC v2: bind method/path/query/timestamp/nonce/service/keyID/body-hash.
+	// Single HMAC_SECRET => empty keyID (server resolves the implicit default).
+	sig := signHeraldV2("POST", "/v1/otp/challenges", "", "test-service", "", heraldHMACSecret, bodyBytes)
+	setHeraldV2Headers(req, sig)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -604,13 +595,13 @@ func TestHeraldHMACAuth(t *testing.T) {
 		}
 	}()
 
-	// HMAC authentication should succeed (higher priority than API Key)
-	testza.AssertEqual(t, http.StatusOK, resp.StatusCode, "Should return 200 OK with HMAC auth")
+	// HMAC v2 authentication should succeed (replay-resistant, higher priority than API Key)
+	testza.AssertEqual(t, http.StatusOK, resp.StatusCode, "Should return 200 OK with HMAC v2 auth")
 
 	var challengeResp HeraldChallengeResponse
 	err = json.NewDecoder(resp.Body).Decode(&challengeResp)
 	testza.AssertNoError(t, err)
 
 	testza.AssertNotNil(t, challengeResp.ChallengeID)
-	t.Logf("✓ HMAC authentication successful: %+v", challengeResp)
+	t.Logf("✓ HMAC v2 authentication successful: %+v", challengeResp)
 }

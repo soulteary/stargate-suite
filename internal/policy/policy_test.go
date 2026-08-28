@@ -202,18 +202,25 @@ func TestValidateProductionStrictRulesAreErrors(t *testing.T) {
 func TestValidateProductionAcceptsStrongConfig(t *testing.T) {
 	p := getProfile(t, Production)
 	env := map[string]string{
-		EnvPasswords:           "bcrypt:$2a$10$abcdefghijklmnopqrstuv",
-		EnvHeraldAPIKey:        "9f8e7d6c5b4a39281706",
-		EnvWardenAPIKey:        "abcdef0123456789abcdef",
-		EnvHeraldHmacSecret:    "0011223344556677889900112233445566778899",
-		EnvHmacV1Enabled:       "false",
-		EnvHeraldTestMode:      "false",
-		EnvCookieSecure:        "true",
-		EnvHeraldRedisPassword: "s3cr3t-redis-herald",
-		EnvWardenRedisPassword: "s3cr3t-redis-warden",
+		EnvPasswords:             "bcrypt:$2a$10$abcdefghijklmnopqrstuv",
+		EnvHeraldAPIKey:          "9f8e7d6c5b4a39281706",
+		EnvWardenAPIKey:          "abcdef0123456789abcdef",
+		EnvHeraldHmacSecret:      "0011223344556677889900112233445566778899",
+		EnvHmacV1Enabled:         "false",
+		EnvHeraldTestMode:        "false",
+		EnvCookieSecure:          "true",
+		EnvHeraldRedisPassword:   "s3cr3t-redis-herald",
+		EnvWardenRedisPassword:   "s3cr3t-redis-warden",
+		EnvHeraldPIIPepper:       "pepper-0011223344556677889900112233",
+		EnvHeraldIdempotencySecr: "idem-0011223344556677889900112233aa",
+		EnvRequestAuthMode:       "hmac_v2",
 	}
 	opts := baseOpts()
 	opts.ExposePorts = false
+	// production containers are hardened (least privilege + read-only root);
+	// the real path sets these via Apply, so mirror that for the accept case.
+	opts.LeastPrivilege = true
+	opts.ReadOnlyRootFS = true
 	findings := Validate(p, env, opts)
 	if HasErrors(findings) {
 		for _, f := range findings {

@@ -166,12 +166,36 @@ order:
   - WARDEN_TLS_KEY
   - WARDEN_TLS_CA
   - WARDEN_TLS_REQUIRE_CLIENT_CERT
+  # --- v1 contract fields (PR7) ---
+  - ENVIRONMENT
+  - COOKIE_SECURE
+  - CALLBACK_ALLOWED_HOSTS
+  - SESSION_EXCHANGE_SECRET
+  - TRUSTED_PROXIES
+  - PROXY_HEADER
+  - PASSWORD_HEADER_AUTH_ENABLED
+  - WARDEN_HMAC_KEY_ID
+  - WARDEN_HMAC_SECRET
+  - HERALD_HMAC_KEY_ID
+  - REQUEST_AUTH_MODE
+  - HERALD_HMAC_DEFAULT_KEY_ID
+  - HMAC_MAX_DRIFT
+  - HMAC_V1_ENABLED
+  - HERALD_IDEMPOTENCY_SECRET
+  - HERALD_PII_PEPPER
+  - HERALD_TRUSTED_PROXIES
+  - HERALD_TRUSTED_PROXY_HEADER
+  - HERALD_TEST_API_KEY
+  - HERALD_TEST_LISTENER_ADDR
+  # --- Warden v1 hardening (PR8) ---
+  - WARDEN_HMAC_ALLOW_V1
+  - WARDEN_METRICS_REQUIRE_AUTH
 
 # Per-key: comment (for .env and compose), services (which compose service may use this env), default (optional)
 vars:
-  HERALD_IMAGE: { comment: "Herald Service Image", services: [], default: "ghcr.io/soulteary/herald:v0.9.0" }
-  WARDEN_IMAGE: { comment: "Warden Service Image", services: [], default: "ghcr.io/soulteary/warden:v0.13.0" }
-  STARGATE_IMAGE: { comment: "Stargate Service Image", services: [], default: "ghcr.io/soulteary/stargate:v0.11.0" }
+  HERALD_IMAGE: { comment: "Herald Service Image", services: [], default: "ghcr.io/soulteary/herald:v1.1.0" }
+  WARDEN_IMAGE: { comment: "Warden Service Image", services: [], default: "ghcr.io/soulteary/warden:v1.0.0" }
+  STARGATE_IMAGE: { comment: "Stargate Service Image", services: [], default: "ghcr.io/soulteary/stargate:v1.0.0" }
   HERALD_REDIS_IMAGE: { comment: "Herald Redis Image", services: [], default: "redis:8.4-alpine" }
   WARDEN_REDIS_IMAGE: { comment: "Warden Redis Image", services: [], default: "redis:8.4-alpine" }
   STARGATE_REDIS_IMAGE: { comment: "Stargate Redis Image", services: [], default: "redis:8.4-alpine" }
@@ -336,3 +360,29 @@ vars:
   PROTECTED_PREFIX: { comment: "受保护服务路径前缀", services: [stargate], default: "protected" }
   LOCKOUT_DURATION: { comment: "Herald 锁定时长（超过最大尝试次数后）", services: [herald] }
   DEBUG: { comment: "调试模式", services: [stargate] }
+
+  # --- v1 contract fields (PR7): registered here so composegen/.env ordering and
+  # the canonical-compose consistency check recognize them. Defaults intentionally
+  # omitted for secrets (must be user-provided in production). ---
+  ENVIRONMENT: { comment: "运行环境 (development/test/production)，供各服务生产 fail-closed 校验", services: [stargate, warden, herald, herald-totp] }
+  COOKIE_SECURE: { comment: "Stargate：Cookie Secure 标志（生产必须 true）", services: [stargate], default: "false" }
+  CALLBACK_ALLOWED_HOSTS: { comment: "Stargate：跨域回跳允许的 Host 白名单（逗号分隔）", services: [stargate] }
+  SESSION_EXCHANGE_SECRET: { comment: "Stargate：跨域会话交换密钥（启用回跳/跨域 Cookie 时 ≥32 字符）", services: [stargate] }
+  TRUSTED_PROXIES: { comment: "Stargate：可信代理 IP/CIDR 列表（step-up 取真实客户端 IP 用）", services: [stargate] }
+  PROXY_HEADER: { comment: "Stargate：真实客户端 IP 头名称（如 X-Forwarded-For）", services: [stargate] }
+  PASSWORD_HEADER_AUTH_ENABLED: { comment: "Stargate：是否允许基于请求头的密码认证", services: [stargate], default: "false" }
+  WARDEN_HMAC_KEY_ID: { comment: "Stargate→Warden：HMAC 密钥 ID", services: [stargate] }
+  WARDEN_HMAC_SECRET: { comment: "Stargate→Warden：HMAC 签名密钥", services: [stargate] }
+  HERALD_HMAC_KEY_ID: { comment: "Stargate→Herald：HMAC 密钥 ID（HMAC v2）", services: [stargate] }
+  REQUEST_AUTH_MODE: { comment: "Herald 服务间鉴权模式 (hmac_v2/mtls/api_key/none)；生产禁 none", services: [herald], default: "hmac_v2" }
+  HERALD_HMAC_DEFAULT_KEY_ID: { comment: "Herald：默认 HMAC 密钥 ID", services: [herald] }
+  HMAC_MAX_DRIFT: { comment: "Herald：HMAC 时间漂移容忍（如 60s）", services: [herald], default: "60s" }
+  HMAC_V1_ENABLED: { comment: "Herald：是否启用遗留 HMAC v1（生产必须为 false）", services: [herald], default: "false" }
+  HERALD_IDEMPOTENCY_SECRET: { comment: "Herald：幂等键派生密钥（生产 ≥32 字符）", services: [herald] }
+  HERALD_PII_PEPPER: { comment: "Herald：限流键/审计指纹 PII pepper（生产 ≥32 字符）", services: [herald] }
+  HERALD_TRUSTED_PROXIES: { comment: "Herald：可信代理 IP/CIDR 列表（限流取真实 peer IP）", services: [herald] }
+  HERALD_TRUSTED_PROXY_HEADER: { comment: "Herald：真实客户端 IP 头名称", services: [herald] }
+  HERALD_TEST_API_KEY: { comment: "Herald：测试验证码接口守护 API Key（仅测试模式）", services: [herald] }
+  HERALD_TEST_LISTENER_ADDR: { comment: "Herald：测试验证码接口独立监听地址（与主端口隔离）", services: [herald] }
+  WARDEN_HMAC_ALLOW_V1: { comment: "Warden：是否接受遗留 HMAC v1（生产必须为 false）", services: [warden], default: "false" }
+  WARDEN_METRICS_REQUIRE_AUTH: { comment: "Warden：/metrics 是否要求鉴权", services: [warden], default: "false" }
