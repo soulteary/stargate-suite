@@ -132,6 +132,7 @@ jobs:
     timeout-minutes: 20
     env:
       COMPOSE_FILE: ${{ github.workspace }}/build/image/docker-compose.yml
+      ENVIRONMENT: test
       TEST_WAIT_TIMEOUT: 180
       HERALD_COMPOSE_DIR: ${{ github.workspace }}
       HERALD_TEST_MODE: "true"
