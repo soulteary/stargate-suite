@@ -21,6 +21,22 @@ func loadManifestFromRoot(t *testing.T, root string) *Manifest {
 	return m
 }
 
+func TestComponentLockMatchesManifestSnapshot(t *testing.T) {
+	root := repoRoot(t)
+	manifest := loadManifestFromRoot(t, root)
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(LockPath)))
+	if err != nil {
+		t.Fatalf("read %s: %v", LockPath, err)
+	}
+	lock, err := ParseLock(data)
+	if err != nil {
+		t.Fatalf("parse %s: %v", LockPath, err)
+	}
+	if err := ValidateLock(manifest, lock, false); err != nil {
+		t.Fatalf("component lock drift: %v", err)
+	}
+}
+
 // coreImageEnvVar maps each core component to the env var that carries its
 // image reference in env-meta.yaml / .env.example / compose/canonical.
 var coreImageEnvVar = map[string]string{
