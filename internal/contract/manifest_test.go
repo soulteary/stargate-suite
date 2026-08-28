@@ -120,6 +120,31 @@ func TestManifestIsAuthoritativeForImages(t *testing.T) {
 	}
 }
 
+func TestOwlmailImageIsManifestManaged(t *testing.T) {
+	root := repoRoot(t)
+	m := loadManifestFromRoot(t, root)
+	owlmail, ok := m.Dependencies["owlmail"]
+	if !ok {
+		t.Fatal("manifest missing owlmail dependency")
+	}
+	ref := owlmail.Ref()
+	envMeta := readFile(t, root, "config/env-meta.yaml")
+	envExample := readFile(t, root, ".env.example")
+	composegen := readFile(t, root, "internal/composegen/composegen.go")
+	if !containsImageDefault(envMeta, "OWLMAIL_IMAGE", ref) {
+		t.Errorf("env-meta OWLMAIL_IMAGE does not match manifest %q", ref)
+	}
+	if !containsEnvAssignment(envExample, "OWLMAIL_IMAGE", ref) {
+		t.Errorf(".env.example OWLMAIL_IMAGE does not match manifest %q", ref)
+	}
+	if !containsComposeDefault(composegen, "OWLMAIL_IMAGE", ref) {
+		t.Errorf("composegen OwlMail image does not match manifest %q", ref)
+	}
+	if strings.Contains(composegen, "ghcr.io/soulteary/owlmail:latest") {
+		t.Error("composegen must not generate a mutable OwlMail latest tag")
+	}
+}
+
 // TestManifestIsAuthoritativeForPorts asserts config/ports.yaml container ports
 // match the manifest, and the canonical compose healthchecks hit the manifest's
 // container port + liveness path.

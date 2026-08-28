@@ -6,6 +6,7 @@ order:
   - HERALD_IMAGE
   - WARDEN_IMAGE
   - STARGATE_IMAGE
+  - OWLMAIL_IMAGE
   - HERALD_REDIS_IMAGE
   - WARDEN_REDIS_IMAGE
   - STARGATE_REDIS_IMAGE
@@ -194,6 +195,7 @@ vars:
   HERALD_IMAGE: { comment: "Herald Service Image", services: [], default: "ghcr.io/soulteary/herald:1.1.0" }
   WARDEN_IMAGE: { comment: "Warden Service Image", services: [], default: "ghcr.io/soulteary/warden:1.1.0" }
   STARGATE_IMAGE: { comment: "Stargate Service Image", services: [], default: "ghcr.io/soulteary/stargate:1.0.0" }
+  OWLMAIL_IMAGE: { comment: "OwlMail test inbox image", services: [], default: "ghcr.io/soulteary/owlmail:0.4.0" }
   HERALD_REDIS_IMAGE: { comment: "Herald Redis Image", services: [], default: "redis:8.4-alpine" }
   WARDEN_REDIS_IMAGE: { comment: "Warden Redis Image", services: [], default: "redis:8.4-alpine" }
   STARGATE_REDIS_IMAGE: { comment: "Stargate Redis Image", services: [], default: "redis:8.4-alpine" }

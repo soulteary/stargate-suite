@@ -1,9 +1,27 @@
 package composegen
 
 import (
-	"gopkg.in/yaml.v3"
+	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
+
+func TestInjectOwlmailUsesVersionedImageVariable(t *testing.T) {
+	services := make(map[string]interface{})
+	injectOwlmailService(services, &Options{})
+	owlmail, ok := services["owlmail"].(map[string]interface{})
+	if !ok {
+		t.Fatal("owlmail service was not injected")
+	}
+	image, _ := owlmail["image"].(string)
+	if image != "${OWLMAIL_IMAGE:-ghcr.io/soulteary/owlmail:0.4.0}" {
+		t.Fatalf("owlmail image = %q", image)
+	}
+	if strings.Contains(image, ":latest") {
+		t.Fatal("owlmail image must not use latest")
+	}
+}
 
 // TestGenerateImageOrBuildStargateNoHeraldTotp 确保 image/build 模式下生成的 compose 中 stargate 不依赖 herald-totp，否则 docker compose config 会报错。
 func TestGenerateImageOrBuildStargateNoHeraldTotp(t *testing.T) {

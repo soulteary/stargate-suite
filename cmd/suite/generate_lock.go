@@ -16,6 +16,7 @@ var lockImageEnvVars = map[string][]string{
 	"herald-smtp":     {"HERALD_SMTP_IMAGE"},
 	"redis":           {"HERALD_REDIS_IMAGE", "WARDEN_REDIS_IMAGE", "STARGATE_REDIS_IMAGE"},
 	"protected":       {"PROTECTED_IMAGE"},
+	"owlmail":         {"OWLMAIL_IMAGE"},
 }
 
 func loadLockedImageEnv(path string) (map[string]string, error) {

@@ -60,6 +60,9 @@ dependencies:
   protected:
     image: ghcr.io/traefik/whoami
     version: v1.11
+  owlmail:
+    image: ghcr.io/soulteary/owlmail
+    version: 0.4.0
 
 # 本 Suite 发布已验证的目标组件组合（只读契约来源，见 docs/release.md）。
 # 供 `suite version` 展示；PR 8 已把 components.* 收敛到此组合。
