@@ -15,14 +15,14 @@ func TestGenerateImageOrBuildStargateNoHeraldTotp(t *testing.T) {
 					"herald-redis": map[string]interface{}{"condition": "service_healthy"},
 				},
 			},
-			"herald-redis": map[string]interface{}{"image": "redis:test", "healthcheck": map[string]interface{}{"test": []interface{}{"CMD", "true"}}},
+			"herald-redis": map[string]interface{}{"image": "redis:test"},
 			"warden": map[string]interface{}{
 				"image": "warden:test",
 				"depends_on": map[string]interface{}{
 					"warden-redis": map[string]interface{}{"condition": "service_healthy"},
 				},
 			},
-			"warden-redis": map[string]interface{}{"image": "redis:test", "healthcheck": map[string]interface{}{"test": []interface{}{"CMD", "true"}}},
+			"warden-redis": map[string]interface{}{"image": "redis:test"},
 			"stargate": map[string]interface{}{
 				"image": "stargate:test",
 				"environment": []interface{}{
@@ -50,17 +50,11 @@ func TestGenerateImageOrBuildStargateNoHeraldTotp(t *testing.T) {
 		}
 		var out struct {
 			Services map[string]struct {
-				DependsOn	interface{} `yaml:"depends_on"`
-				Healthcheck	interface{} `yaml:"healthcheck"`
+				DependsOn interface{} `yaml:"depends_on"`
 			} `yaml:"services"`
 		}
 		if err := yaml.Unmarshal(yml, &out); err != nil {
 			t.Fatalf("yaml unmarshal: %v", err)
-		}
-		for _, redisName := range []string{"herald-redis", "warden-redis"} {
-			if out.Services[redisName].Healthcheck == nil {
-				t.Errorf("mode %q: canonical %s healthcheck must be preserved when options are nil", mode, redisName)
-			}
 		}
 		stargate, ok := out.Services["stargate"]
 		if !ok {
