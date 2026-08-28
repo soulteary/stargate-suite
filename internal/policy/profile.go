@@ -64,7 +64,7 @@ const (
 	// HeraldHmacV2OrMtls is retained for custom profile compatibility. The
 	// built-in production profile uses HMAC v2 until certificate mounts and
 	// lifecycle management are part of generated deployments.
-	HeraldHmacV2OrMtls       = "hmacV2OrMtls"
+	HeraldHmacV2OrMtls = "hmacV2OrMtls"
 )
 
 // Herald test API strategies.
