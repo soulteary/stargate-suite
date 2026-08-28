@@ -14,7 +14,7 @@
 services:
   # Herald（传令）- OTP/验证码服务，负责 challenge 创建、发送、校验与限流
   herald:
-    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:v1.1.0}
+    image: ${HERALD_IMAGE:-ghcr.io/soulteary/herald:1.1.0}
     container_name: the-gate-herald
     ports:
       - "8082:8082"
@@ -223,7 +223,7 @@ services:
 
   # Warden（看守）- 白名单用户服务，提供 user_id、email/phone 等供 Stargate 与 Herald 使用
   warden:
-    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:v1.0.0}
+    image: ${WARDEN_IMAGE:-ghcr.io/soulteary/warden:1.0.0}
     container_name: the-gate-warden
     ports:
       - "8081:8081"
@@ -303,7 +303,7 @@ services:
 
   # Stargate（门）- Forward Auth 鉴权与登录编排，依赖 Warden、Herald（内网）
   stargate:
-    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:v1.0.0}
+    image: ${STARGATE_IMAGE:-ghcr.io/soulteary/stargate:1.0.0}
     container_name: the-gate-stargate
     ports: []
     environment:
