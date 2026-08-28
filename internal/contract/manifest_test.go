@@ -271,6 +271,7 @@ func TestManifestFallbackPortsMatch(t *testing.T) {
 		}
 	}
 }
+
 // --- small string helpers (avoid pulling strconv/strings into many sites) ---
 
 func itoa(n int) string {
