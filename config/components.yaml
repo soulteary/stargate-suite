@@ -4,11 +4,9 @@
 # （env-meta.yaml、.env.example、compose/canonical、composegen 默认值、version 命令）
 # 均从此派生或对齐。禁止在别处重新硬编码这些值——漂移测试会失败。
 #
-# 阶段说明：
-#   - components.* 登记「当前运行值」（迁移前的旧版本、旧端口、旧健康路径），本 PR 不改变运行行为。
-#   - verifiedCombo.* 登记「本 Suite 发布已验证的目标 v1 组合」（只读契约来源），供 `suite version` 展示。
-#     真正把 components.* 升到 v1 由 PR 8 原子完成；届时 components.* 与 verifiedCombo.* 收敛一致。
-#   - digest 于正式发布时写入 components.lock.yaml。
+# `components.*` 登记生成器当前实际使用的版本与运行契约；
+# `verifiedCombo.*` 登记 `suite version` 展示的已验证核心组合。两者必须一致。
+# 镜像 digest 于正式发布时写入 components.lock.yaml。
 
 schemaVersion: 1
 
@@ -23,7 +21,7 @@ components:
     readinessPath: /readyz
   warden:
     image: ghcr.io/soulteary/warden
-    version: 1.0.0
+    version: 1.1.0
     contractVersion: v1
     containerPort: 8081
     livenessPath: /healthcheck
@@ -34,23 +32,23 @@ components:
     containerPort: 8082
     livenessPath: /healthz
 
-  # 可选通道 / 附属服务（当前旧值；与 canonical、env-meta 默认一致）。
+  # 可选通道 / 附属服务（v1 稳定组合；与 canonical、env-meta 默认一致）。
   herald-totp:
     image: ghcr.io/soulteary/herald-totp
-    version: v0.3.0
-    contractVersion: v0
+    version: 1.1.0
+    contractVersion: v1
     containerPort: 8084
     livenessPath: /healthz
   herald-dingtalk:
     image: ghcr.io/soulteary/herald-dingtalk
-    version: v0.5.0
-    contractVersion: v0
+    version: 1.1.0
+    contractVersion: v1
     containerPort: 8083
     livenessPath: /healthz
   herald-smtp:
     image: ghcr.io/soulteary/herald-smtp
-    version: v0.2.0
-    contractVersion: v0
+    version: 1.1.0
+    contractVersion: v1
     containerPort: 8085
     livenessPath: /healthz
 
@@ -65,9 +63,9 @@ dependencies:
 
 # 本 Suite 发布已验证的目标组件组合（只读契约来源，见 .cursor 规则 / PLAN.md）。
 # 供 `suite version` 展示；PR 8 已把 components.* 收敛到此组合。
-# 注意：Warden 上游最高稳定 Tag 为 v1.0.0（不存在 v1.1.0），故 Warden 目标定为 v1.0.0；
-# 其 v1 契约（HMAC v2、/healthcheck、WARDEN_HMAC_ALLOW_V1、ENVIRONMENT）已在 v1.0.0 落地。
+# 所有版本均对应已发布的上游稳定 Tag；镜像使用 release 工作流产生的
+# 无 `v` semver tag。
 verifiedCombo:
   stargate: v1.0.0
-  warden: v1.0.0
+  warden: v1.1.0
   herald: v1.1.0

@@ -60,7 +60,7 @@ The v1 contracts (Stargate 1.0.0 / Warden 1.1.0 / Herald 1.1.0) add security-rel
 
 - **Stargate**: `COOKIE_SECURE`, `CALLBACK_ALLOWED_HOSTS`, `SESSION_EXCHANGE_SECRET`, `TRUSTED_PROXIES`, `PROXY_HEADER`, `PASSWORD_HEADER_AUTH_ENABLED`, `WARDEN_HMAC_KEY_ID` / `WARDEN_HMAC_SECRET`, `HERALD_HMAC_KEY_ID`, `WARDEN_TLS_*`.
 - **Herald**: `REQUEST_AUTH_MODE`, `HERALD_HMAC_DEFAULT_KEY_ID`, `HMAC_MAX_DRIFT`, `HMAC_V1_ENABLED`, `HERALD_IDEMPOTENCY_SECRET`, `HERALD_PII_PEPPER`, `HERALD_TRUSTED_PROXIES` / `HERALD_TRUSTED_PROXY_HEADER`, `HERALD_TEST_API_KEY`, `HERALD_TEST_LISTENER_ADDR`.
-- **Warden**: PR7 added `ENVIRONMENT`. PR8 additionally wires `WARDEN_HMAC_ALLOW_V1` and `WARDEN_METRICS_REQUIRE_AUTH`: cross-checking upstream Warden **v1.0.0** (the highest stable tag; no `v1.1.0` exists) shows both **are** parsed (`internal/cmd/validate.go` `ParseHMACAllowV1`, `main_routes.go` metrics guard), superseding PR7's earlier note. The suite pins `WARDEN_HMAC_ALLOW_V1=false` by default so the legacy replayable v1 canonical form is never accepted.
+- **Warden**: PR7 added `ENVIRONMENT`. PR8 additionally wires `WARDEN_HMAC_ALLOW_V1` and `WARDEN_METRICS_REQUIRE_AUTH`; Warden **v1.1.0** parses both (`internal/cmd/validate.go` `ParseHMACAllowV1`, `main_routes.go` metrics guard). The suite pins `WARDEN_HMAC_ALLOW_V1=false` by default so the legacy replayable v1 canonical form is never accepted.
 
 `./suite validate --profile <development|test|production>` runs the same four-layer validator used by the Web UI (CLI and UI share `validateForProfile` → `policy.Validate`):
 
@@ -81,7 +81,7 @@ Production is always strict (cannot be relaxed with `--strict=false`); `--strict
 
 PR8 is a single atomic rollback unit that bumps the three core images to their v1 line and migrates the wire contract:
 
-- **Images (from `components.yaml`, single source)**: Stargate `v1.0.0`, Warden `v1.0.0` (upstream's highest stable tag — the plan's `v1.1.0` does not exist), Herald `v1.1.0`. `env-meta.yaml`, `.env.example`, `compose/canonical`, `ports.yaml` and the `internal/contract` drift tests all follow the manifest.
+- **Images (from `components.yaml`, single source)**: Stargate `v1.0.0`, Warden `v1.1.0`, Herald `v1.1.0`; optional channel services are `v1.1.0`. `env-meta.yaml`, `.env.example`, `compose/canonical`, `ports.yaml` and the `internal/contract` drift tests all follow the manifest.
 - **Stargate port 80 → 8080**: container port, host mapping, Traefik `loadbalancer.server.port`, and the `forwardauth.address` all move to `8080`.
 - **Health/readiness paths**: Stargate liveness `/healthz` + readiness `/readyz`; Warden `/healthcheck`; Herald `/healthz`. `make health`, `.github/workflows/ci.yml`, and `scripts/run-e2e.sh` probe the new paths.
 - **Herald explicit auth**: `REQUEST_AUTH_MODE=hmac_v2` is set explicitly (no implicit API-key/HMAC selection). With a single `HMAC_SECRET` (no `HERALD_HMAC_KEYS`) Herald resolves an implicit `default` key id, so clients may omit `X-Key-Id`.

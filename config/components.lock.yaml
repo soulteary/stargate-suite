@@ -1,7 +1,7 @@
-# Component lock — 镜像内容寻址 digest 的占位结构（PR 4）。
+# Component lock — 镜像内容寻址 digest 与 manifest 版本快照。
 #
-# 由 components.yaml 的 image:version 派生；正式发布时（release 流程）填入 digest
-# （sha256:...），使部署可复现且可离线校验。本 PR 仅落地结构，digest 暂留空。
+# image/version 由 components.yaml 派生；正式发布时由 release 流程填入
+# digest（sha256:...），使部署可复现且可离线校验。开发分支允许 digest 暂留空。
 #
 # 生成/填充约定（后续 PR / release）：
 #   digest 通过 `docker buildx imagetools inspect <image>:<version>` 或
@@ -13,27 +13,27 @@ schemaVersion: 1
 images:
   stargate:
     image: ghcr.io/soulteary/stargate
-    version: v0.11.0
+    version: 1.0.0
     digest: ""
   warden:
     image: ghcr.io/soulteary/warden
-    version: v0.13.0
+    version: 1.1.0
     digest: ""
   herald:
     image: ghcr.io/soulteary/herald
-    version: v0.9.0
+    version: 1.1.0
     digest: ""
   herald-totp:
     image: ghcr.io/soulteary/herald-totp
-    version: v0.3.0
+    version: 1.1.0
     digest: ""
   herald-dingtalk:
     image: ghcr.io/soulteary/herald-dingtalk
-    version: v0.5.0
+    version: 1.1.0
     digest: ""
   herald-smtp:
     image: ghcr.io/soulteary/herald-smtp
-    version: v0.2.0
+    version: 1.1.0
     digest: ""
   redis:
     image: redis

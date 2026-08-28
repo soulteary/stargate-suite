@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -19,6 +20,23 @@ func loadManifestFromRoot(t *testing.T, root string) *Manifest {
 		t.Fatalf("parse %s: %v", ManifestPath, err)
 	}
 	return m
+}
+
+// TestVerifiedComboMatchesComponents prevents the CLI's advertised verified
+// matrix from drifting away from the images that generation actually uses.
+func TestVerifiedComboMatchesComponents(t *testing.T) {
+	root := repoRoot(t)
+	m := loadManifestFromRoot(t, root)
+	for name, verified := range m.VerifiedCombo {
+		component, ok := m.Component(name)
+		if !ok {
+			t.Errorf("verifiedCombo references missing component %q", name)
+			continue
+		}
+		if strings.TrimPrefix(verified, "v") != strings.TrimPrefix(component.Version, "v") {
+			t.Errorf("verifiedCombo %s=%q does not match component version %q", name, verified, component.Version)
+		}
+	}
 }
 
 // coreImageEnvVar maps each core component to the env var that carries its

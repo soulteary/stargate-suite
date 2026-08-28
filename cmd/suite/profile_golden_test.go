@@ -121,7 +121,7 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 			// health probes that are available in each runtime image.
 			for _, img := range []string{
 				"ghcr.io/soulteary/stargate:1.0.0",
-				"ghcr.io/soulteary/warden:1.0.0",
+				"ghcr.io/soulteary/warden:1.1.0",
 				"ghcr.io/soulteary/herald:1.1.0",
 			} {
 				if !strings.Contains(compose, img) {

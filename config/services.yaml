@@ -474,8 +474,8 @@ services:
             type: text
             labelKey: heraldTotpImageLabel
             descKey: heraldTotpImageDesc
-            default: "ghcr.io/soulteary/herald-totp:v0.3.0"
-            placeholder: "ghcr.io/soulteary/herald-totp:v0.3.0"
+            default: "ghcr.io/soulteary/herald-totp:1.1.0"
+            placeholder: "ghcr.io/soulteary/herald-totp:1.1.0"
           # HERALD_TOTP_PORT 由第二步「暴露端口」集中配置（config/ports.yaml herald-totp），不在此展示
           - env: HERALD_TOTP_REDIS_ADDR
             type: text

@@ -10,6 +10,11 @@ for the exact image tags shipped in each release.
 
 ## [Unreleased]
 
+### Changed
+
+- Updated the verified component matrix to Warden `v1.1.0` and the optional
+  herald-totp, herald-dingtalk, and herald-smtp `v1.1.0` images.
+
 ## [0.10.0]
 
 ### Added
@@ -33,7 +38,7 @@ for the exact image tags shipped in each release.
 ### Changed
 
 - **Breaking:** atomic upgrade to the v1 contracts — core images bumped to
-  Stargate `v1.0.0`, Warden `v1.0.0`, Herald `v1.1.0`; container ports moved
+  Stargate `v1.0.0`, Warden `v1.1.0`, Herald `v1.1.0`; container ports moved
   from `80` to `8080`; health probes use `/healthz` + `/readyz`; Herald now
   requires explicit request auth (HMAC v2) with HMAC v1 disabled by default.
 - Web UI now binds to loopback by default; non-loopback listening requires an
