@@ -28,7 +28,6 @@ Go 模块：`github.com/soulteary/stargate-suite`。仓库名：**stargate-suite
 
 ```
 stargate-suite/
-├── compose/example/   # 可选；image | build 由 canonical 生成
 ├── compose/canonical/ # 单一数据源 → CLI / Web UI / make gen
 ├── build/             # 生成输出（make gen 经 CLI，或 CLI / Web UI）
 ├── config/            # page.yaml, scenarios
@@ -52,7 +51,7 @@ make up
 
 **CLI：** `go run ./cmd/suite help` — `generate`、`validate`、`doctor`、`serve`。默认配置与 canonical compose 已通过 `go:embed` **嵌入二进制**，因此各子命令无需仓库源码目录即可运行（如 release 二进制或容器内）。可用 `--config-dir=<目录>`（或环境变量 `CONFIG_DIR`）以磁盘目录覆盖内置 `config/`；覆盖目录中缺失的文件会回退到嵌入资产。`generate` 与 `validate` 调用与 Web UI `/api/generate` **完全相同**的 `internal/composegen` / `internal/policy` 函数，因此 CLI 无需启动 Web 服务即可产出字节一致的结果。
 
-**部署 Profile**（`config/profiles.yaml`）：`development` / `test` / `production` 是**安全与运行策略**，而非单纯预填表单——涵盖端口绑定、密钥来源、密码算法、Herald 认证、Redis 密码、Cookie Secure、HMAC v1、容器权限与校验模式（见 [docs/upgrade/00-overview.md](docs/upgrade/00-overview.md) §5.4）。CLI 与 Web UI 共用同一模型（`internal/policy` + `internal/composegen`）：
+**部署 Profile**（`config/profiles.yaml`）：`development` / `test` / `production` 是**安全与运行策略**，而非单纯预填表单——涵盖端口绑定、密钥来源、密码算法、Herald 认证、Redis 密码、Cookie Secure、HMAC v1、容器权限与校验模式（见 [docs/deployment.zh-CN.md](docs/deployment.zh-CN.md)）。CLI 与 Web UI 共用同一模型（`internal/policy` + `internal/composegen`）：
 
 ```bash
 # development：当前默认（loopback 端口、plaintext 测试密码、dev 密钥）。
