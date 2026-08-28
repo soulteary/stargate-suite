@@ -20,7 +20,6 @@ var requiredAssets = []string{
 	"config/page.yaml",
 	"config/providers.yaml",
 	"config/scenarios.json",
-	"config/presets.json",
 	"config/keys-step.yaml",
 	"config/i18n/zh.yaml",
 	"config/i18n/en.yaml",
