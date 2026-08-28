@@ -107,6 +107,54 @@ func TestSecurityMiddlewareTokenHandoffViaQuery(t *testing.T) {
 	}
 }
 
+func TestSecurityMiddlewareHealthzBypassesAuthentication(t *testing.T) {
+	cfg := serveConfig{listenAddr: "0.0.0.0:8085", allowRemote: true, token: "abc123", loopback: false}
+	h, reached := okHandler()
+	mw := securityMiddleware(cfg, h)
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("healthz code=%d, want 200", rec.Code)
+	}
+	if *reached {
+		t.Fatal("healthz must be handled before the application handler")
+	}
+}
+
+func TestTokenHandoffCookieSecurityUsesRequestHost(t *testing.T) {
+	cfg := serveConfig{listenAddr: "0.0.0.0:8085", allowRemote: true, token: "abc123", loopback: false}
+	h, _ := okHandler()
+	mw := securityMiddleware(cfg, h)
+
+	local := httptest.NewRecorder()
+	localReq := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8085/?token=abc123", nil)
+	mw.ServeHTTP(local, localReq)
+	if strings.Contains(local.Header().Get("Set-Cookie"), "; Secure") {
+		t.Fatalf("loopback HTTP cookie must not be Secure: %q", local.Header().Get("Set-Cookie"))
+	}
+
+	remote := httptest.NewRecorder()
+	remoteReq := httptest.NewRequest(http.MethodGet, "http://suite.example.com/?token=abc123", nil)
+	mw.ServeHTTP(remote, remoteReq)
+	if !strings.Contains(remote.Header().Get("Set-Cookie"), "; Secure") {
+		t.Fatalf("remote cookie must be Secure: %q", remote.Header().Get("Set-Cookie"))
+	}
+}
+
+func TestBrowserAddrRewritesUnspecifiedHosts(t *testing.T) {
+	tests := map[string]string{
+		"0.0.0.0:8085": "127.0.0.1:8085",
+		":8085":        "127.0.0.1:8085",
+		"[::]:8085":    "[::1]:8085",
+		"127.0.0.1:80": "127.0.0.1:80",
+	}
+	for input, want := range tests {
+		if got := browserAddr(input); got != want {
+			t.Errorf("browserAddr(%q)=%q, want %q", input, got, want)
+		}
+	}
+}
+
 func TestSecurityMiddlewareCSRFOnPost(t *testing.T) {
 	// Loopback, no token: state-changing POST without Origin is allowed (local
 	// CLI tooling), but a cross-origin Origin is rejected.

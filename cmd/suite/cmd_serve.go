@@ -1109,10 +1109,12 @@ func cmdServe() error {
 		}
 	}()
 	scheme := "http"
-	fmt.Printf("Web UI: %s://%s\n", scheme, addr)
+	openAddr := browserAddr(addr)
+	fmt.Printf("Web UI: %s://%s\n", scheme, openAddr)
 	if !cfg.loopback {
 		fmt.Printf("Remote access enabled. Access token required.\n")
-		fmt.Printf("  Open: %s://%s/?token=%s\n", scheme, addr, cfg.token)
+		fmt.Printf("  Open locally: %s://%s/?token=%s\n", scheme, openAddr, cfg.token)
+		fmt.Printf("  For off-host access, use an HTTPS reverse proxy and replace the URL host.\n")
 		fmt.Printf("  Or send header: Authorization: Bearer %s\n", cfg.token)
 	} else if cfg.token != "" {
 		fmt.Printf("Access token required: %s\n", cfg.token)

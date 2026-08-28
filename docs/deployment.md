@@ -52,8 +52,8 @@ output the internal services (Warden, Herald, Redis) are not published.
 
 ```bash
 docker build -t stargate-suite:local .
-docker run --rm -p 8085:8085 stargate-suite:local
-docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local
+docker run --rm -p 127.0.0.1:8085:8085 stargate-suite:local
+docker run --rm --read-only --tmpfs /tmp -p 127.0.0.1:8085:8085 stargate-suite:local
 ```
 
 Config and canonical compose are embedded (`go:embed`), so the binary/container
@@ -112,8 +112,8 @@ Herald、Redis）不对外发布端口。
 
 ```bash
 docker build -t stargate-suite:local .
-docker run --rm -p 8085:8085 stargate-suite:local
-docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local
+docker run --rm -p 127.0.0.1:8085:8085 stargate-suite:local
+docker run --rm --read-only --tmpfs /tmp -p 127.0.0.1:8085:8085 stargate-suite:local
 ```
 
 配置与 canonical compose 已 `go:embed` 内嵌，二进制/容器无需仓库源码即可运行。

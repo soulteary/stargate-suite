@@ -27,5 +27,6 @@ COPY --from=builder /app/stargate-suite /bin/stargate-suite
 # so the runtime image is self-contained and needs no source tree mounted.
 EXPOSE 8085
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -fsS http://127.0.0.1:8085/ >/dev/null || exit 1
-CMD ["stargate-suite", "serve"]
+    CMD curl -fsS http://127.0.0.1:8085/healthz >/dev/null || exit 1
+ENTRYPOINT ["/bin/stargate-suite"]
+CMD ["serve", "--listen", "0.0.0.0:8085", "--allow-remote"]

@@ -85,9 +85,14 @@ Config generation is also available via the **Web UI** (first step selects the p
 
 ```bash
 docker build -t stargate-suite:local .
-docker run --rm -p 8085:8085 stargate-suite:local        # Web UI, no repo mount
-docker run --rm --read-only --tmpfs /tmp -p 8085:8085 stargate-suite:local  # read-only root fs
+docker run --rm -p 127.0.0.1:8085:8085 stargate-suite:local        # Web UI, no repo mount
+docker run --rm --read-only --tmpfs /tmp -p 127.0.0.1:8085:8085 stargate-suite:local  # read-only root fs
 ```
+
+The container binds all container interfaces so Docker port publishing works,
+but still requires an access token. Open the tokenized URL printed in the
+container logs. Keep the host-side port bound to `127.0.0.1`; use an HTTPS
+reverse proxy for access from another machine.
 
 **Test:**
 

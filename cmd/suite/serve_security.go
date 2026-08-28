@@ -8,8 +8,9 @@
 //   - state-changing POSTs must carry a same-origin Origin/Referer and (in
 //     remote mode) a valid bearer/cookie token, blocking CSRF and drive-by
 //     requests from other origins;
-//   - cookies are HttpOnly + SameSite=Strict, and Secure is set when the
-//     listener is not plain-loopback;
+//   - cookies are HttpOnly + SameSite=Strict, and Secure is set unless the
+//     browser reaches the service through a loopback host (the normal local
+//     Docker port-publishing case);
 //   - the HTTP server has read/write/idle timeouts and a bounded header size.
 //
 // None of this changes what is generated — CLI and Web UI still call the same
@@ -126,6 +127,13 @@ func generateAccessToken() (string, error) {
 // for state-changing methods. It wraps the whole mux so every route is covered.
 func securityMiddleware(cfg serveConfig, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Liveness carries no application state or secrets and must remain
+		// available to container health probes before authentication.
+		if r.Method == http.MethodGet && r.URL.Path == "/healthz" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
 		// Token gate (only when a token is configured, i.e. remote mode or an
 		// operator-supplied token on loopback). GET /static and the login-less
 		// entry are still gated so the UI cannot be scraped off-host.
@@ -138,7 +146,7 @@ func securityMiddleware(cfg serveConfig, h http.Handler) http.Handler {
 					Value:    cfg.token,
 					Path:     "/",
 					HttpOnly: true,
-					Secure:   !cfg.loopback,
+					Secure:   secureCookieForRequest(r),
 					SameSite: http.SameSiteStrictMode,
 				})
 				// Redirect to the same path without the token in the URL/history.
@@ -162,6 +170,37 @@ func securityMiddleware(cfg serveConfig, h http.Handler) http.Handler {
 		}
 		h.ServeHTTP(w, r)
 	})
+}
+
+// secureCookieForRequest keeps authentication cookies on HTTPS for remote
+// clients while permitting the documented local-container flow, where the
+// server binds 0.0.0.0 inside the container but the browser connects to a
+// loopback-published host port over HTTP.
+func secureCookieForRequest(r *http.Request) bool {
+	if r.TLS != nil {
+		return true
+	}
+	host, _, err := net.SplitHostPort(r.Host)
+	if err != nil {
+		host = r.Host
+	}
+	return !isLoopbackHost(host)
+}
+
+// browserAddr turns an unspecified bind address into a usable local URL. A
+// listener may bind all interfaces, but 0.0.0.0 and :: are not destinations a
+// browser should be told to open.
+func browserAddr(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr
+	}
+	if host == "" || host == "0.0.0.0" {
+		host = "127.0.0.1"
+	} else if host == "::" {
+		host = "::1"
+	}
+	return net.JoinHostPort(host, port)
 }
 
 // isStateChanging reports whether the method mutates state and thus needs CSRF
