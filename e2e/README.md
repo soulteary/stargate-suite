@@ -8,7 +8,7 @@ Layout and how to run. Overview: [../README.md](../README.md).
 
 - e2e_test.go — normal flow
 - error_scenarios_test.go — wrong/expired/locked code, non-whitelist, inactive, rate limits, service down, auth, edge cases
-- v1_failure_contracts_test.go — PR9 v1 contract tests: liveness/readiness are distinct endpoints, HMAC v2 nonce replay is rejected, and the Herald test-code endpoint is absent from the public listener
+- v1_failure_contracts_test.go — v1 contracts: strict 2xx readiness, dependency-outage liveness/readiness and recovery, identified HMAC v2 nonce replay rejection, and isolation of the Herald test-code listener
 - auth_test.go, herald_api_test.go, warden_api_test.go, idempotency_test.go, audit_test.go, provider_test.go, metrics_test.go
 - test_helpers.go — ensureServicesReady, sendVerificationCodeWithError, loginWithError, clearRateLimitKeys, stop/start Docker, and the HMAC v2 signing helpers (signHeraldV2 / signHeraldReq / signHeraldV2Fixed)
 
@@ -46,6 +46,7 @@ go test -v ./e2e/... -run TestInvalid
 go test -v ./e2e/... -run TestHeraldUnavailable
 go test -v ./e2e/... -run TestWardenUnavailable
 go test -v ./e2e/... -run TestLivenessReadinessAreDistinct
+go test -v ./e2e/... -run TestDependencyFailureRecoveryContracts
 go test -v ./e2e/... -run TestHeraldNonceReplayRejected
 go test -v ./e2e/... -run TestHeraldTestCodeNotOnMainListener
 ```
@@ -54,8 +55,10 @@ With Traefik: `export PROTECTED_URL=https://whoami.test.localhost` then run Test
 
 ## Notes
 
-- Start services first (`make up`). Tests use ensureServicesReady and clear rate-limit state.
-- Service-down tests need docker compose; may be skipped.
+- Prefer `./scripts/run-e2e.sh`; it validates Compose, starts services without
+  suppressing errors, and waits on the real readiness endpoints before tests.
+- Dependency failure/recovery tests require Docker Compose and
+  `HERALD_COMPOSE_DIR` (the runner and CI set it automatically).
 - Challenge expiry: tune Herald CHALLENGE_EXPIRY for expiry tests.
 - Protected whoami: skipped when PROTECTED_URL is unset (e.g. build/image without Traefik).
 
