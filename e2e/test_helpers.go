@@ -473,7 +473,7 @@ func clearRateLimitKeys(t *testing.T) error {
 			return fmt.Errorf("failed to reset Stargate rate limiter: %w: %s", restartErr, strings.TrimSpace(string(restartOut)))
 		}
 		if !waitForService(t, stargateURL+"/healthz", 30*time.Second) {
-			return fmt.Errorf("Stargate did not become ready after rate-limit reset")
+			return fmt.Errorf("stargate did not become ready after rate-limit reset")
 		}
 		t.Log("Reset Stargate in-process rate limiter through Compose")
 		return nil
