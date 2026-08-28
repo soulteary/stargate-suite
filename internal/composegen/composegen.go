@@ -543,13 +543,13 @@ func DefaultEnvBody(meta *EnvMeta) string {
 const defaultEnvBodyBuiltin = `# Container Image Version Configuration
 
 # Herald Service Image
-HERALD_IMAGE=ghcr.io/soulteary/herald:v0.9.0
+HERALD_IMAGE=ghcr.io/soulteary/herald:1.1.0
 
 # Warden Service Image
-WARDEN_IMAGE=ghcr.io/soulteary/warden:v0.13.0
+WARDEN_IMAGE=ghcr.io/soulteary/warden:1.1.0
 
 # Stargate Service Image
-STARGATE_IMAGE=ghcr.io/soulteary/stargate:v0.11.0
+STARGATE_IMAGE=ghcr.io/soulteary/stargate:1.0.0
 
 # Redis Image Version
 HERALD_REDIS_IMAGE=redis:8.4-alpine

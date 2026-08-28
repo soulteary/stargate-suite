@@ -78,6 +78,8 @@ func TestManifestIsAuthoritativeForImages(t *testing.T) {
 	envMeta := readFile(t, root, "config/env-meta.yaml")
 	envExample := readFile(t, root, ".env.example")
 	canonical := readFile(t, root, "compose/canonical/docker-compose.yml")
+	configSections := readFile(t, root, "config/config-sections.yaml")
+	composegen := readFile(t, root, "internal/composegen/composegen.go")
 
 	for comp, envVar := range coreImageEnvVar {
 		c, ok := m.Component(comp)
@@ -104,6 +106,16 @@ func TestManifestIsAuthoritativeForImages(t *testing.T) {
 		// compose/canonical: `image: ${KEY:-<image:version>}`
 		if !containsComposeDefault(canonical, envVar, ref) {
 			t.Errorf("compose/canonical %s default does not match manifest %q for %q", envVar, ref, comp)
+		}
+		// The Web wizard posts config-section defaults as explicit overrides, so
+		// these values must be covered by the same drift guard.
+		if strings.Contains(configSections, "envName: "+envVar) && !containsConfigSectionDefault(configSections, envVar, ref) {
+			t.Errorf("config-sections.yaml %s default does not match manifest %q for %q", envVar, ref, comp)
+		}
+		// DefaultEnvBody(nil) remains a supported fallback for callers without
+		// env metadata. Guard its core image assignments as well.
+		if envHasKey(composegen, envVar) && !containsEnvAssignment(composegen, envVar, ref) {
+			t.Errorf("composegen built-in %s does not match manifest %q for %q", envVar, ref, comp)
 		}
 	}
 }
@@ -257,6 +269,13 @@ func envHasKey(content, envVar string) bool {
 func containsComposeDefault(content, envVar, ref string) bool {
 	// `image: ${KEY:-ref}`
 	re := regexp.MustCompile(`\$\{` + regexp.QuoteMeta(envVar) + `:-` + regexp.QuoteMeta(ref) + `\}`)
+	return re.MatchString(content)
+}
+
+func containsConfigSectionDefault(content, envVar, ref string) bool {
+	// An image option block declares envName followed by its default value.
+	re := regexp.MustCompile(`envName:\s*` + regexp.QuoteMeta(envVar) +
+		`\b[\s\S]{0,300}?default:\s*"` + regexp.QuoteMeta(ref) + `"`)
 	return re.MatchString(content)
 }
 
