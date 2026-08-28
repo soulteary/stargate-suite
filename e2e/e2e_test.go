@@ -83,13 +83,11 @@ func sendVerificationCode(t *testing.T, phone string) (string, error) {
 // X-Test-Api-Key); the main :8082 listener never exposes test codes.
 //
 // Because the listener is loopback-only inside the Herald container, it cannot
-// be published to the host. Resolution order:
+// be published to the host. Supported access paths:
 //  1. HERALD_TEST_CODE_URL (explicit base, e.g. a reachable forwarder) — used
 //     directly when set.
 //  2. HERALD_COMPOSE_DIR set → `docker compose exec herald` uses the image's
 //     BusyBox wget against the loopback listener (the faithful v1.1.0 path).
-//  3. Fallback: heraldURL (works only if a legacy/main-listener test route is
-//     reachable, e.g. older Herald or a host-published listener).
 func getTestCode(t *testing.T, challengeID string) (string, error) {
 	if challengeID == "" {
 		return "", fmt.Errorf("challengeID cannot be empty")
@@ -118,7 +116,7 @@ func getTestCode(t *testing.T, challengeID string) (string, error) {
 
 	base := os.Getenv("HERALD_TEST_CODE_URL")
 	if base == "" {
-		base = heraldURL
+		return "", fmt.Errorf("test-code listener is loopback-only: set HERALD_COMPOSE_DIR or HERALD_TEST_CODE_URL")
 	}
 	url := fmt.Sprintf("%s/v1/test/code/%s", base, challengeID)
 
