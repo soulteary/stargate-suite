@@ -11,7 +11,8 @@
 `release.yml` runs on a strict SemVer tag push (`vX.Y.Z`, with optional valid
 pre-release/build metadata) or a controlled `workflow_dispatch` (pass an
 existing tag). Malformed tags and leading-zero numeric identifiers are refused,
-and the tag commit must be an ancestor of `main`.
+the tag commit must be an ancestor of `main`, and that exact commit must have a
+successful `Main` workflow run.
 
 ### What it produces
 
@@ -35,8 +36,9 @@ and the tag commit must be an ancestor of `main`.
 ### Release notes
 
 The release body is extracted from the matching section of `CHANGELOG.md`
-(`## [x.y.z]`). Keep the changelog current — add entries under `[Unreleased]`
-and promote them on release.
+(`## [x.y.z]`, exact match). A stable release fails if the section is missing;
+pre-releases may use a short generated notice. Keep the changelog current — add
+entries under `[Unreleased]` and promote them on release.
 
 ### Permissions & pinning
 
@@ -59,7 +61,7 @@ flows for the same tag.
 
 `release.yml` 在推送严格 SemVer tag（`vX.Y.Z`，可带合法预发布/构建元数据）或受控
 `workflow_dispatch`（传入已存在 tag）时运行。格式错误或数字前导零的 tag 会被拒绝，
-且 tag 对应 commit 必须是 `main` 的祖先。
+tag 对应 commit 必须是 `main` 的祖先，并且该 commit 的 `Main` workflow 必须成功。
 
 ### 产物
 
@@ -81,8 +83,9 @@ flows for the same tag.
 
 ### 发布正文
 
-发布正文取自 `CHANGELOG.md` 中匹配版本的段落（`## [x.y.z]`）。请保持 changelog
-更新——在 `[Unreleased]` 下记录，发布时升格。
+发布正文取自 `CHANGELOG.md` 中精确匹配版本的段落（`## [x.y.z]`）。稳定版缺少该
+段落时发布失败；预发布版本可使用简短的自动说明。请保持 changelog 更新——在
+`[Unreleased]` 下记录，发布时升格。
 
 ### 权限与固定
 

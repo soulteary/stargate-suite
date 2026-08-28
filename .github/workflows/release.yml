@@ -29,6 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write        # create GitHub Release + upload assets
+      actions: read          # verify the tagged commit passed the main workflow
       packages: write        # push image to GHCR
       id-token: write        # keyless Cosign signing / attestation (OIDC)
       attestations: write    # GitHub artifact attestations
@@ -64,6 +65,19 @@ jobs:
           git fetch --no-tags origin main
           if ! git merge-base --is-ancestor "$COMMIT" origin/main; then
             echo "Tag $TAG ($COMMIT) is not an ancestor of origin/main; refusing to release."
+            exit 1
+          fi
+
+      - name: Verify tagged commit passed main CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COMMIT=$(git rev-list -n 1 "${{ steps.ref.outputs.tag }}")
+          SUCCESSFUL_RUNS=$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/main.yml/runs?head_sha=${COMMIT}&status=success&per_page=1" \
+            --jq '.workflow_runs | length')
+          if [ "$SUCCESSFUL_RUNS" -ne 1 ]; then
+            echo "Tagged commit $COMMIT has no successful Main workflow run; refusing to release."
             exit 1
           fi
 
@@ -106,21 +120,23 @@ jobs:
         id: notes
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          NOTES_FILE="$(mktemp)"
+          NOTES_FILE="$RUNNER_TEMP/release-notes.md"
           if [ -f CHANGELOG.md ]; then
             awk -v ver="$VERSION" '
               /^## / {
                 if (found) exit
-                # Match "## [x.y.z]" or "## x.y.z"
-                line=$0
-                gsub(/[][]/, "", line)
-                if (index(line, ver)) { found=1; next }
+                # Exact match only: do not let 1.2.3 match 11.2.30.
+                if ($0 == "## [" ver "]" || $0 == "## " ver) { found=1; next }
               }
               found { print }
             ' CHANGELOG.md > "$NOTES_FILE"
           fi
           if [ ! -s "$NOTES_FILE" ]; then
-            echo "No CHANGELOG entry found for $VERSION; using generic notes." >> "$NOTES_FILE"
+            if [ "${{ steps.version.outputs.prerelease }}" = "false" ]; then
+              echo "No exact CHANGELOG section found for stable version $VERSION; refusing to release."
+              exit 1
+            fi
+            echo "Pre-release $VERSION; no dedicated CHANGELOG section yet." > "$NOTES_FILE"
           fi
           echo "file=$NOTES_FILE" >> "$GITHUB_OUTPUT"
 
