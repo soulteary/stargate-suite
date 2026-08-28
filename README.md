@@ -45,7 +45,7 @@ stargate-suite/
 **Generate then start:**
 
 ```bash
-make gen    # generates into build/ natively via the CLI (no Web server, no jq)
+make gen    # development profile; generates Redis/API secrets into build/*/.env
 make up
 # or: make up-build | make up-traefik
 ```
@@ -77,7 +77,7 @@ go run ./cmd/suite doctor --compose build/dev/docker-compose.yml
 # (0 ok, non-zero on validation failure or doctor hard failure).
 ```
 
-Config generation is also available via the **Web UI** (first step selects the profile) or `make gen` (native CLI, no Web server).
+Config generation is also available via the **Web UI** (first step selects the profile) or `make gen` (development profile, native CLI, no Web server). CI uses `make gen-test` for an isolated deterministic test profile. The raw canonical generator remains available as `go run ./cmd/suite generate --canonical --output build` for template inspection; it intentionally does not supply required runtime secrets.
 
 **Web UI:** `go run ./cmd/suite serve` binds **`127.0.0.1:8085` by default** (loopback only, no auth needed locally). Exposing it off-host is opt-in and always authenticated: `serve --listen 0.0.0.0:8085 --allow-remote` refuses to start without `--allow-remote` and, in remote mode, requires an access token (auto-generated and printed if you don't pass `--token`). State-changing POSTs are Origin/CSRF-checked, cookies are HttpOnly + SameSite=Strict (Secure off loopback), and operator secrets are dropped from the server session after the artifacts are returned. The listener never silently switches ports — a busy port is a hard error.
 
