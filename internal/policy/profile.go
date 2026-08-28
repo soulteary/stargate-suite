@@ -3,7 +3,7 @@
 // shared model consumed by both the CLI (`generate --profile`, `validate
 // --profile --strict`) and the Web UI (profile selection first step): both call
 // Apply to derive profile-aware composegen inputs and Validate to enforce the
-// profile's rules. See config/profiles.yaml and docs/upgrade/00-overview.md 5.4.
+// profile's rules. See config/profiles.yaml and docs/deployment.md.
 //
 // Design notes:
 //   - The current default suite behaviour (PASSWORDS=plaintext:..., API_KEY=test-*,
