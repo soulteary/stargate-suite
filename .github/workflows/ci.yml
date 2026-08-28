@@ -96,6 +96,9 @@ jobs:
       - name: Config validation
         run: go run ./cmd/suite validate
 
+      - name: Release version contract
+        run: ./scripts/semver-prerelease.sh --test
+
       - name: Generate compose (native CLI, no Web server)
         run: make gen
 

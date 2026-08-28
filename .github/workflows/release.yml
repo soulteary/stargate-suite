@@ -109,12 +109,10 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
           echo "build_date=$BUILD_DATE" >> "$GITHUB_OUTPUT"
-          # Pre-release tags (e.g. v0.10.0-rc.1) must NOT update `latest` (R-01).
-          if echo "$VERSION" | grep -q '-'; then
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
-          fi
+          # Inspect only the SemVer pre-release segment. Build metadata may
+          # legally contain '-' without making the release a pre-release.
+          PRERELEASE=$(./scripts/semver-prerelease.sh "$VERSION")
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
       - name: Extract release notes from CHANGELOG
         id: notes
