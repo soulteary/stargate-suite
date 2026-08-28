@@ -56,7 +56,7 @@ make up
 ```bash
 # development：当前默认（loopback 端口、plaintext 测试密码、dev 密钥）。
 # --seed 让自动生成的 dev 密钥字节稳定（仅限 dev/test，切勿用作真实种子）。
-go run ./cmd/suite generate --profile development --output build/dev --seed pr5-golden
+go run ./cmd/suite generate --profile development --output build/dev --seed profile-golden
 
 # production 为实验特性且 STRICT：plaintext 密码、测试/占位密钥、
 # 发布内部端口、Cookie Secure 关闭、启用 HMAC v1 均为硬错误（不可绕过）。

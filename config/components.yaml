@@ -1,4 +1,4 @@
-# Component manifest — 组件版本、镜像、端口、健康路径、契约版本的单一权威来源（PR 4）。
+# Component manifest — 组件版本、镜像、端口、健康路径、契约版本的单一权威来源。
 #
 # 目的（修复 M-01）：版本/端口/健康路径的事实只在此登记一次，其余配置
 # （env-meta.yaml、.env.example、compose/canonical、composegen 默认值、version 命令）
@@ -10,7 +10,7 @@
 
 schemaVersion: 1
 
-# 当前运行组件（迁移后 v1 目标值；PR 8 原子升级已把 components 收敛到 verifiedCombo）。
+# 当前运行组件；components 与 verifiedCombo 保持一致。
 components:
   stargate:
     image: ghcr.io/soulteary/stargate
@@ -65,7 +65,7 @@ dependencies:
     version: 0.4.0
 
 # 本 Suite 发布已验证的目标组件组合（只读契约来源，见 docs/release.md）。
-# 供 `suite version` 展示；PR 8 已把 components.* 收敛到此组合。
+# 供 `suite version` 展示；components.* 必须与此组合一致。
 # 所有版本均对应已发布的上游稳定 Tag；镜像使用 release 工作流产生的
 # 无 `v` semver tag。
 verifiedCombo:

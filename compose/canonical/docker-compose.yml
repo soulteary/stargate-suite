@@ -1,6 +1,6 @@
 # Stargate Suite - Canonical Compose（单一数据源）
 #
-# 本文件为唯一数据源，用于通过 Web UI 或 make gen（Web API）生成以下 compose：
+# 本文件为唯一数据源，用于通过 Web UI 或原生 CLI（`make gen`）生成以下 compose：
 #   - traefik：全量（Traefik + Stargate + Warden + Herald + 可选通道）
 #   - traefik-herald：仅 Herald + herald-totp + Redis
 #   - traefik-warden：仅 Warden + Redis

@@ -328,7 +328,7 @@ func TestWardenAPIKeyInvalid(t *testing.T) {
 // TestHeraldAPIKeyRejectedUnderHMACV2 verifies that under REQUEST_AUTH_MODE=hmac_v2
 // (the test/production posture, no downgrade), a bare X-API-Key is rejected: the
 // main endpoints only accept replay-resistant HMAC v2, never API-key auth. This
-// is the security invariant of PR8 (Herald v1.1.0 explicit auth, no fallback).
+// is the security invariant for Herald v1.1.0 explicit auth with no fallback.
 func TestHeraldAPIKeyRejectedUnderHMACV2(t *testing.T) {
 	ensureServicesReady(t)
 
