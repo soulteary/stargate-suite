@@ -9,6 +9,8 @@ Web UI page config and scenario presets (`scenarios.json`). Overview: [../README
 `serve` loads `page.yaml` then merges: `config-sections.yaml`, `services.yaml`, `providers.yaml`, `i18n/en.yaml`, `i18n/zh.yaml`, `ports.yaml`. Single monolithic `page.yaml` still works.
 
 - **ports.yaml**: Centralized port config for all services (service name, container port, default host port, i18n keys). The wizard step-2 "exposed ports" table is generated from it; port-type inputs in the UI (e.g. step-5 `HERALD_TOTP_PORT`, Herald `PORT`) have their defaults/placeholders overridden from this file on load, kept consistent with the port table. Container ports, `HERALD_TOTP_PORT`, and compose port mappings in the generation logic all follow `ports.yaml`.
+- Image fields in `config-sections.yaml`, `services.yaml`, and `providers.yaml` intentionally omit defaults. At startup the Web UI resolves their current defaults and placeholders from `components.yaml`; imported or previously saved session values take precedence.
+- Every config-driven `labelKey` and `descKey` must have non-empty `zh` and `en` entries. Startup validation rejects missing text, while templates render the Chinese entry as a server-side fallback before JavaScript applies the selected language.
 
 ## Component manifest (single source of truth)
 
@@ -28,7 +30,8 @@ Web UI page config and scenario presets (`scenarios.json`). Overview: [../README
 - **canonical**: `compose/canonical/docker-compose.yml` is the base template; Web UI scenario presets (S1~S5) select modes and options.
 - **Web UI behavior**:
   - In step 1 you choose a scenario preset to auto-fill options and env overrides; compose outputs use the scenario’s modes.
-  - In "Import and parse config", the app suggests and applies the best-matched scenario preset, then overlays imported values.
+  - In "Import and parse config", paste content or drop local Compose/`.env` text files into the corresponding fields. The app suggests and applies the best-matched scenario preset, then overlays imported values.
+  - Clicking any labeled wizard step submits and saves the current form before navigating to that step. The Keys step also saves populated keys before leaving.
 
 ## Sensitive options & production
 

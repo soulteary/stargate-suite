@@ -4,6 +4,7 @@
   var LANG_STORAGE_KEY = 'stargate-suite-lang';
   var SCENARIO_STORAGE_KEY = 'stargate-suite-scenario';
   var DEFAULT_GENERATE_MODES = ['traefik'];
+  var MAX_IMPORT_TOTAL_BYTES = 512 * 1024;
 
   function q(selector, root) {
     return (root || document).querySelector(selector);
@@ -17,6 +18,14 @@
     var div = document.createElement('div');
     div.textContent = text == null ? '' : String(text);
     return div.innerHTML;
+  }
+
+  function formatMessage(message, values) {
+    var out = String(message || '');
+    Object.keys(values || {}).forEach(function (key) {
+      out = out.replace(new RegExp('\\{' + key + '\\}', 'g'), String(values[key]));
+    });
+    return out;
   }
 
   function getI18N(lang) {
@@ -184,6 +193,7 @@
     Object.keys(scene.options || {}).forEach(function (key) {
       var el = document.getElementById(key) || q('[data-option="' + key + '"]');
       if (!el) return;
+      if (el.hasAttribute('data-session-value')) return;
       var val = scene.options[key];
       if (el.type === 'checkbox') el.checked = !!val;
       else el.value = val == null ? '' : String(val);
@@ -191,6 +201,7 @@
     Object.keys(scene.envOverrides || {}).forEach(function (env) {
       var el = q('[data-env="' + env + '"]');
       if (!el) return;
+      if (el.hasAttribute('data-session-value')) return;
       var val = scene.envOverrides[env];
       if (el.type === 'checkbox') el.checked = val === 'true' || val === true;
       else el.value = val == null ? '' : String(val);
@@ -347,6 +358,36 @@
     });
   }
 
+  function collectKeyPayload(grid) {
+    var payload = {};
+    qa('.keys-value[data-env]', grid).forEach(function (input) {
+      if (input.value) payload[input.getAttribute('data-env')] = input.value;
+    });
+    return payload;
+  }
+
+  function saveKeys(grid) {
+    var payload = collectKeyPayload(grid);
+    if (!Object.keys(payload).length) return Promise.resolve();
+    return fetch('/keys/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload)
+    }).then(function (res) {
+      if (!res.ok) throw new Error('key save failed');
+    });
+  }
+
+  function saveKeysAndNavigate(grid, target) {
+    var t = getI18N(getLang());
+    saveKeys(grid).then(function () {
+      window.location.href = target;
+    }).catch(function () {
+      showToast(t.keysSaveFailed || 'Could not save keys.');
+    });
+  }
+
   function bindKeysPage() {
     var grid = q('#keys-grid');
     if (!grid) return;
@@ -390,26 +431,44 @@
       });
     }
 
-    var next = q('a[href="/review"]');
+    var next = q('.step-actions a[href="/review"]');
     if (next) {
       next.addEventListener('click', function (event) {
-        var payload = {};
-        qa('.keys-value[data-env]', grid).forEach(function (input) {
-          if (input.value) payload[input.getAttribute('data-env')] = input.value;
-        });
-        if (!Object.keys(payload).length) return;
         event.preventDefault();
-        fetch('/keys/apply', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(function () {
-          window.location.href = '/review';
-        }).catch(function () {
-          window.location.href = '/review';
-        });
+        saveKeysAndNavigate(grid, '/review');
       });
     }
+  }
+
+  function bindStepNavigation() {
+    var form = q('.wizard-form');
+    var keysGrid = q('#keys-grid');
+    if (!form && !keysGrid) return;
+    qa('.step-nav-item[href]').forEach(function (link) {
+      link.addEventListener('click', function (event) {
+        var target = link.getAttribute('href');
+        if (!target) return;
+        event.preventDefault();
+        if (form) {
+          var next = q('input[name="_next"]', form);
+          if (!next) {
+            next = document.createElement('input');
+            next.type = 'hidden';
+            next.name = '_next';
+            form.appendChild(next);
+          }
+          next.value = target;
+          if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+          } else {
+            if (form.id === 'form-step-1') syncScenarioModeInputs();
+            form.submit();
+          }
+          return;
+        }
+        saveKeysAndNavigate(keysGrid, target);
+      });
+    });
   }
 
   function collectEnvFromForm(root) {
@@ -516,6 +575,81 @@
     });
   }
 
+  function dragContainsFiles(dataTransfer) {
+    if (!dataTransfer || !dataTransfer.types) return false;
+    for (var i = 0; i < dataTransfer.types.length; i++) {
+      if (dataTransfer.types[i] === 'Files') return true;
+    }
+    return false;
+  }
+
+  function textByteLength(value) {
+    return new Blob([String(value || '')]).size;
+  }
+
+  function readDroppedTextFile(file) {
+    if (file && typeof file.text === 'function') return file.text();
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(String(reader.result || '')); };
+      reader.onerror = function () { reject(reader.error || new Error('file read failed')); };
+      reader.readAsText(file);
+    });
+  }
+
+  function setImportDropStatus(status, message, isError) {
+    if (!status) return;
+    status.textContent = message || '';
+    status.classList.toggle('text-danger', !!isError);
+  }
+
+  function bindImportDrop() {
+    var composeInput = q('#input-compose');
+    var envInput = q('#input-env');
+    if (!composeInput || !envInput) return;
+    var t = getI18N(getLang());
+    [
+      { input: composeInput, other: envInput, status: q('#input-compose-drop-status') },
+      { input: envInput, other: composeInput, status: q('#input-env-drop-status') }
+    ].forEach(function (zone) {
+      zone.input.addEventListener('dragenter', function (event) {
+        if (!dragContainsFiles(event.dataTransfer)) return;
+        event.preventDefault();
+        zone.input.classList.add('is-drag-over');
+      });
+      zone.input.addEventListener('dragover', function (event) {
+        if (!dragContainsFiles(event.dataTransfer)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+        zone.input.classList.add('is-drag-over');
+      });
+      zone.input.addEventListener('dragleave', function () {
+        zone.input.classList.remove('is-drag-over');
+      });
+      zone.input.addEventListener('drop', function (event) {
+        if (!dragContainsFiles(event.dataTransfer)) return;
+        event.preventDefault();
+        zone.input.classList.remove('is-drag-over');
+        var file = event.dataTransfer.files && event.dataTransfer.files[0];
+        if (!file) return;
+        if (file.size + textByteLength(zone.other.value) > MAX_IMPORT_TOTAL_BYTES) {
+          setImportDropStatus(zone.status, t.importDropTooLarge || 'Imported content is too large.', true);
+          return;
+        }
+        readDroppedTextFile(file).then(function (text) {
+          if (textByteLength(text) + textByteLength(zone.other.value) > MAX_IMPORT_TOTAL_BYTES) {
+            setImportDropStatus(zone.status, t.importDropTooLarge || 'Imported content is too large.', true);
+            return;
+          }
+          zone.input.value = text;
+          setImportDropStatus(zone.status, formatMessage(t.importDropLoaded || 'Loaded {name}', { name: file.name }), false);
+        }).catch(function () {
+          setImportDropStatus(zone.status, formatMessage(t.importDropReadFailed || 'Could not read {name}.', { name: file.name }), true);
+        });
+      });
+    });
+  }
+
   function bindImportParse() {
     var btn = q('#btn-parse');
     if (!btn) return;
@@ -560,7 +694,9 @@
     bindScenarioStep();
     applyStoredScenarioOnStep2();
     bindKeysPage();
+    bindStepNavigation();
     bindReviewGenerate();
+    bindImportDrop();
     bindImportParse();
   }
 

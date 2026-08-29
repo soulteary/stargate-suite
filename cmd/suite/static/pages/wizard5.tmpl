@@ -13,9 +13,9 @@
 				{{range .Services}}{{if or (eq .Id "herald") (eq .Id "herald-totp")}}{{$s := .}}
 				{{range $s.Sections}}
 				<div class="env-group mb-4" data-section-key="{{.TitleKey}}">
-					{{if .TitleKey}}<h3 class="section-title h6 mb-3" data-i18n="{{.TitleKey}}"></h3>{{end}}
+					{{if .TitleKey}}<h3 class="section-title h6 mb-3" data-i18n="{{.TitleKey}}">{{tr .TitleKey}}</h3>{{end}}
 					{{range .EnvVars}}
-					{{template "env-field" (dict "Var" . "Suffix" $s.Id)}}
+					{{template "env-field" (dict "Var" . "Suffix" $s.Id "Session" $.Session)}}
 					{{end}}
 				</div>
 				{{end}}
@@ -23,16 +23,16 @@
 			</fieldset>
 			{{if .Providers}}
 			<fieldset class="field-group providers-fieldset border-0 p-0 mb-4">
-				<legend class="h6 mb-3" data-i18n="providerEnv">Provider (Herald channel)</legend>
-				<p class="form-text text-body-secondary mb-3" data-i18n="providerEnvDesc"></p>
+				<legend class="h6 mb-3" data-i18n="providerEnv">{{tr "providerEnv"}}</legend>
+				<p class="form-text text-body-secondary mb-3" data-i18n="providerEnvDesc">{{tr "providerEnvDesc"}}</p>
 				{{range $p := .Providers}}
 				<div class="provider-row mb-4" data-provider-id="{{$p.Id}}"{{if eq $p.Id "herald-dingtalk"}} data-depends-on-option="dingtalkEnabled"{{else if eq $p.Id "herald-smtp"}} data-depends-on-option="smtpEnabled"{{else if eq $p.Id "herald-totp"}} data-depends-on-option="totpEnabled"{{end}}>
-					<h3 class="section-title h6 mb-3">{{if $p.NameKey}}<span data-i18n="{{$p.NameKey}}"></span>{{else}}{{$p.Name}}{{end}}</h3>
+					<h3 class="section-title h6 mb-3">{{if $p.NameKey}}<span data-i18n="{{$p.NameKey}}">{{tr $p.NameKey}}</span>{{else}}{{$p.Name}}{{end}}</h3>
 					{{range $p.Sections}}
 					<div class="env-group mb-4" data-section-key="{{.TitleKey}}">
-						{{if .TitleKey}}<h4 class="h6 mb-2" data-i18n="{{.TitleKey}}"></h4>{{end}}
+						{{if .TitleKey}}<h4 class="h6 mb-2" data-i18n="{{.TitleKey}}">{{tr .TitleKey}}</h4>{{end}}
 						{{range .EnvVars}}
-						{{template "env-field" (dict "Var" . "Suffix" $p.Id)}}
+						{{template "env-field" (dict "Var" . "Suffix" $p.Id "Session" $.Session)}}
 						{{end}}
 					</div>
 					{{end}}

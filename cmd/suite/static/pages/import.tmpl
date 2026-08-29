@@ -5,11 +5,13 @@
 	<div class="import-parse-form form p-4 rounded border bg-light bg-opacity-50 mb-4">
 		<div class="mb-4">
 			<label for="input-compose" class="form-label fw-semibold" data-i18n="importComposeLabel">docker-compose.yml</label>
-			<textarea id="input-compose" class="form-control font-monospace" rows="16" data-i18n-placeholder="importComposePlaceholder" placeholder="粘贴 docker-compose 内容（YAML）…"></textarea>
+			<textarea id="input-compose" class="form-control font-monospace import-drop-target" rows="16" data-i18n-placeholder="importComposePlaceholder" placeholder="粘贴 docker-compose 内容（YAML）…" aria-describedby="input-compose-drop-hint input-compose-drop-status"></textarea>
+			<p id="input-compose-drop-hint" class="import-drop-hint form-text mb-0"><span data-i18n="importComposeDropHint">也可将生成的 docker-compose YAML 文件拖入文本框。</span><span id="input-compose-drop-status" class="import-drop-status" role="status" aria-live="polite"></span></p>
 		</div>
 		<details class="import-env-details mb-4">
 			<summary class="fw-semibold mb-2" data-i18n="importEnvSummary">可选：粘贴 .env 内容</summary>
-			<textarea id="input-env" class="form-control font-monospace mt-2" rows="8" data-i18n-placeholder="importEnvPlaceholder" placeholder="KEY=VALUE 每行一条…"></textarea>
+			<textarea id="input-env" class="form-control font-monospace mt-2 import-drop-target" rows="8" data-i18n-placeholder="importEnvPlaceholder" placeholder="KEY=VALUE 每行一条…" aria-describedby="input-env-drop-hint input-env-drop-status"></textarea>
+			<p id="input-env-drop-hint" class="import-drop-hint form-text mb-0"><span data-i18n="importEnvDropHint">也可将生成的 .env 文件拖入文本框。</span><span id="input-env-drop-status" class="import-drop-status" role="status" aria-live="polite"></span></p>
 		</details>
 		<div class="form-actions">
 			<button type="button" id="btn-parse" class="btn btn-primary btn-lg" data-i18n="btnParse">解析</button>

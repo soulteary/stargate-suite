@@ -13,9 +13,9 @@
 				{{range .Services}}{{if eq .Id "warden"}}{{$s := .}}
 				{{range $s.Sections}}
 				<div class="env-group mb-4" data-section-key="{{.TitleKey}}">
-					{{if .TitleKey}}<h3 class="section-title h6 mb-3" data-i18n="{{.TitleKey}}"></h3>{{end}}
+					{{if .TitleKey}}<h3 class="section-title h6 mb-3" data-i18n="{{.TitleKey}}">{{tr .TitleKey}}</h3>{{end}}
 					{{range .EnvVars}}
-					{{template "env-field" (dict "Var" . "Suffix" $s.Id)}}
+					{{template "env-field" (dict "Var" . "Suffix" $s.Id "Session" $.Session)}}
 					{{end}}
 				</div>
 				{{end}}

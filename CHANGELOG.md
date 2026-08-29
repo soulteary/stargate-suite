@@ -10,10 +10,22 @@ for the exact image tags shipped in each release.
 
 ## [Unreleased]
 
+### Added
+
+- Web UI import fields accept dropped local Compose and `.env` text files.
+
 ### Changed
 
 - Updated the verified component matrix to Warden `v1.1.0` and the optional
   herald-totp, herald-dingtalk, and herald-smtp `v1.1.0` images.
+- Web UI image defaults are resolved from `config/components.yaml` at startup;
+  imported and previously saved values take precedence when revisiting a step.
+- Clicking a labeled wizard step now saves the current form before navigating.
+
+### Fixed
+
+- Config-driven labels and descriptions now render with a validated server-side
+  fallback, preventing fields such as `redisVolumeDesc` from appearing blank.
 
 ## [0.10.0]
 

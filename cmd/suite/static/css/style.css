@@ -381,6 +381,31 @@ code {
   padding: 0 12px 12px;
 }
 
+.import-drop-target {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.import-drop-target.is-drag-over {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+}
+
+.import-drop-hint {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+}
+
+.import-drop-status {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.import-drop-status.text-danger {
+  color: var(--danger) !important;
+}
+
 .summary-bar {
   margin: 12px 0 8px;
   padding: 10px 12px;
