@@ -11,74 +11,76 @@
 			<fieldset class="field-group config-options-cols border-0 p-0">
 				{{range .ConfigSections}}
 				<div class="env-group mb-4" data-section-key="{{.TitleKey}}">
-					{{if .TitleKey}}<h3 class="section-title h6 mb-3" data-i18n="{{.TitleKey}}"></h3>{{end}}
+					{{if .TitleKey}}<h3 class="section-title h6 mb-3" data-i18n="{{.TitleKey}}">{{tr .TitleKey}}</h3>{{end}}
 					{{range .Options}}
 					{{if eq .Type "checkbox"}}
 					<div class="config-item mb-3{{if .FullRow}} config-item-full-row{{end}}" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}{{if .ShowWhenEnv}} data-depends-on-env="{{.ShowWhenEnv}}"{{end}}>
 						<div class="form-check">
 							<input type="hidden" name="{{.Name}}" value="{{if .UncheckValue}}{{.UncheckValue}}{{else}}false{{end}}">
-							<input type="checkbox" name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}"{{if .UncheckValue}} data-env="{{.EnvName}}" data-uncheck-value="{{.UncheckValue}}"{{end}}{{if .DisablesOption}} data-disables-option="{{.DisablesOption}}"{{end}} class="form-check-input" value="true"{{if .IsChecked $.Session}} checked{{end}}>
-							<label class="form-check-label" for="{{.Id}}"><span data-i18n="{{.LabelKey}}"></span> {{if .EnvName}}<code class="config-env">{{.EnvName}}</code>{{end}}</label>
+							<input type="checkbox" name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}"{{if .UncheckValue}} data-env="{{.EnvName}}" data-uncheck-value="{{.UncheckValue}}"{{end}}{{if .DisablesOption}} data-disables-option="{{.DisablesOption}}"{{end}}{{if .HasSessionValue $.Session}} data-session-value="true"{{end}} class="form-check-input" value="true"{{if .IsChecked $.Session}} checked{{end}}>
+							<label class="form-check-label" for="{{.Id}}"><span data-i18n="{{.LabelKey}}">{{tr .LabelKey}}</span> {{if .EnvName}}<code class="config-env">{{.EnvName}}</code>{{end}}</label>
 						</div>
-						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}"></p>
+						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}">{{tr .DescKey}}</p>
 					</div>
 					{{else if eq .Type "select"}}
-					{{$sel := .SessionValue $.Session}}
+					{{$sel := .SessionValue $.Session}}{{$has := .HasSessionValue $.Session}}
 					<div class="config-item mb-3" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
-						<label for="{{.Id}}" class="form-label"><span data-i18n="{{.LabelKey}}"></span> <code class="config-env">{{.EnvName}}</code></label>
-						<select name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}" class="form-select">
+						<label for="{{.Id}}" class="form-label"><span data-i18n="{{.LabelKey}}">{{tr .LabelKey}}</span> <code class="config-env">{{.EnvName}}</code></label>
+						<select name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}"{{if $has}} data-session-value="true"{{end}} class="form-select">
 							{{$def := .Default}}{{range .Options}}
-							<option value="{{.Value}}"{{if $sel}}{{if eq $sel .Value}} selected{{end}}{{else if eq (printf "%v" $def) .Value}} selected{{end}}>{{.Value}}</option>
+							<option value="{{.Value}}"{{if $has}}{{if eq $sel .Value}} selected{{end}}{{else if eq (printf "%v" $def) .Value}} selected{{end}}>{{.Value}}</option>
 							{{end}}
 						</select>
-						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}"></p>
+						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}">{{tr .DescKey}}</p>
 					</div>
 					{{else if eq .Type "text"}}
-					{{$sv := .SessionValue $.Session}}
+					{{$sv := .SessionValue $.Session}}{{$has := .HasSessionValue $.Session}}
 					<div class="config-item mb-3" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
-						<label for="{{.Id}}" class="form-label"><span data-i18n="{{.LabelKey}}"></span> {{if .EnvName}}<code class="config-env">{{.EnvName}}</code>{{end}}</label>
-						<input type="text" name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}"{{if .EnvName}} data-env="{{.EnvName}}"{{end}} class="form-control"{{if .PlaceholderKey}} data-i18n-placeholder="{{.PlaceholderKey}}"{{end}}{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}} value="{{if $sv}}{{$sv}}{{else if .Default}}{{.Default}}{{end}}">
-						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}"></p>
+						<label for="{{.Id}}" class="form-label"><span data-i18n="{{.LabelKey}}">{{tr .LabelKey}}</span> {{if .EnvName}}<code class="config-env">{{.EnvName}}</code>{{end}}</label>
+						<input type="text" name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}"{{if .EnvName}} data-env="{{.EnvName}}"{{end}}{{if $has}} data-session-value="true"{{end}} class="form-control"{{if .PlaceholderKey}} data-i18n-placeholder="{{.PlaceholderKey}}" placeholder="{{tr .PlaceholderKey}}"{{else if .Placeholder}} placeholder="{{.Placeholder}}"{{end}} value="{{if $has}}{{$sv}}{{else if .Default}}{{.Default}}{{end}}">
+						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}">{{tr .DescKey}}</p>
 					</div>
 					{{else if eq .Type "number"}}
-					{{$nv := .SessionValue $.Session}}
+					{{$nv := .SessionValue $.Session}}{{$has := .HasSessionValue $.Session}}
 					<div class="config-item mb-3" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
-						<label for="{{.Id}}" class="form-label"><span data-i18n="{{.LabelKey}}"></span> {{if .EnvName}}<code class="config-env">{{.EnvName}}</code>{{end}}</label>
-						<input type="number" name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}"{{if .EnvName}} data-env="{{.EnvName}}"{{end}} class="form-control"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}} value="{{if $nv}}{{$nv}}{{else if .Default}}{{.Default}}{{end}}"{{if .Min}} min="{{.Min}}"{{end}}{{if .Max}} max="{{.Max}}"{{end}}>
-						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}"></p>
+						<label for="{{.Id}}" class="form-label"><span data-i18n="{{.LabelKey}}">{{tr .LabelKey}}</span> {{if .EnvName}}<code class="config-env">{{.EnvName}}</code>{{end}}</label>
+						<input type="number" name="{{.Name}}" id="{{.Id}}" data-option="{{.Id}}"{{if .EnvName}} data-env="{{.EnvName}}"{{end}}{{if $has}} data-session-value="true"{{end}} class="form-control"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}} value="{{if $has}}{{$nv}}{{else if .Default}}{{.Default}}{{end}}"{{if .Min}} min="{{.Min}}"{{end}}{{if .Max}} max="{{.Max}}"{{end}}>
+						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}">{{tr .DescKey}}</p>
 					</div>
 					{{else if eq .Type "radio"}}
 					<div class="config-item mb-3" data-env-name="">
 						<div class="form-check">
-							<input type="radio" name="{{.Name}}" id="{{.Id}}" value="{{.Value}}" class="form-check-input"{{if .Default}} checked{{end}}>
-							<label class="form-check-label" for="{{.Id}}"><span data-i18n="{{.LabelKey}}"></span></label>
+							<input type="radio" name="{{.Name}}" id="{{.Id}}" value="{{.Value}}"{{if .HasSessionValue $.Session}} data-session-value="true"{{end}} class="form-check-input"{{if .IsSelected $.Session}} checked{{end}}>
+							<label class="form-check-label" for="{{.Id}}"><span data-i18n="{{.LabelKey}}">{{tr .LabelKey}}</span></label>
 						</div>
-						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}"></p>
+						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}">{{tr .DescKey}}</p>
 					</div>
 					{{else if eq .Type "redisPaths"}}
 					<div id="redisPathInputs" class="redis-paths" style="display:none;">
 						{{range .Paths}}
+						{{$pathValue := .SessionValue $.Session}}{{$pathHas := .HasSessionValue $.Session}}
 						<div class="config-item mb-3" data-env-name="{{.Env}}">
-							<label for="{{.Id}}" class="form-label"><span data-i18n="{{.LabelKey}}"></span> <code class="config-env">{{.Env}}</code></label>
-							<input type="text" name="{{.Env}}" id="{{.Id}}" data-option="{{.Id}}" class="form-control" placeholder="{{.Placeholder}}" value="{{.Default}}">
-							<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}"></p>
+							<label for="{{.Id}}" class="form-label"><span data-i18n="{{.LabelKey}}">{{tr .LabelKey}}</span> <code class="config-env">{{.Env}}</code></label>
+							<input type="text" name="{{.Env}}" id="{{.Id}}" data-option="{{.Id}}" data-env="{{.Env}}"{{if $pathHas}} data-session-value="true"{{end}} class="form-control" placeholder="{{.Placeholder}}" value="{{if $pathHas}}{{$pathValue}}{{else}}{{.Default}}{{end}}">
+							<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}">{{tr .DescKey}}</p>
 						</div>
 						{{end}}
 					</div>
 					{{else if eq .Type "imageEnv"}}
+					{{$imageValue := .SessionValue $.Session}}{{$imageHas := .HasSessionValue $.Session}}
 					<div class="config-item mb-3" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
-						<label for="env_{{.EnvName}}" class="form-label"><span data-i18n="{{.LabelKey}}"></span> <code class="config-env">{{.EnvName}}</code></label>
-						<input type="text" name="{{.EnvName}}" id="env_{{.EnvName}}" data-env="{{.EnvName}}" class="form-control"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}}>
-						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}"></p>
+						<label for="env_{{.EnvName}}" class="form-label"><span data-i18n="{{.LabelKey}}">{{tr .LabelKey}}</span> <code class="config-env">{{.EnvName}}</code></label>
+						<input type="text" name="{{.EnvName}}" id="env_{{.EnvName}}" data-env="{{.EnvName}}"{{if $imageHas}} data-session-value="true"{{end}} class="form-control"{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}} value="{{if $imageHas}}{{$imageValue}}{{else if .Default}}{{.Default}}{{end}}">
+						<p class="form-text small mb-0 mt-1" data-i18n="{{.DescKey}}">{{tr .DescKey}}</p>
 					</div>
 					{{else if eq .Type "ports"}}
 					<div class="config-item mb-3 ports-edit-wrap" data-env-name="{{.EnvName}}"{{if .ShowWhenOption}} data-depends-on-option="{{.ShowWhenOption}}"{{end}}>
-						<p class="form-text small mb-2 mt-0" data-i18n="{{.DescKey}}"></p>
+						<p class="form-text small mb-2 mt-0" data-i18n="{{.DescKey}}">{{tr .DescKey}}</p>
 						{{if $.Ports}}
 						<div class="ports-edit-list">
 							{{range $.Ports}}
 							<div class="ports-edit-item mb-2"{{if and .ShowWhenOption (ne .ShowWhenOption "exposePorts")}} data-depends-on-option="{{.ShowWhenOption}}"{{end}} data-option-id="{{.OptionId}}">
-								<label for="{{.OptionId}}" class="form-label small mb-0"><span data-i18n="{{.LabelKey}}"></span></label>
+								<label for="{{.OptionId}}" class="form-label small mb-0"><span data-i18n="{{.LabelKey}}">{{tr .LabelKey}}</span></label>
 								<input type="number" name="{{.OptionId}}" id="{{.OptionId}}" data-option="{{.OptionId}}" class="form-control form-control-sm d-inline-block" style="max-width:6em;" placeholder="{{.DefaultHostPort}}" value="{{if and $.PortValues (index $.PortValues .OptionId)}}{{index $.PortValues .OptionId}}{{else}}{{.DefaultHostPort}}{{end}}" min="1" max="65535">
 							</div>
 							{{end}}

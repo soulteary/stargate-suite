@@ -16,11 +16,11 @@
 				<div class="keys-row row g-3 align-items-start py-2" data-env="{{.Env}}"{{if .GenType}} data-gen-type="{{.GenType}}"{{end}}>
 					<div class="col-12 col-md-5 keys-meta">
 						<div class="keys-env"><code>{{.Env}}</code></div>
-						<div class="keys-label" data-i18n="{{.LabelKey}}"></div>
-						<p class="keys-desc-line config-desc small text-body-secondary mb-0" data-i18n="{{.DescKey}}"></p>
+						<div class="keys-label" data-i18n="{{.LabelKey}}">{{tr .LabelKey}}</div>
+						<p class="keys-desc-line config-desc small text-body-secondary mb-0" data-i18n="{{.DescKey}}">{{tr .DescKey}}</p>
 					</div>
 					<div class="col-12 col-md-7 keys-value-wrap">
-						<input type="text" class="form-control keys-value" readonly data-env="{{.Env}}" placeholder="{{.Placeholder}}">
+						<input type="text" class="form-control keys-value" readonly data-env="{{.Env}}" placeholder="{{.Placeholder}}" value="{{.KeySessionValue $.Session}}">
 						<div class="keys-buttons mt-2">
 							{{if .GenType}}<button type="button" class="btn btn-sm btn-primary keys-gen" data-env="{{.Env}}" data-i18n="keyBtnGenerate">生成</button> {{end}}
 							<button type="button" class="btn btn-sm btn-outline-secondary keys-copy" data-env="{{.Env}}" data-i18n="keyBtnCopy">复制</button>

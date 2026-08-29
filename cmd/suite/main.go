@@ -48,6 +48,7 @@ func resolveString(fs *flag.FlagSet, flagName, envKey, defaultValue string) stri
 // pageData 与 config/page.yaml 对应，用于渲染 index 模板。
 type pageData struct {
 	I18N           template.JS           `json:"-"`
+	FallbackI18N   map[string]string     `json:"-"`
 	Scenarios      template.JS           `json:"-"`
 	Title          string                `yaml:"-"`
 	Lang           string                `yaml:"-"`
@@ -145,6 +146,14 @@ func (o configOption) IsChecked(sess *SessionData) bool {
 	return truthyDefault(o.Default)
 }
 
+// IsSelected returns whether a radio option matches the persisted group value.
+func (o configOption) IsSelected(sess *SessionData) bool {
+	if o.HasSessionValue(sess) {
+		return o.SessionValue(sess) == o.Value
+	}
+	return truthyDefault(o.Default)
+}
+
 // optionValueTruthy 判断 session option 值（bool/string/其它）是否为真。
 func optionValueTruthy(v interface{}) bool {
 	switch t := v.(type) {
@@ -215,6 +224,36 @@ func (o configOption) SessionValue(sess *SessionData) string {
 	return ""
 }
 
+// HasSessionValue reports whether the option was explicitly stored. Templates
+// use this separately from SessionValue so an intentionally empty value does
+// not fall back to a stale YAML default when the user revisits a step.
+func (o configOption) HasSessionValue(sess *SessionData) bool {
+	if sess == nil {
+		return false
+	}
+	if sess.Options != nil {
+		if _, ok := sess.Options[o.Id]; ok {
+			return true
+		}
+		if o.Name != "" {
+			if _, ok := sess.Options[o.Name]; ok {
+				return true
+			}
+		}
+	}
+	if sess.EnvOverrides != nil {
+		for _, key := range []string{o.EnvName, o.Name} {
+			if key == "" {
+				continue
+			}
+			if _, ok := sess.EnvOverrides[key]; ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // applyUncheckEnvDefaults 对 ConfigSections 中声明了 uncheckValue 的 env，若 EnvOverrides 未显式提供则补上 uncheckValue。
 // 用于向导/JSON 路径：未勾选的 checkbox 不会出现在 payload，需显式落 false（如 WARDEN_REDIS_ENABLED）。
 // 调用方需确保仅在「表单/序列化已产生 EnvOverrides」时调用，避免 make gen（options:null）被改写 canonical 默认。
@@ -243,6 +282,21 @@ type redisPath struct {
 	Placeholder string `yaml:"placeholder"`
 }
 
+func (p redisPath) SessionValue(sess *SessionData) string {
+	if sess == nil || sess.EnvOverrides == nil || p.Env == "" {
+		return ""
+	}
+	return sess.EnvOverrides[p.Env]
+}
+
+func (p redisPath) HasSessionValue(sess *SessionData) bool {
+	if sess == nil || sess.EnvOverrides == nil || p.Env == "" {
+		return false
+	}
+	_, ok := sess.EnvOverrides[p.Env]
+	return ok
+}
+
 type pageService struct {
 	Id       string        `yaml:"id"`
 	Name     string        `yaml:"name"`
@@ -269,6 +323,42 @@ type envVar struct {
 	Options        []selectOption `yaml:"options"`
 	ShowWhenEnv    string         `yaml:"showWhenEnv"`
 	ShowWhenOption string         `yaml:"showWhenOption"`
+}
+
+// SessionValue returns an env var value already saved by an imported config or
+// a previous wizard submission.
+func (v envVar) SessionValue(sess *SessionData) string {
+	if sess == nil || sess.EnvOverrides == nil || v.Env == "" {
+		return ""
+	}
+	return sess.EnvOverrides[v.Env]
+}
+
+// HasSessionValue distinguishes an explicit empty value from no saved value.
+func (v envVar) HasSessionValue(sess *SessionData) bool {
+	if sess == nil || sess.EnvOverrides == nil || v.Env == "" {
+		return false
+	}
+	_, ok := sess.EnvOverrides[v.Env]
+	return ok
+}
+
+// IsChecked returns the persisted checkbox state, falling back to its default
+// only when the session has no value for this env var.
+func (v envVar) IsChecked(sess *SessionData) bool {
+	if v.HasSessionValue(sess) {
+		return optionValueTruthy(v.SessionValue(sess))
+	}
+	return truthyDefault(v.Default)
+}
+
+// KeySessionValue restores a generated/manual key when the user navigates away
+// from the keys step and later returns before generating the final artifacts.
+func (v envVar) KeySessionValue(sess *SessionData) string {
+	if sess == nil || sess.KeysOverrides == nil || v.Env == "" {
+		return ""
+	}
+	return sess.KeysOverrides[v.Env]
 }
 
 type selectOption struct {

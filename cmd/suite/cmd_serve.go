@@ -447,6 +447,16 @@ func loadPageData(yamlPath string) (*pageData, error) {
 		return nil, fmt.Errorf("%s: ports must not be empty", portsPath)
 	}
 	portsList = portsFrag.Ports
+	manifest, err := loadManifest()
+	if err != nil {
+		return nil, fmt.Errorf("load component manifest: %w", err)
+	}
+	if err := applyManifestToPage(&raw, manifest); err != nil {
+		return nil, fmt.Errorf("apply component manifest to Web UI: %w", err)
+	}
+	if err := validatePageI18N(&raw, keysStepVars, portsList); err != nil {
+		return nil, fmt.Errorf("validate Web UI translations: %w", err)
+	}
 	var profilesList []pageProfile
 	ps, err := loadProfiles()
 	if err != nil {
@@ -466,6 +476,7 @@ func loadPageData(yamlPath string) (*pageData, error) {
 	}
 	return &pageData{
 		I18N:           template.JS(jsonI18N),
+		FallbackI18N:   raw.I18N["zh"],
 		Scenarios:      template.JS(jsonScenarios),
 		Title:          title,
 		Lang:           "zh-CN",
@@ -495,12 +506,30 @@ func isEnvVarKey(key string) bool {
 	return key[0] >= 'A' && key[0] <= 'Z'
 }
 
+func defaultWizardNext(step int) string {
+	if step >= 5 {
+		return "/keys"
+	}
+	return fmt.Sprintf("/wizard/step-%d", step+1)
+}
+
+func allowedWizardRedirect(target, fallback string) string {
+	target = strings.TrimSpace(target)
+	switch target {
+	case "/wizard/step-1", "/wizard/step-2", "/wizard/step-3", "/wizard/step-4", "/wizard/step-5", "/keys", "/review":
+		return target
+	default:
+		return fallback
+	}
+}
+
 func handleWizardStepPost(w http.ResponseWriter, r *http.Request, step int) {
 	sess, ok := GetSession(r.Context())
 	if !ok || sess == nil {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
+	requestedNext := ""
 	ct := r.Header.Get("Content-Type")
 	if strings.HasPrefix(ct, "application/json") {
 		r.Body = http.MaxBytesReader(w, r.Body, maxGenerateBodyBytes)
@@ -509,6 +538,7 @@ func handleWizardStepPost(w http.ResponseWriter, r *http.Request, step int) {
 			Modes        []string               `json:"modes"`
 			Options      map[string]interface{} `json:"options"`
 			EnvOverrides map[string]string      `json:"envOverrides"`
+			Next         string                 `json:"next"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
@@ -536,11 +566,13 @@ func handleWizardStepPost(w http.ResponseWriter, r *http.Request, step int) {
 				sess.EnvOverrides[k] = v
 			}
 		}
+		requestedNext = payload.Next
 	} else {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "bad form", http.StatusBadRequest)
 			return
 		}
+		requestedNext = r.FormValue("_next")
 		if step == 1 {
 			if p := strings.TrimSpace(r.FormValue("profile")); p != "" {
 				sess.Profile = p
@@ -560,7 +592,7 @@ func handleWizardStepPost(w http.ResponseWriter, r *http.Request, step int) {
 				sess.EnvOverrides = make(map[string]string)
 			}
 			for k, v := range r.Form {
-				if k == "mode" || k == "scenario" {
+				if k == "mode" || k == "scenario" || k == "_next" {
 					continue
 				}
 				if len(v) == 0 {
@@ -583,10 +615,7 @@ func handleWizardStepPost(w http.ResponseWriter, r *http.Request, step int) {
 		}
 	}
 	SaveSession(r.Context(), sess)
-	next := fmt.Sprintf("/wizard/step-%d", step+1)
-	if step >= 5 {
-		next = "/review"
-	}
+	next := allowedWizardRedirect(requestedNext, defaultWizardNext(step))
 	http.Redirect(w, r, next, http.StatusFound)
 }
 
@@ -597,7 +626,7 @@ func handleKeysApply(w http.ResponseWriter, r *http.Request) {
 	}
 	sess, ok := GetSession(r.Context())
 	if !ok || sess == nil {
-		http.Redirect(w, r, "/", http.StatusFound)
+		http.Error(w, "session required", http.StatusUnauthorized)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxGenerateBodyBytes)
@@ -613,7 +642,7 @@ func handleKeysApply(w http.ResponseWriter, r *http.Request) {
 		sess.KeysOverrides[k] = v
 	}
 	SaveSession(r.Context(), sess)
-	http.Redirect(w, r, "/wizard/step-2", http.StatusFound)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func handleImportParse(w http.ResponseWriter, r *http.Request) {
@@ -927,6 +956,44 @@ func applyPortsConfigToOptions(opts *composegen.Options, ports []portDef) {
 	}
 }
 
+func parsePageTemplates(page *pageData) (*template.Template, error) {
+	if page == nil {
+		return nil, fmt.Errorf("page data is required")
+	}
+	return template.New("root").Funcs(template.FuncMap{
+		"dict": func(values ...interface{}) (map[string]interface{}, error) {
+			if len(values)%2 != 0 {
+				return nil, fmt.Errorf("dict requires even number of args")
+			}
+			m := make(map[string]interface{}, len(values)/2)
+			for i := 0; i < len(values); i += 2 {
+				key, ok := values[i].(string)
+				if !ok {
+					return nil, fmt.Errorf("dict keys must be strings")
+				}
+				m[key] = values[i+1]
+			}
+			return m, nil
+		},
+		"tr": func(key string) string {
+			return page.FallbackI18N[key]
+		},
+	}).ParseFS(staticFS,
+		"static/layout.tmpl",
+		"static/partials/step-nav.tmpl",
+		"static/partials/env-field.tmpl",
+		"static/pages/entry.tmpl",
+		"static/pages/wizard1.tmpl",
+		"static/pages/wizard2.tmpl",
+		"static/pages/wizard3.tmpl",
+		"static/pages/wizard4.tmpl",
+		"static/pages/wizard5.tmpl",
+		"static/pages/keys.tmpl",
+		"static/pages/import.tmpl",
+		"static/pages/review.tmpl",
+	)
+}
+
 func cmdServe() error {
 	// Serve owns its security-related flag set so the Web
 	// UI security posture is explicit. Legacy --port / SERVE_PORT (parsed in
@@ -949,35 +1016,7 @@ func cmdServe() error {
 	if err != nil {
 		return fmt.Errorf("load page config (%s): %w", pageYAMLPath, err)
 	}
-	tmpl, err := template.New("root").Funcs(template.FuncMap{
-		"dict": func(values ...interface{}) (map[string]interface{}, error) {
-			if len(values)%2 != 0 {
-				return nil, fmt.Errorf("dict requires even number of args")
-			}
-			m := make(map[string]interface{}, len(values)/2)
-			for i := 0; i < len(values); i += 2 {
-				key, ok := values[i].(string)
-				if !ok {
-					return nil, fmt.Errorf("dict keys must be strings")
-				}
-				m[key] = values[i+1]
-			}
-			return m, nil
-		},
-	}).ParseFS(staticFS,
-		"static/layout.tmpl",
-		"static/partials/step-nav.tmpl",
-		"static/partials/env-field.tmpl",
-		"static/pages/entry.tmpl",
-		"static/pages/wizard1.tmpl",
-		"static/pages/wizard2.tmpl",
-		"static/pages/wizard3.tmpl",
-		"static/pages/wizard4.tmpl",
-		"static/pages/wizard5.tmpl",
-		"static/pages/keys.tmpl",
-		"static/pages/import.tmpl",
-		"static/pages/review.tmpl",
-	)
+	tmpl, err := parsePageTemplates(page)
 	if err != nil {
 		return fmt.Errorf("parse templates: %w", err)
 	}
@@ -985,7 +1024,9 @@ func cmdServe() error {
 	if err != nil {
 		return fmt.Errorf("static sub FS: %w", err)
 	}
-	cacheStatic := "public, max-age=3600"
+	// Revalidate the small static bundle so a newly deployed binary cannot keep
+	// serving an hour-old app.js that hides translations or skips new behavior.
+	cacheStatic := "public, max-age=0, must-revalidate"
 	staticHandler := cacheControlHandler(cacheStatic, http.FileServer(http.FS(subFS)))
 
 	// renderPage writes the layout template with PageContent and Session set (multi-page mode).

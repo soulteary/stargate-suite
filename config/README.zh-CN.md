@@ -9,6 +9,8 @@ Web UI 页面配置与场景预设（scenarios.json）。总览见 [../README.zh
 `serve` 加载 `page.yaml` 后合并：`config-sections.yaml`、`services.yaml`、`providers.yaml`、`i18n/zh.yaml`、`i18n/en.yaml`、`ports.yaml`。单文件 `page.yaml` 仍兼容。
 
 - **ports.yaml**：所有服务的端口集中配置（服务名、容器端口、默认主机端口、i18n 键）。向导 step-2「暴露端口」表格由此生成；**界面中**的端口类输入（如 step-5 的 HERALD_TOTP_PORT、Herald 的 PORT）的默认值与占位符在加载时由此文件覆盖，与端口表一致。生成逻辑中容器端口、HERALD_TOTP_PORT 与 compose 端口映射均与 ports.yaml 一致。
+- `config-sections.yaml`、`services.yaml`、`providers.yaml` 中的镜像字段有意不重复填写默认值；Web UI 启动时从 `components.yaml` 注入当前默认镜像与占位内容，导入值或会话中已保存的值优先。
+- 所有由配置驱动的 `labelKey`、`descKey` 都必须在 `zh`、`en` 中有非空文本；启动校验会拒绝缺失项，模板同时输出中文服务端兜底文本，再由 JavaScript 切换到用户所选语言。
 
 ## 组件清单（单一权威来源）
 
@@ -26,8 +28,8 @@ Web UI 页面配置与场景预设（scenarios.json）。总览见 [../README.zh
 - **模式**：`image`、`build`、`traefik`、`traefik-herald`、`traefik-warden`、`traefik-stargate`，输出在 `build/<mode>/`。
 - **scenarios.json**：定义场景预设（`modes` + `options` + `envOverrides`），仅在 Web UI 中选择预设并生成；不提供 CLI 按场景生成。
 - **canonical**：`compose/canonical/docker-compose.yml` 为生成基础模板；Web UI 场景 S1~S5 选择模式与选项。
-- **Web UI**：第一步选择场景预设自动填充选项与 env 覆盖；生成类型由场景模式决定。
-- **导入**：在「导入并解析配置」中加载后，会推荐并套用最匹配场景预设，再叠加导入值。
+- **Web UI**：第一步选择场景预设自动填充选项与 env 覆盖；生成类型由场景模式决定。点击任一带文字的向导步骤会先提交并保存当前表单，再跳往目标步骤；离开密钥页前也会保存已填写的密钥。
+- **导入**：在「导入并解析配置」中可粘贴内容，也可将本地 Compose/`.env` 文本文件拖入对应文本框；加载后会推荐并套用最匹配场景预设，再叠加导入值。
 
 ## 敏感项与生产环境
 

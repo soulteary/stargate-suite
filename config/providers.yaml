@@ -10,8 +10,6 @@ providers:
             type: text
             labelKey: heraldDingtalkImageLabel
             descKey: heraldDingtalkImageDesc
-            default: "ghcr.io/soulteary/herald-dingtalk:1.1.0"
-            placeholder: "ghcr.io/soulteary/herald-dingtalk:1.1.0"
           - env: HERALD_DINGTALK_API_URL
             type: text
             labelKey: heraldDingtalkApiUrlLabel
@@ -63,8 +61,6 @@ providers:
             type: text
             labelKey: heraldSmtpImageLabel
             descKey: heraldSmtpImageDesc
-            default: "ghcr.io/soulteary/herald-smtp:1.1.0"
-            placeholder: "ghcr.io/soulteary/herald-smtp:1.1.0"
           - env: HERALD_SMTP_API_URL
             type: text
             labelKey: heraldSmtpApiUrlLabel

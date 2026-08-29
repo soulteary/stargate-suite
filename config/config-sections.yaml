@@ -6,51 +6,35 @@ configSections:
         envName: HERALD_IMAGE
         labelKey: heraldImageLabel
         descKey: heraldImageDesc
-        default: "ghcr.io/soulteary/herald:1.1.0"
-        placeholder: "ghcr.io/soulteary/herald:1.1.0"
       - type: imageEnv
         envName: HERALD_TOTP_IMAGE
         labelKey: heraldTotpImageLabel
         descKey: heraldTotpImageDesc
-        default: "ghcr.io/soulteary/herald-totp:1.1.0"
-        placeholder: "ghcr.io/soulteary/herald-totp:1.1.0"
         showWhenOption: totpEnabled
       - type: imageEnv
         envName: WARDEN_IMAGE
         labelKey: wardenImageLabel
         descKey: wardenImageDesc
-        default: "ghcr.io/soulteary/warden:1.1.0"
-        placeholder: "ghcr.io/soulteary/warden:1.1.0"
       - type: imageEnv
         envName: STARGATE_IMAGE
         labelKey: stargateImageLabel
         descKey: stargateImageDesc
-        default: "ghcr.io/soulteary/stargate:1.0.0"
-        placeholder: "ghcr.io/soulteary/stargate:1.0.0"
       - type: imageEnv
         envName: HERALD_REDIS_IMAGE
         labelKey: heraldRedisImageLabel
         descKey: heraldRedisImageDesc
-        default: "redis:8.4-alpine"
-        placeholder: "redis:8.4-alpine"
       - type: imageEnv
         envName: WARDEN_REDIS_IMAGE
         labelKey: wardenRedisImageLabel
         descKey: wardenRedisImageDesc
-        default: "redis:8.4-alpine"
-        placeholder: "redis:8.4-alpine"
       - type: imageEnv
         envName: STARGATE_REDIS_IMAGE
         labelKey: stargateRedisImageLabel
         descKey: stargateRedisImageDesc
-        default: "redis:8.4-alpine"
-        placeholder: "redis:8.4-alpine"
       - type: imageEnv
         envName: PROTECTED_IMAGE
         labelKey: protectedImageLabel
         descKey: protectedImageDesc
-        default: "ghcr.io/traefik/whoami:v1.11"
-        placeholder: "ghcr.io/traefik/whoami:v1.11"
   - titleKey: healthCheckSection
     options:
       - type: checkbox
