@@ -68,18 +68,18 @@ func applyManifestToPage(page *pageYAML, manifest *contract.Manifest) error {
 		if source.component != "" {
 			component, ok := manifest.Components[source.component]
 			if !ok {
-				return fmt.Errorf("Web UI image %s references missing component %q", envName, source.component)
+				return fmt.Errorf("web UI image %s references missing component %q", envName, source.component)
 			}
 			ref = component.Ref()
 		} else {
 			dependency, ok := manifest.Dependencies[source.dependency]
 			if !ok {
-				return fmt.Errorf("Web UI image %s references missing dependency %q", envName, source.dependency)
+				return fmt.Errorf("web UI image %s references missing dependency %q", envName, source.dependency)
 			}
 			ref = dependency.Ref()
 		}
 		if ref == "" {
-			return fmt.Errorf("Web UI image %s resolved to an empty manifest ref", envName)
+			return fmt.Errorf("web UI image %s resolved to an empty manifest ref", envName)
 		}
 		refs[envName] = ref
 	}
@@ -90,7 +90,7 @@ func applyManifestToPage(page *pageYAML, manifest *contract.Manifest) error {
 		}
 		ref, ok := refs[envName]
 		if !ok {
-			return fmt.Errorf("Web UI image field %s has no components.yaml mapping", envName)
+			return fmt.Errorf("web UI image field %s has no components.yaml mapping", envName)
 		}
 		*defaultValue = ref
 		*placeholder = ref
