@@ -31,3 +31,5 @@ GTR v1.1.2 filters package discovery with `exclude` but still invokes tests with
 the original patterns. Therefore this workflow passes the resolved non-E2E
 import paths directly to `packages`; an empty set fails instead of falling back
 to `./...`. This retains a released CLI without accidentally running E2E.
+
+Published releases with a CI skip annotation use the release-event fallback. Ordinary releases use the tag-push report run; the release gate skips duplicate tests. Stable artifacts containing only reports under `.github` are downloaded into that directory explicitly; mixed report/document artifacts retain the repository hierarchy.
