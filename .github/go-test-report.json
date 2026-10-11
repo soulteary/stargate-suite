@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "tests": {
+    "total": 121,
+    "passed": 119,
+    "failed": 0,
+    "skipped": 2
+  },
+  "coverage": {
+    "covered_statements": 1519,
+    "total_statements": 3426,
+    "percentage": 44.34,
+    "threshold": 30
+  },
+  "packages": [
+    {
+      "name": ".",
+      "status": "pass",
+      "tests": 3,
+      "failed": 0,
+      "coverage": 100
+    },
+    {
+      "name": "cmd/lock-images",
+      "status": "pass",
+      "tests": 2,
+      "failed": 0,
+      "coverage": 11.9
+    },
+    {
+      "name": "cmd/suite",
+      "status": "pass",
+      "tests": 52,
+      "failed": 0,
+      "coverage": 39.77
+    },
+    {
+      "name": "internal/composegen",
+      "status": "pass",
+      "tests": 9,
+      "failed": 0,
+      "coverage": 29.53
+    },
+    {
+      "name": "internal/contract",
+      "status": "pass",
+      "tests": 20,
+      "failed": 0,
+      "coverage": 76.13
+    },
+    {
+      "name": "internal/doctor",
+      "status": "pass",
+      "tests": 7,
+      "failed": 0,
+      "coverage": 74.01
+    },
+    {
+      "name": "internal/policy",
+      "status": "pass",
+      "tests": 28,
+      "failed": 0,
+      "coverage": 85.49
+    }
+  ],
+  "failures": null
+}
