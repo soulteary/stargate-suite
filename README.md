@@ -2,6 +2,8 @@ English | [中文](README.zh-CN.md)
 
 # stargate-suite
 
+[![Go Test Coverage](./.github/coverage.svg)](./.github/go-test-report.md) [![Go Report Card](./.github/goreportcard.svg)](./.github/goreportcard-report.md)
+
 End-to-end integration test environment for **Stargate + Warden + Herald**: Compose setups, Web UI for config generation, and 50+ E2E tests (normal flow, errors, auth, idempotency, audit, metrics). Optional: **herald-totp**, **herald-dingtalk**, **herald-smtp**.
 
 Go module: `github.com/soulteary/stargate-suite`. Repo name: **stargate-suite**.

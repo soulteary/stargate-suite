@@ -2,6 +2,8 @@
 
 # stargate-suite
 
+[![Go Test Coverage](./.github/coverage.svg)](./.github/go-test-report.md) [![Go Report Card](./.github/goreportcard.svg)](./.github/goreportcard-report.md)
+
 **Stargate + Warden + Herald** 三服务的端到端集成测试环境：多种 Compose、Web UI 配置生成、50+ E2E 测试（正常流程、异常、鉴权、幂等、审计、监控）。可选：**herald-totp**、**herald-dingtalk**、**herald-smtp**。
 
 Go 模块：`github.com/soulteary/stargate-suite`。仓库名：**stargate-suite**。
