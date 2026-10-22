@@ -166,8 +166,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Resolve component image lock
-        run: go run ./cmd/lock-images --output dist/components.lock.yaml
+      - name: Publish the tested component image lock
+        run: |
+          git show HEAD:config/components.lock.yaml > "$RUNNER_TEMP/committed-components.lock.yaml"
+          cmp config/components.lock.yaml "$RUNNER_TEMP/committed-components.lock.yaml"
+          go run ./cmd/lock-images --from-lock config/components.lock.yaml --output dist/components.lock.yaml
+          cmp config/components.lock.yaml dist/components.lock.yaml
 
       - name: Generate checksums
         run: |

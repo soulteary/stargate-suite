@@ -10,7 +10,7 @@ for the exact image tags shipped in each release.
 
 ## [Unreleased]
 
-## [0.10.3] - 2026-10-22
+## [0.10.4] - 2026-10-22
 
 ### Added
 
@@ -34,6 +34,9 @@ for the exact image tags shipped in each release.
 - Clicking a labeled wizard step now saves the current form before navigating.
 
 ### Fixed
+
+- Publish the committed, E2E-validated component lock byte for byte after strict
+  schema, image, version, and digest validation; do not re-resolve mutable tags.
 
 - Verify main CI through direct run records with bounded retries for delayed
   GitHub list indexes, requiring the exact workflow, commit, branch, event, and
