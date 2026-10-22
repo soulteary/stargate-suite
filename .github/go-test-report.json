@@ -7,9 +7,9 @@
     "skipped": 2
   },
   "coverage": {
-    "covered_statements": 1519,
-    "total_statements": 3426,
-    "percentage": 44.34,
+    "covered_statements": 1430,
+    "total_statements": 3248,
+    "percentage": 44.03,
     "threshold": 30
   },
   "packages": [
@@ -25,21 +25,21 @@
       "status": "pass",
       "tests": 2,
       "failed": 0,
-      "coverage": 11.9
+      "coverage": 13.51
     },
     {
       "name": "cmd/suite",
       "status": "pass",
       "tests": 52,
       "failed": 0,
-      "coverage": 39.77
+      "coverage": 40.01
     },
     {
       "name": "internal/composegen",
       "status": "pass",
       "tests": 9,
       "failed": 0,
-      "coverage": 29.53
+      "coverage": 28.74
     },
     {
       "name": "internal/contract",
@@ -53,14 +53,14 @@
       "status": "pass",
       "tests": 7,
       "failed": 0,
-      "coverage": 74.01
+      "coverage": 71.79
     },
     {
       "name": "internal/policy",
       "status": "pass",
       "tests": 28,
       "failed": 0,
-      "coverage": 85.49
+      "coverage": 84.51
     }
   ],
   "failures": null

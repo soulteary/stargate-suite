@@ -22,16 +22,20 @@
 
 ### gocyclo
 
+- `internal/policy/apply.go`
+  - Line 120: cyclomatic complexity 27 for function Apply
+- `internal/composegen/security.go`
+  - Line 57: cyclomatic complexity 23 for function applyNetworkSegmentation
+- `cmd/suite/web_ui_test.go`
+  - Line 13: cyclomatic complexity 19 for function TestWebUIImageDefaultsComeFromManifest
 - `cmd/suite/cmd_serve.go`
   - Line 997: cyclomatic complexity 49 for function cmdServe
   - Line 340: cyclomatic complexity 35 for function loadPageData
   - Line 526: cyclomatic complexity 32 for function handleWizardStepPost
   - Line 722: cyclomatic complexity 23 for function handleGeneratePost
   - Line 193: cyclomatic complexity 16 for function suggestScene
-- `cmd/suite/cmd_generate.go`
-  - Line 84: cyclomatic complexity 28 for function cmdGenerate
-- `internal/policy/apply.go`
-  - Line 120: cyclomatic complexity 27 for function Apply
+- `cmd/suite/cmd_validate.go`
+  - Line 24: cyclomatic complexity 34 for function cmdValidate
 - `internal/contract/manifest.go`
   - Line 137: cyclomatic complexity 26 for function validateManifest
 - `cmd/suite/manifest.go`
@@ -49,19 +53,15 @@
   - Line 460: cyclomatic complexity 20 for function EnvBodyFromVars
   - Line 1063: cyclomatic complexity 16 for function injectStargateRedisService
   - Line 966: cyclomatic complexity 16 for function stripStargateTotpEnvAndDependsOn
-- `cmd/suite/profile_golden_test.go`
-  - Line 66: cyclomatic complexity 36 for function TestGoldenProfilesByteStable
-- `cmd/suite/cmd_validate.go`
-  - Line 24: cyclomatic complexity 34 for function cmdValidate
-- `cmd/suite/page_config.go`
-  - Line 13: cyclomatic complexity 29 for function validatePageI18N
-- `internal/composegen/security.go`
-  - Line 57: cyclomatic complexity 23 for function applyNetworkSegmentation
-- `cmd/suite/web_ui_test.go`
-  - Line 13: cyclomatic complexity 19 for function TestWebUIImageDefaultsComeFromManifest
 - `internal/policy/validate.go`
   - Line 94: cyclomatic complexity 53 for function Validate
   - Line 267: cyclomatic complexity 20 for function validateCrossServiceAuth
+- `cmd/suite/profile_golden_test.go`
+  - Line 66: cyclomatic complexity 36 for function TestGoldenProfilesByteStable
+- `cmd/suite/page_config.go`
+  - Line 13: cyclomatic complexity 29 for function validatePageI18N
+- `cmd/suite/cmd_generate.go`
+  - Line 84: cyclomatic complexity 28 for function cmdGenerate
 
 ---
 
