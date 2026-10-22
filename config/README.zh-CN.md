@@ -56,7 +56,7 @@ Web UI 页面配置与场景预设（scenarios.json）。总览见 [../README.zh
 
 ## v1 配置字段与四层 Profile 校验
 
-v1 契约（Stargate 1.0.0 / Warden 1.1.0 / Herald 1.1.0）新增的安全环境变量在 `env-meta.yaml` 中登记生成信息，由 `internal/policy` 的运行时规则执行校验。Go 校验器是字段类型、密钥强度、Profile 范围和结构化错误码的权威来源。
+v1 契约（Stargate 1.2.1 / Warden 1.4.2 / Herald 1.3.2）新增的安全环境变量在 `env-meta.yaml` 中登记生成信息，由 `internal/policy` 的运行时规则执行校验。Go 校验器是字段类型、密钥强度、Profile 范围和结构化错误码的权威来源。
 
 - **Stargate**：`COOKIE_SECURE`、`CALLBACK_ALLOWED_HOSTS`、`SESSION_EXCHANGE_SECRET`、`TRUSTED_PROXIES`、`PROXY_HEADER`、`PASSWORD_HEADER_AUTH_ENABLED`、`WARDEN_HMAC_KEY_ID` / `WARDEN_HMAC_SECRET`、`HERALD_HMAC_KEY_ID`、`WARDEN_TLS_*`。
 - **Herald**：`REQUEST_AUTH_MODE`、`HERALD_HMAC_DEFAULT_KEY_ID`、`HMAC_MAX_DRIFT`、`HMAC_V1_ENABLED`、`HERALD_IDEMPOTENCY_SECRET`、`HERALD_PII_PEPPER`、`HERALD_TRUSTED_PROXIES` / `HERALD_TRUSTED_PROXY_HEADER`、`HERALD_TEST_API_KEY`、`HERALD_TEST_LISTENER_ADDR`。
@@ -79,7 +79,7 @@ v1 契约（Stargate 1.0.0 / Warden 1.1.0 / Herald 1.1.0）新增的安全环境
 
 ## v1 核心镜像与 HMAC v2
 
-- **镜像（来自 `components.yaml` 单一来源）**：Stargate `v1.0.0`、Warden `v1.1.0`、Herald `v1.1.0`；可选通道服务统一为 `v1.1.0`。`env-meta.yaml`、`.env.example`、`compose/canonical`、`ports.yaml` 与 `internal/contract` 漂移测试全部以清单为准。
+- **镜像（来自 `components.yaml` 单一来源）**：Stargate `v1.2.1`、Warden `v1.4.2`、Herald `v1.3.2`；可选通道服务统一为 `v1.2.5`。`env-meta.yaml`、`.env.example`、`compose/canonical`、`ports.yaml` 与 `internal/contract` 漂移测试全部以清单为准。
 - **Stargate 端口 80 → 8080**：容器端口、Host 映射、Traefik `loadbalancer.server.port` 与 `forwardauth.address` 全部改为 `8080`。
 - **健康/就绪路径**：Stargate liveness `/healthz` + readiness `/readyz`；Warden `/healthcheck`；Herald `/healthz`。`make health`、`.github/workflows/ci.yml`、`scripts/run-e2e.sh` 均探测新路径。
 - **Herald 显式认证**：显式设置 `REQUEST_AUTH_MODE=hmac_v2`（不再隐式在 API Key/HMAC 间选择）。仅配置单个 `HMAC_SECRET`（无 `HERALD_HMAC_KEYS`）时 Herald 解析出隐式 `default` key id，客户端可省略 `X-Key-Id`。

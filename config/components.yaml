@@ -14,20 +14,20 @@ schemaVersion: 1
 components:
   stargate:
     image: ghcr.io/soulteary/stargate
-    version: 1.0.0
+    version: 1.2.1
     contractVersion: v1
     containerPort: 8080
     livenessPath: /healthz
     readinessPath: /readyz
   warden:
     image: ghcr.io/soulteary/warden
-    version: 1.1.0
+    version: 1.4.2
     contractVersion: v1
     containerPort: 8081
     livenessPath: /healthcheck
   herald:
     image: ghcr.io/soulteary/herald
-    version: 1.1.0
+    version: 1.3.2
     contractVersion: v1
     containerPort: 8082
     livenessPath: /healthz
@@ -35,19 +35,19 @@ components:
   # 可选通道 / 附属服务（v1 稳定组合；与 canonical、env-meta 默认一致）。
   herald-totp:
     image: ghcr.io/soulteary/herald-totp
-    version: 1.1.0
+    version: 1.2.5
     contractVersion: v1
     containerPort: 8084
     livenessPath: /healthz
   herald-dingtalk:
     image: ghcr.io/soulteary/herald-dingtalk
-    version: 1.1.0
+    version: 1.2.5
     contractVersion: v1
     containerPort: 8083
     livenessPath: /healthz
   herald-smtp:
     image: ghcr.io/soulteary/herald-smtp
-    version: 1.1.0
+    version: 1.2.5
     contractVersion: v1
     containerPort: 8085
     livenessPath: /healthz
@@ -62,13 +62,13 @@ dependencies:
     version: v1.11
   owlmail:
     image: ghcr.io/soulteary/owlmail
-    version: 0.4.0
+    version: 0.11.2
 
 # 本 Suite 发布已验证的目标组件组合（只读契约来源，见 docs/release.md）。
 # 供 `suite version` 展示；components.* 必须与此组合一致。
 # 所有版本均对应已发布的上游稳定 Tag；镜像使用 release 工作流产生的
 # 无 `v` semver tag。
 verifiedCombo:
-  stargate: v1.0.0
-  warden: v1.1.0
-  herald: v1.1.0
+  stargate: v1.2.1
+  warden: v1.4.2
+  herald: v1.3.2

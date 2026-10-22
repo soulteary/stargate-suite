@@ -25,8 +25,10 @@ for the exact image tags shipped in each release.
 
 ### Changed
 
-- Updated the verified component matrix to Warden `v1.1.0` and the optional
-  herald-totp, herald-dingtalk, and herald-smtp `v1.1.0` images.
+- Update the verified component matrix to Stargate `v1.2.1`, Warden `v1.4.2`,
+  Herald `v1.3.2`, and herald-totp, herald-dingtalk, and herald-smtp `v1.2.5`.
+- Update the OwlMail inbox image to `0.11.2` and resolve the release component
+  lock to immutable registry digests.
 - Web UI image defaults are resolved from `config/components.yaml` at startup;
   imported and previously saved values take precedence when revisiting a step.
 - Clicking a labeled wizard step now saves the current form before navigating.

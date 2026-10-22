@@ -543,16 +543,16 @@ func DefaultEnvBody(meta *EnvMeta) string {
 const defaultEnvBodyBuiltin = `# Container Image Version Configuration
 
 # Herald Service Image
-HERALD_IMAGE=ghcr.io/soulteary/herald:1.1.0
+HERALD_IMAGE=ghcr.io/soulteary/herald:1.3.2
 
 # Warden Service Image
-WARDEN_IMAGE=ghcr.io/soulteary/warden:1.1.0
+WARDEN_IMAGE=ghcr.io/soulteary/warden:1.4.2
 
 # Stargate Service Image
-STARGATE_IMAGE=ghcr.io/soulteary/stargate:1.0.0
+STARGATE_IMAGE=ghcr.io/soulteary/stargate:1.2.1
 
 # OwlMail test inbox image
-OWLMAIL_IMAGE=ghcr.io/soulteary/owlmail:0.4.0
+OWLMAIL_IMAGE=ghcr.io/soulteary/owlmail:0.11.2
 
 # Redis Image Version
 HERALD_REDIS_IMAGE=redis:8.4-alpine
@@ -599,7 +599,7 @@ WARDEN_REDIS_PASSWORD=
 # HERALD_HMAC_KEYS=
 
 # DingTalk channel (optional): Herald calls herald-dingtalk via HTTP for verification code push
-# HERALD_DINGTALK_IMAGE=ghcr.io/soulteary/herald-dingtalk:1.1.0
+# HERALD_DINGTALK_IMAGE=ghcr.io/soulteary/herald-dingtalk:1.2.5
 # HERALD_DINGTALK_API_URL=http://herald-dingtalk:8083
 # HERALD_DINGTALK_API_KEY=
 # DINGTALK_APP_KEY=
@@ -608,7 +608,7 @@ WARDEN_REDIS_PASSWORD=
 # DINGTALK_LOOKUP_MODE=none
 
 # Email channel (optional): Herald calls herald-smtp via HTTP for email verification codes
-# HERALD_SMTP_IMAGE=ghcr.io/soulteary/herald-smtp:1.1.0
+# HERALD_SMTP_IMAGE=ghcr.io/soulteary/herald-smtp:1.2.5
 # HERALD_SMTP_API_URL=http://herald-smtp:8085
 # HERALD_SMTP_API_KEY=
 # SMTP_HOST=
@@ -623,7 +623,7 @@ WARDEN_REDIS_PASSWORD=
 # HERALD_TOTP_ENABLED=false
 # HERALD_TOTP_BASE_URL=http://herald-totp:8084
 # HERALD_TOTP_API_KEY=
-# HERALD_TOTP_IMAGE=ghcr.io/soulteary/herald-totp:1.1.0
+# HERALD_TOTP_IMAGE=ghcr.io/soulteary/herald-totp:1.2.5
 # HERALD_TOTP_ENCRYPTION_KEY=   # 32-byte AES-256 key, required when herald-totp runs
 # HERALD_TOTP_PORT=:8084
 # HERALD_TOTP_REDIS_ADDR=herald-redis:6379
@@ -1037,7 +1037,7 @@ func injectOwlmailService(svcs map[string]interface{}, opts *Options) {
 		webPort = p
 	}
 	owlmail := map[string]interface{}{
-		"image":          "${OWLMAIL_IMAGE:-ghcr.io/soulteary/owlmail:0.4.0}",
+		"image":          "${OWLMAIL_IMAGE:-ghcr.io/soulteary/owlmail:0.11.2}",
 		"container_name": prefix + "owlmail",
 		"ports":          []interface{}{"1025:1025", webPort + ":1080"},
 		"environment": []interface{}{
@@ -1567,7 +1567,7 @@ func Generate(full map[string]interface{}, modes []string, envOverride string, o
 	}
 	if opts != nil && opts.IncludeSmtp && opts.UseOwlmailForSmtp {
 		if _, ok := vars["OWLMAIL_IMAGE"]; !ok {
-			vars["OWLMAIL_IMAGE"] = "ghcr.io/soulteary/owlmail:0.4.0"
+			vars["OWLMAIL_IMAGE"] = "ghcr.io/soulteary/owlmail:0.11.2"
 		}
 		vars["SMTP_HOST"] = "owlmail"
 		vars["SMTP_PORT"] = "1025"
