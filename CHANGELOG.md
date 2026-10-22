@@ -10,7 +10,7 @@ for the exact image tags shipped in each release.
 
 ## [Unreleased]
 
-## [0.10.1] - 2026-10-22
+## [0.10.2] - 2026-10-22
 
 ### Added
 
@@ -34,6 +34,9 @@ for the exact image tags shipped in each release.
 - Clicking a labeled wizard step now saves the current form before navigating.
 
 ### Fixed
+
+- Extract release notes from exact version headings with an optional ISO date,
+  while rejecting partial version matches.
 
 - Config-driven labels and descriptions now render with a validated server-side
   fallback, preventing fields such as `redisVolumeDesc` from appearing blank.
