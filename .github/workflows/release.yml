@@ -73,13 +73,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           COMMIT=$(git rev-list -n 1 "${{ steps.ref.outputs.tag }}")
-          SUCCESSFUL_RUNS=$(gh api \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/main.yml/runs?head_sha=${COMMIT}&status=success&per_page=1" \
-            --jq '.workflow_runs | length')
-          if [ "$SUCCESSFUL_RUNS" -ne 1 ]; then
-            echo "Tagged commit $COMMIT has no successful Main workflow run; refusing to release."
-            exit 1
-          fi
+          ./scripts/verify-main-ci.sh "$COMMIT"
 
       - name: Set up Go environment
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
