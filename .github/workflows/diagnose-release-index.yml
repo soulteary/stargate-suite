@@ -1,5 +1,7 @@
 name: Diagnose release CI index
 on:
+  push:
+    branches: [diagnostics/release-index-20261022]
   workflow_dispatch:
 permissions:
   contents: read
