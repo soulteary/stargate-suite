@@ -120,14 +120,7 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           NOTES_FILE="$RUNNER_TEMP/release-notes.md"
           if [ -f CHANGELOG.md ]; then
-            awk -v ver="$VERSION" '
-              /^## / {
-                if (found) exit
-                # Exact match only: do not let 1.2.3 match 11.2.30.
-                if ($0 == "## [" ver "]" || $0 == "## " ver) { found=1; next }
-              }
-              found { print }
-            ' CHANGELOG.md > "$NOTES_FILE"
+            ./scripts/changelog-notes.sh "$VERSION" CHANGELOG.md > "$NOTES_FILE"
           fi
           if [ ! -s "$NOTES_FILE" ]; then
             if [ "${{ steps.version.outputs.prerelease }}" = "false" ]; then
