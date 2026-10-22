@@ -2,10 +2,10 @@ package main
 
 import (
 	"os"
-
-	"github.com/soulteary/stargate-suite/internal/contract"
 	"strings"
 	"testing"
+
+	"github.com/soulteary/stargate-suite/internal/contract"
 )
 
 func TestParseInspectDigest(t *testing.T) {
