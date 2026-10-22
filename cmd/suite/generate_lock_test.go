@@ -46,7 +46,16 @@ func TestLoadLockedImageEnv(t *testing.T) {
 }
 
 func TestLoadLockedImageEnvRejectsPlaceholderDigests(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", contract.LockPath))
+	lock, err := contract.LoadLock(assetFS(), contract.LockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Construct placeholders explicitly; committed release locks have real digests.
+	for name, item := range lock.Images {
+		item.Digest = ""
+		lock.Images[name] = item
+	}
+	data, err := contract.MarshalLock(lock)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -12,20 +12,18 @@ for the exact image tags shipped in each release.
 
 ## [0.10.1] - 2026-10-22
 
-### Changed
-
-- Require Go 1.27.3 and align build images and CI toolchains.
-- Update compatible Go dependencies and published Kit versions; refresh module checksums.
-- Preserve the project toolchain after quality report generation.
-- Publish a checksum Sigstore verification bundle alongside the detached signature and certificate.
-- Run smoke and full E2E deployments against the committed immutable component lock.
-
-
 ### Added
 
 - Web UI import fields accept dropped local Compose and `.env` text files.
 
 ### Changed
+
+- Require Go 1.27.3 and align build images and CI toolchains.
+- Update compatible Go dependencies and published Kit versions; refresh module checksums.
+- Preserve the project toolchain after quality report generation.
+- Publish a checksum Sigstore verification bundle alongside the detached
+  signature and certificate.
+- Run smoke and full E2E deployments against the committed immutable component lock.
 
 - Update the verified component matrix to Stargate `v1.2.1`, Warden `v1.4.2`,
   Herald `v1.3.2`, and herald-totp, herald-dingtalk, and herald-smtp `v1.2.5`.
