@@ -12,21 +12,23 @@ for the exact image tags shipped in each release.
 
 ## [0.10.1] - 2026-10-22
 
-### Changed
-
-- Require Go 1.27.3 and align build images and CI toolchains.
-- Update compatible Go dependencies and published Kit versions; refresh module checksums.
-- Preserve the project toolchain after quality report generation.
-
-
 ### Added
 
 - Web UI import fields accept dropped local Compose and `.env` text files.
 
 ### Changed
 
-- Updated the verified component matrix to Warden `v1.1.0` and the optional
-  herald-totp, herald-dingtalk, and herald-smtp `v1.1.0` images.
+- Require Go 1.27.3 and align build images and CI toolchains.
+- Update compatible Go dependencies and published Kit versions; refresh module checksums.
+- Preserve the project toolchain after quality report generation.
+- Publish a checksum Sigstore verification bundle alongside the detached
+  signature and certificate.
+- Run smoke and full E2E deployments against the committed immutable component lock.
+
+- Update the verified component matrix to Stargate `v1.2.1`, Warden `v1.4.2`,
+  Herald `v1.3.2`, and herald-totp, herald-dingtalk, and herald-smtp `v1.2.5`.
+- Update the OwlMail inbox image to `0.11.2` and resolve the release component
+  lock to immutable registry digests.
 - Web UI image defaults are resolved from `config/components.yaml` at startup;
   imported and previously saved values take precedence when revisiting a step.
 - Clicking a labeled wizard step now saves the current form before navigating.

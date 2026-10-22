@@ -119,9 +119,9 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 			// v1 contract line, Stargate on 8080 (not 80), and component-specific
 			// health probes that are available in each runtime image.
 			for _, img := range []string{
-				"ghcr.io/soulteary/stargate:1.0.0",
-				"ghcr.io/soulteary/warden:1.1.0",
-				"ghcr.io/soulteary/herald:1.1.0",
+				"ghcr.io/soulteary/stargate:1.2.1",
+				"ghcr.io/soulteary/warden:1.4.2",
+				"ghcr.io/soulteary/herald:1.3.2",
 			} {
 				if !strings.Contains(compose, img) {
 					t.Errorf("%q compose should pin core image %q (PR8)", tc.profile, img)

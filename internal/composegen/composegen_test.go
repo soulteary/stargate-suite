@@ -15,7 +15,7 @@ func TestInjectOwlmailUsesVersionedImageVariable(t *testing.T) {
 		t.Fatal("owlmail service was not injected")
 	}
 	image, _ := owlmail["image"].(string)
-	if image != "${OWLMAIL_IMAGE:-ghcr.io/soulteary/owlmail:0.4.0}" {
+	if image != "${OWLMAIL_IMAGE:-ghcr.io/soulteary/owlmail:0.11.2}" {
 		t.Fatalf("owlmail image = %q", image)
 	}
 	if strings.Contains(image, ":latest") {

@@ -48,8 +48,8 @@ func TestParseManifestRejectsInvalidContracts(t *testing.T) {
 		"missing image":              strings.Replace(valid, "    image: ghcr.io/soulteary/stargate\n", "", 1),
 		"invalid port":               strings.Replace(valid, "    containerPort: 8080", "    containerPort: 70000", 1),
 		"relative health path":       strings.Replace(valid, "/healthz", "healthz", 1),
-		"unknown verified component": strings.Replace(valid, "  stargate: v1.0.0", "  missing: v1.0.0", 1),
-		"version drift":              strings.Replace(valid, "  stargate: v1.0.0", "  stargate: v2.0.0", 1),
+		"unknown verified component": strings.Replace(valid, "  stargate: v1.2.1", "  missing: v1.0.0", 1),
+		"version drift":              strings.Replace(valid, "  stargate: v1.2.1", "  stargate: v2.0.0", 1),
 	}
 	for name, data := range tests {
 		t.Run(name, func(t *testing.T) {
