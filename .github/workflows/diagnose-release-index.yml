@@ -1,0 +1,30 @@
+name: Diagnose release CI index
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare public CI metadata using the runner token
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GH_PAGER=cat
+          repo=soulteary/stargate-suite
+          sha=513e55cb21745e4485ab52101b7611e4bc7b03a2
+          summary='{total_count,workflow_runs:[.workflow_runs[]|{id,path,head_sha,head_branch,event,status,conclusion,run_attempt}]}'
+          echo 'Direct main run'
+          gh api --include "repos/$repo/actions/runs/39804662336" --jq '{id,path,head_sha,head_branch,event,status,conclusion,run_attempt}'
+          echo 'Exact release-guard query'
+          gh api --include "repos/$repo/actions/workflows/main.yml/runs?head_sha=$sha&status=success&per_page=1" --jq "$summary"
+          echo 'Same SHA without status filter'
+          gh api --include "repos/$repo/actions/workflows/main.yml/runs?head_sha=$sha&per_page=10" --jq "$summary"
+          echo 'Exact query with cache revalidation'
+          gh api --include -H 'Cache-Control: no-cache' "repos/$repo/actions/workflows/main.yml/runs?head_sha=$sha&status=success&per_page=1" --jq "$summary"
+          echo 'All current main jobs'
+          gh api "repos/$repo/actions/runs/39804662336/jobs" --jq '[.jobs[]|{id,name,status,conclusion}]'
