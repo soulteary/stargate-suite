@@ -24,7 +24,8 @@ successful `Main` workflow run.
 - An SPDX **SBOM**.
 - A `components.lock.yaml` snapshot whose tags match `components.yaml` and
   whose images are resolved to immutable `sha256` digests.
-- Keyless **Cosign** signatures for the image and for `checksums.txt`.
+- Keyless **Cosign** signatures for the image and for `checksums.txt`, including
+  a downloadable Sigstore bundle for checksum verification.
 - GitHub **build-provenance attestations** for the image and the binaries.
 
 ### Deploy with immutable images
@@ -41,6 +42,10 @@ Production uses the same flag in addition to its required secret inputs. The
 command rejects placeholder digests or a lock whose image tags/schema do not
 match the embedded component manifest. Locked image references override image
 values from the environment or `--set`.
+
+CI smoke and full E2E runs generate their test deployment from the committed
+`config/components.lock.yaml`, so they exercise the exact immutable images
+shipped in the component matrix.
 
 ### Tagging policy
 
@@ -88,7 +93,7 @@ tag 对应 commit 必须是 `main` 的祖先，并且该 commit 的 `Main` workf
 - SPDX **SBOM**。
 - 与 `components.yaml` 标签一致、且所有镜像均解析为不可变 `sha256` digest 的
   `components.lock.yaml` 快照。
-- 镜像与 `checksums.txt` 的 keyless **Cosign** 签名。
+- 镜像与 `checksums.txt` 的 keyless **Cosign** 签名，以及可下载的 checksum Sigstore bundle。
 - 镜像与二进制的 GitHub **构建来源证明（attestation）**。
 
 ### 使用不可变镜像部署
@@ -104,6 +109,9 @@ go run ./cmd/suite generate --profile development --output build/locked \
 production 同样使用该参数，并额外提供所需机密。命令会拒绝空 digest，或
 image tag/schema 与内嵌组件清单不匹配的锁；锁定的镜像引用优先于环境变量和
 `--set` 中的镜像值。
+
+CI smoke 与完整 E2E 使用仓库中的 `config/components.lock.yaml` 生成测试部署，
+验证组件矩阵中实际交付的不可变镜像。
 
 ### 打标签策略
 

@@ -295,6 +295,7 @@ jobs:
           cosign sign-blob --yes \
             --output-signature dist/checksums.txt.sig \
             --output-certificate dist/checksums.txt.pem \
+            --bundle dist/checksums.txt.sigstore.json \
             dist/checksums.txt
 
       - name: Create Release

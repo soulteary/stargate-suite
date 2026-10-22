@@ -109,7 +109,7 @@ jobs:
         run: go mod download
 
       - name: Generate test-profile compose (native CLI)
-        run: make gen-test
+        run: make gen-test COMPONENT_LOCK=config/components.lock.yaml
 
       - name: Prepare Warden data for E2E
         run: cp fixtures/warden/data.json build/image/data.json

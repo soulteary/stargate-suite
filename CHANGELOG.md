@@ -17,6 +17,8 @@ for the exact image tags shipped in each release.
 - Require Go 1.27.3 and align build images and CI toolchains.
 - Update compatible Go dependencies and published Kit versions; refresh module checksums.
 - Preserve the project toolchain after quality report generation.
+- Publish a checksum Sigstore verification bundle alongside the detached signature and certificate.
+- Run smoke and full E2E deployments against the committed immutable component lock.
 
 
 ### Added
