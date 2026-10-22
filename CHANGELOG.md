@@ -10,7 +10,7 @@ for the exact image tags shipped in each release.
 
 ## [Unreleased]
 
-## [0.10.2] - 2026-10-22
+## [0.10.3] - 2026-10-22
 
 ### Added
 
@@ -34,6 +34,10 @@ for the exact image tags shipped in each release.
 - Clicking a labeled wizard step now saves the current form before navigating.
 
 ### Fixed
+
+- Verify main CI through direct run records with bounded retries for delayed
+  GitHub list indexes, requiring the exact workflow, commit, branch, event, and
+  completed successful status.
 
 - Extract release notes from exact version headings with an optional ISO date,
   while rejecting partial version matches.
