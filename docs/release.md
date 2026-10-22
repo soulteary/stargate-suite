@@ -135,3 +135,7 @@ commit SHA（语义版本保留在行尾注释）。
 
 用 `workflow_dispatch` 传入已存在 tag 可安全重跑发布（同样做祖先/语义化校验）。
 不要强推 tag，也不要对同一 tag 触发两套发布流程。
+
+The release component lock is copied from the committed snapshot used by E2E,
+after strict manifest and digest validation. Updating image digests requires
+an explicit lock update and a successful full E2E run before release.

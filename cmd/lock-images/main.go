@@ -16,6 +16,7 @@ import (
 func main() {
 	manifestPath := flag.String("manifest", contract.ManifestPath, "component manifest path")
 	outputPath := flag.String("output", contract.LockPath, "lock output path")
+	fromLock := flag.String("from-lock", "", "validate and copy an existing tested lock without resolving tags")
 	flag.Parse()
 
 	data, err := os.ReadFile(*manifestPath)
@@ -25,6 +26,20 @@ func main() {
 	manifest, err := contract.ParseManifest(data)
 	if err != nil {
 		fatalf("parse manifest: %v", err)
+	}
+	if *fromLock != "" {
+		data, err := os.ReadFile(*fromLock)
+		if err != nil {
+			fatalf("read tested lock: %v", err)
+		}
+		if err := validateTestedLock(manifest, data); err != nil {
+			fatalf("validate tested lock: %v", err)
+		}
+		if err := os.WriteFile(*outputPath, data, 0o644); err != nil {
+			fatalf("copy tested lock: %v", err)
+		}
+		fmt.Printf("Copied validated tested lock from %s to %s\n", *fromLock, *outputPath)
+		return
 	}
 	lock, err := contract.NewResolvedLock(manifest, dockerDigest)
 	if err != nil {
@@ -41,6 +56,14 @@ func main() {
 		fatalf("write lock: %v", err)
 	}
 	fmt.Printf("Wrote %s with %d immutable image digests\n", *outputPath, len(lock.Images))
+}
+
+func validateTestedLock(manifest *contract.Manifest, data []byte) error {
+	lock, err := contract.ParseLock(data)
+	if err != nil {
+		return err
+	}
+	return contract.ValidateLock(manifest, lock, true)
 }
 
 func dockerDigest(ref string) (string, error) {

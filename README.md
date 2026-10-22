@@ -180,3 +180,7 @@ extracted from the matching section of `CHANGELOG.md`.
 ## License
 
 Same as main project.
+
+The release component lock is copied from the committed snapshot used by E2E,
+after strict manifest and digest validation. Updating image digests requires
+an explicit lock update and a successful full E2E run before release.
