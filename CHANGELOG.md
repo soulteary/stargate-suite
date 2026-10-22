@@ -10,6 +10,15 @@ for the exact image tags shipped in each release.
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-22
+
+### Changed
+
+- Require Go 1.27.3 and align build images and CI toolchains.
+- Update compatible Go dependencies and published Kit versions; refresh module checksums.
+- Preserve the project toolchain after quality report generation.
+
+
 ### Added
 
 - Web UI import fields accept dropped local Compose and `.env` text files.
