@@ -10,6 +10,11 @@ for the exact image tags shipped in each release.
 
 ## [Unreleased]
 
+### Changed
+
+- Pin Herald DingTalk, SMTP and TOTP providers to v1.2.6 and OwlMail to v0.13.0, with refreshed immutable registry digests and matching generated Compose/environment defaults.
+- Document provider patch compatibility and the OwlMail durable Relay upgrade/backup/rollback boundaries. Core Stargate, Warden and Herald versions remain unchanged.
+
 ## [0.10.4] - 2026-10-22
 
 ### Added

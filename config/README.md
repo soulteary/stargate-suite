@@ -82,7 +82,7 @@ Production is always strict (cannot be relaxed with `--strict=false`); `--strict
 
 ## v1 core images & HMAC v2
 
-- **Images (from `components.yaml`, single source)**: Stargate `v1.2.1`, Warden `v1.4.2`, Herald `v1.3.2`; optional channel services are `v1.2.5`. `env-meta.yaml`, `.env.example`, `compose/canonical`, `ports.yaml` and the `internal/contract` drift tests all follow the manifest.
+- **Images (from `components.yaml`, single source)**: Stargate `v1.2.1`, Warden `v1.4.2`, Herald `v1.3.2`; optional channel services are `v1.2.6`. `env-meta.yaml`, `.env.example`, `compose/canonical`, `ports.yaml` and the `internal/contract` drift tests all follow the manifest.
 - **Stargate port 80 → 8080**: container port, host mapping, Traefik `loadbalancer.server.port`, and the `forwardauth.address` all move to `8080`.
 - **Health/readiness paths**: Stargate liveness `/healthz` + readiness `/readyz`; Warden `/healthcheck`; Herald `/healthz`. `make health`, `.github/workflows/ci.yml`, and `scripts/run-e2e.sh` probe the new paths.
 - **Herald explicit auth**: `REQUEST_AUTH_MODE=hmac_v2` is set explicitly (no implicit API-key/HMAC selection). With a single `HMAC_SECRET` (no `HERALD_HMAC_KEYS`) Herald resolves an implicit `default` key id, so clients may omit `X-Key-Id`.
