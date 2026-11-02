@@ -6,20 +6,20 @@ images:
         digest: sha256:ce326c33e9172b10c72a4162f41fec38e418dbddde737ac1b7b4c40e98861efa
     herald-dingtalk:
         image: ghcr.io/soulteary/herald-dingtalk
-        version: 1.2.5
-        digest: sha256:7a3cc2b1d276a0dc5e2c186eb5347b9155633db3d6ab18b7d8aa3aa30c8e54cf
+        version: 1.2.6
+        digest: sha256:26d0fbddf24d6baa58d39cf4bb442ba9b4d4453aa30e202c6aa9d3aa15fcda80
     herald-smtp:
         image: ghcr.io/soulteary/herald-smtp
-        version: 1.2.5
-        digest: sha256:a92ebf4a4463468414472f183cae81a97ed137b83d129f8f174ef5ee2ba62c93
+        version: 1.2.6
+        digest: sha256:8a99c047985361655de0231525912a6ddea72c1d94524e848f03af091f32422a
     herald-totp:
         image: ghcr.io/soulteary/herald-totp
-        version: 1.2.5
-        digest: sha256:1e345fb117148f1b1471a7af84e5a7b3bed195cb2af19a64e07a061ad73c0ae3
+        version: 1.2.6
+        digest: sha256:cc7b0bf69d1ded078bfbe3b98d9bc57c012e79e64f32962f72659d7ccba7739c
     owlmail:
         image: ghcr.io/soulteary/owlmail
-        version: 0.11.2
-        digest: sha256:4a616ab6cd37927a926fe6baf72424165fc7e8ff89cfeaf8a8179d23970fd52a
+        version: 0.13.0
+        digest: sha256:cfe1af98c808afe1fb1e59c8ef69db62e9ccd7ba1b28789d60c4f179af8e9925
     protected:
         image: ghcr.io/traefik/whoami
         version: v1.11
