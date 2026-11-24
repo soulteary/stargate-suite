@@ -274,7 +274,7 @@ jobs:
       - name: Run smoke E2E
         run: >-
           go test -race -timeout 10m ./e2e/...
-          -run '^(TestCompleteLoginFlow|TestProtectedWhoamiAfterLogin|TestWardenAPIKeyAuth|TestHeraldHMACAuth|TestHeraldHMACWithXKeyId|TestHeraldCreationSignatureBinding|TestHeraldNonceReplayRejected|TestHeraldIdempotencyKey|TestHeraldV3SigningVector|TestLivenessReadinessAreDistinct|TestHeraldTestCodeNotOnMainListener)$'
+          -run '^(TestCompleteLoginFlow|TestProtectedWhoamiAfterLogin|TestWardenAPIKeyAuth|TestHeraldHMACAuth|TestHeraldHMACWithXKeyId|TestHeraldCreationSignatureBinding|TestHeraldNonceReplayRejected|TestHeraldIdempotencyKey|TestHeraldV3SigningVector|TestExpiredVerificationCode|TestInvalidChallengeID|TestLivenessReadinessAreDistinct|TestHeraldTestCodeNotOnMainListener)$'
 
       - name: Show service logs on failure
         if: "failure()"
