@@ -86,6 +86,9 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 
 			env := string(e1)
 			compose := string(c1)
+			if !strings.Contains(compose, "COOKIE_SECURE=${COOKIE_SECURE:-true}") {
+				t.Errorf("%q compose must pass the profile's Cookie Secure setting to Stargate", tc.profile)
+			}
 
 			// PR 6 invariants shared by all profiles: network segmentation
 			// (flat the-gate-network replaced by segmented internal networks)
@@ -150,6 +153,9 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 
 			switch tc.profile {
 			case policy.Development, policy.Test:
+				if !strings.Contains(env, "COOKIE_SECURE=false") {
+					t.Errorf("%q loopback HTTP profile must set COOKIE_SECURE=false", tc.profile)
+				}
 				if !strings.Contains(compose, "- 127.0.0.1:") {
 					t.Errorf("%q compose should bind exposed ports to loopback (127.0.0.1)", tc.profile)
 				}

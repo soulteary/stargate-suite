@@ -362,7 +362,7 @@ vars:
   # the canonical-compose consistency check recognize them. Defaults intentionally
   # omitted for secrets (must be user-provided in production). ---
   ENVIRONMENT: { comment: "运行环境 (development/test/production)，供各服务生产 fail-closed 校验", services: [stargate, warden, herald, herald-totp] }
-  COOKIE_SECURE: { comment: "Stargate：Cookie Secure 标志（生产必须 true）", services: [stargate], default: "false" }
+  COOKIE_SECURE: { comment: "Stargate：Cookie Secure 标志（生产必须 true）", services: [stargate], default: "true" }
   CALLBACK_ALLOWED_HOSTS: { comment: "Stargate：跨域回跳允许的 Host 白名单（逗号分隔）", services: [stargate] }
   SESSION_EXCHANGE_SECRET: { comment: "Stargate：跨域会话交换密钥（启用回跳/跨域 Cookie 时 ≥32 字符）", services: [stargate] }
   TRUSTED_PROXIES: { comment: "Stargate：可信代理 IP/CIDR 列表（step-up 取真实客户端 IP 用）", services: [stargate] }

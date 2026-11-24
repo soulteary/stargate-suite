@@ -324,6 +324,7 @@ services:
       - LOGIN_PAGE_TITLE=${LOGIN_PAGE_TITLE:-Stargate - Login}
       - LOGIN_PAGE_FOOTER_TEXT=${LOGIN_PAGE_FOOTER_TEXT:-Copyright © 2024 - Stargate}
       - COOKIE_DOMAIN=${COOKIE_DOMAIN:-}
+      - COOKIE_SECURE=${COOKIE_SECURE:-true}
       - PASSWORDS=${PASSWORDS:-plaintext:test1234|test1337}
       - LANGUAGE=${LANGUAGE:-zh}
       - USER_HEADER_NAME=${USER_HEADER_NAME:-X-Forwarded-User}
