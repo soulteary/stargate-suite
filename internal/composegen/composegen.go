@@ -543,21 +543,21 @@ func DefaultEnvBody(meta *EnvMeta) string {
 const defaultEnvBodyBuiltin = `# Container Image Version Configuration
 
 # Herald Service Image
-HERALD_IMAGE=ghcr.io/soulteary/herald:1.3.2
+HERALD_IMAGE=ghcr.io/soulteary/herald:1.9.0
 
 # Warden Service Image
-WARDEN_IMAGE=ghcr.io/soulteary/warden:1.4.2
+WARDEN_IMAGE=ghcr.io/soulteary/warden:1.9.1
 
 # Stargate Service Image
-STARGATE_IMAGE=ghcr.io/soulteary/stargate:1.2.1
+STARGATE_IMAGE=ghcr.io/soulteary/stargate:1.8.0
 
 # OwlMail test inbox image
-OWLMAIL_IMAGE=ghcr.io/soulteary/owlmail:0.13.0
+OWLMAIL_IMAGE=ghcr.io/soulteary/owlmail:0.15.0
 
 # Redis Image Version
-HERALD_REDIS_IMAGE=redis:8.4-alpine
-WARDEN_REDIS_IMAGE=redis:8.4-alpine
-STARGATE_REDIS_IMAGE=redis:8.4-alpine
+HERALD_REDIS_IMAGE=redis:8.10.2-alpine
+WARDEN_REDIS_IMAGE=redis:8.10.2-alpine
+STARGATE_REDIS_IMAGE=redis:8.10.2-alpine
 
 # Herald Redis connection (Herald uses REDIS_ADDR; HERALD_REDIS_URL is spec suggestion, not yet used)
 HERALD_REDIS_ADDR=herald-redis:6379
@@ -590,7 +590,7 @@ WARDEN_REDIS_PASSWORD=
 # SESSION_STORAGE_REDIS_KEY_PREFIX=
 
 # Protected service (whoami) - example service behind Stargate Forward Auth, used for E2E and demos
-# PROTECTED_IMAGE=ghcr.io/traefik/whoami:v1.11
+# PROTECTED_IMAGE=ghcr.io/traefik/whoami:v1.12.0
 
 # Herald optional: idempotency TTL (0=use challenge expiry), allowed purposes, HMAC keys (JSON), service name
 # IDEMPOTENCY_KEY_TTL=0
@@ -599,7 +599,7 @@ WARDEN_REDIS_PASSWORD=
 # HERALD_HMAC_KEYS=
 
 # DingTalk channel (optional): Herald calls herald-dingtalk via HTTP for verification code push
-# HERALD_DINGTALK_IMAGE=ghcr.io/soulteary/herald-dingtalk:1.2.6
+# HERALD_DINGTALK_IMAGE=ghcr.io/soulteary/herald-dingtalk:1.2.8
 # HERALD_DINGTALK_API_URL=http://herald-dingtalk:8083
 # HERALD_DINGTALK_API_KEY=
 # DINGTALK_APP_KEY=
@@ -608,7 +608,7 @@ WARDEN_REDIS_PASSWORD=
 # DINGTALK_LOOKUP_MODE=none
 
 # Email channel (optional): Herald calls herald-smtp via HTTP for email verification codes
-# HERALD_SMTP_IMAGE=ghcr.io/soulteary/herald-smtp:1.2.6
+# HERALD_SMTP_IMAGE=ghcr.io/soulteary/herald-smtp:1.2.9
 # HERALD_SMTP_API_URL=http://herald-smtp:8085
 # HERALD_SMTP_API_KEY=
 # SMTP_HOST=
@@ -619,11 +619,11 @@ WARDEN_REDIS_PASSWORD=
 # SMTP_USE_STARTTLS=true
 # HERALD_SMTP_IDEMPOTENCY_TTL=300
 
-# TOTP 2FA (optional): Stargate calls herald-totp for enroll/verify and backup codes
+# TOTP 2FA (optional): Stargate calls Herald, which proxies enroll/verify to herald-totp
 # HERALD_TOTP_ENABLED=false
 # HERALD_TOTP_BASE_URL=http://herald-totp:8084
 # HERALD_TOTP_API_KEY=
-# HERALD_TOTP_IMAGE=ghcr.io/soulteary/herald-totp:1.2.6
+# HERALD_TOTP_IMAGE=ghcr.io/soulteary/herald-totp:2.0.4
 # HERALD_TOTP_ENCRYPTION_KEY=   # 32-byte AES-256 key, required when herald-totp runs
 # HERALD_TOTP_PORT=:8084
 # HERALD_TOTP_REDIS_ADDR=herald-redis:6379
@@ -815,6 +815,20 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 		if suffix, ok := serviceNameToContainerSuffix[serviceName]; ok {
 			svc["container_name"] = opts.ContainerNamePrefix + suffix
 		}
+		if serviceName == "herald" {
+			if env, ok := svc["environment"].([]interface{}); ok {
+				for i, e := range env {
+					s, _ := e.(string)
+					if strings.HasPrefix(s, "HERALD_TOTP_BASE_URL=") {
+						port := strings.TrimSpace(opts.HeraldTotpContainerPort)
+						if port == "" {
+							port = containerPortStr("herald-totp", "8084")
+						}
+						env[i] = "HERALD_TOTP_BASE_URL=http://" + opts.ContainerNamePrefix + "herald-totp:" + port
+					}
+				}
+			}
+		}
 		if serviceName == "stargate" {
 			prefix := opts.ContainerNamePrefix
 			if env, ok := svc["environment"].([]interface{}); ok {
@@ -825,13 +839,6 @@ func applyOptions(svc map[string]interface{}, serviceName string, opts *Options)
 					}
 					if strings.HasPrefix(s, "HERALD_URL=") {
 						env[i] = "HERALD_URL=http://" + prefix + "herald:" + containerPortStr("herald", "8082")
-					}
-					if strings.HasPrefix(s, "HERALD_TOTP_BASE_URL=") {
-						totpPort := strings.TrimSpace(opts.HeraldTotpContainerPort)
-						if totpPort == "" {
-							totpPort = containerPortStr("herald-totp", "8084")
-						}
-						env[i] = "HERALD_TOTP_BASE_URL=http://" + prefix + "herald-totp:" + totpPort
 					}
 				}
 			}
@@ -962,42 +969,44 @@ func applyOptionsToCompose(out map[string]interface{}, opts *Options) {
 	}
 }
 
-// stripStargateTotpEnvAndDependsOn 从 stargate 服务的 environment 与 depends_on 中移除 HERALD_TOTP_* 与 herald-totp 依赖。
-func stripStargateTotpEnvAndDependsOn(svcs map[string]interface{}) {
-	stargate, ok := svcs["stargate"].(map[string]interface{})
-	if !ok {
-		return
-	}
-	if env, ok := stargate["environment"].([]interface{}); ok {
-		var kept []interface{}
-		for _, e := range env {
-			s, _ := e.(string)
-			// Remove all HERALD_TOTP_* from Stargate when herald-totp service is not included
-			if s != "" && !strings.HasPrefix(s, "HERALD_TOTP_ENABLED=") && !strings.HasPrefix(s, "HERALD_TOTP_BASE_URL=") && !strings.HasPrefix(s, "HERALD_TOTP_API_KEY=") && !strings.HasPrefix(s, "HERALD_TOTP_HMAC_SECRET=") {
-				kept = append(kept, e)
-			}
+// stripTotpEnvAndDependsOn removes optional TOTP wiring from both callers.
+func stripTotpEnvAndDependsOn(svcs map[string]interface{}) {
+	for _, name := range []string{"stargate", "herald"} {
+		service, ok := svcs[name].(map[string]interface{})
+		if !ok {
+			continue
 		}
-		stargate["environment"] = kept
-	}
-	if dep, ok := stargate["depends_on"]; ok {
-		switch d := dep.(type) {
-		case []interface{}:
+		if env, ok := service["environment"].([]interface{}); ok {
 			var kept []interface{}
-			for _, v := range d {
-				if s, _ := v.(string); s != "herald-totp" {
-					kept = append(kept, v)
+			for _, e := range env {
+				s, _ := e.(string)
+				// Neither caller may retain a route to an omitted TOTP backend.
+				if s != "" && !strings.HasPrefix(s, "HERALD_TOTP_") {
+					kept = append(kept, e)
 				}
 			}
-			stargate["depends_on"] = kept
-		case map[string]interface{}:
-			// 使用新 map 避免修改共享的 full，否则后续 mode（如 traefik）会丢失 herald-totp 依赖
-			newDep := make(map[string]interface{}, len(d))
-			for k, v := range d {
-				if k != "herald-totp" {
-					newDep[k] = v
+			service["environment"] = kept
+		}
+		if dep, ok := service["depends_on"]; ok {
+			switch d := dep.(type) {
+			case []interface{}:
+				var kept []interface{}
+				for _, v := range d {
+					if s, _ := v.(string); s != "herald-totp" {
+						kept = append(kept, v)
+					}
 				}
+				service["depends_on"] = kept
+			case map[string]interface{}:
+				// 使用新 map 避免修改共享的 full，否则后续 mode（如 traefik）会丢失 herald-totp 依赖
+				newDep := make(map[string]interface{}, len(d))
+				for k, v := range d {
+					if k != "herald-totp" {
+						newDep[k] = v
+					}
+				}
+				service["depends_on"] = newDep
 			}
-			stargate["depends_on"] = newDep
 		}
 	}
 }
@@ -1037,7 +1046,7 @@ func injectOwlmailService(svcs map[string]interface{}, opts *Options) {
 		webPort = p
 	}
 	owlmail := map[string]interface{}{
-		"image":          "${OWLMAIL_IMAGE:-ghcr.io/soulteary/owlmail:0.13.0}",
+		"image":          "${OWLMAIL_IMAGE:-ghcr.io/soulteary/owlmail:0.15.0}",
 		"container_name": prefix + "owlmail",
 		"ports":          []interface{}{"1025:1025", webPort + ":1080"},
 		"environment": []interface{}{
@@ -1072,7 +1081,7 @@ func injectStargateRedisService(out map[string]interface{}, opts *Options) {
 	if prefix == "" {
 		prefix = "the-gate-"
 	}
-	redisImage := "${STARGATE_REDIS_IMAGE:-redis:8.4-alpine}"
+	redisImage := "${STARGATE_REDIS_IMAGE:-redis:8.10.2-alpine}"
 	stargateRedis := map[string]interface{}{
 		"image":          redisImage,
 		"container_name": prefix + "stargate-redis",
@@ -1179,10 +1188,6 @@ func applyStargateSplitOverrides(svc map[string]interface{}, containerNamePrefix
 	if prefix == "" {
 		prefix = "the-gate-"
 	}
-	totpPort := containerPortStr("herald-totp", "8084")
-	if opts != nil && strings.TrimSpace(opts.HeraldTotpContainerPort) != "" {
-		totpPort = strings.TrimSpace(opts.HeraldTotpContainerPort)
-	}
 	delete(svc, "depends_on")
 	if env, ok := svc["environment"].([]interface{}); ok {
 		for i, e := range env {
@@ -1192,9 +1197,6 @@ func applyStargateSplitOverrides(svc map[string]interface{}, containerNamePrefix
 			}
 			if strings.HasPrefix(s, "HERALD_URL=") {
 				env[i] = "HERALD_URL=http://" + prefix + "herald:" + containerPortStr("herald", "8082")
-			}
-			if strings.HasPrefix(s, "HERALD_TOTP_BASE_URL=") {
-				env[i] = "HERALD_TOTP_BASE_URL=http://" + prefix + "herald-totp:" + totpPort
 			}
 		}
 	}
@@ -1247,8 +1249,8 @@ func generateImageOrBuild(full map[string]interface{}, mode string, opts *Option
 		}
 	}
 	out["services"] = outSvcs
-	// image/build 不包含 herald-totp 服务，必须从 stargate 的 depends_on 与 environment 中移除 TOTP 相关项，否则 docker compose config 会报 "depends on undefined service herald-totp"
-	stripStargateTotpEnvAndDependsOn(outSvcs)
+	// image/build 不包含 herald-totp 服务，必须从 Herald 和 Stargate 的 depends_on 与 environment 中移除 TOTP 相关项，否则 docker compose config 会报 "depends on undefined service herald-totp"
+	stripTotpEnvAndDependsOn(outSvcs)
 	outVol := make(map[string]interface{})
 	for _, vn := range imageBuildVolumes {
 		if v, ok := volumes[vn]; ok {
@@ -1410,17 +1412,17 @@ func generateOneImpl(full map[string]interface{}, mode string, opts *Options, me
 			patchHeraldSmtpForOwlmail(svcs)
 		}
 	}
-	// 全量 traefik 或 traefik-herald 且未启用 TOTP 时，从 compose 中移除 herald-totp 服务，并从 stargate 环境变量与 depends_on 中移除相关项
+	// 全量 traefik 或 traefik-herald 且未启用 TOTP 时，从 compose 中移除 herald-totp 服务，并从 Herald 和 Stargate 环境变量与 depends_on 中移除相关项
 	if (mode == "traefik" || mode == "traefik-herald") && (opts == nil || !opts.IncludeTotp) {
 		if svcs, ok := out["services"].(map[string]interface{}); ok {
 			delete(svcs, "herald-totp")
-			stripStargateTotpEnvAndDependsOn(svcs)
+			stripTotpEnvAndDependsOn(svcs)
 		}
 	}
 	// traefik-stargate 且未启用 TOTP 时，仅从 stargate 环境变量与 depends_on 中移除 TOTP 相关项（该 split 本身不含 herald-totp 服务）
 	if mode == "traefik-stargate" && (opts == nil || !opts.IncludeTotp) {
 		if svcs, ok := out["services"].(map[string]interface{}); ok {
-			stripStargateTotpEnvAndDependsOn(svcs)
+			stripTotpEnvAndDependsOn(svcs)
 		}
 	}
 	// traefik 或 traefik-stargate 且启用「Stargate 会话 Redis 使用内置容器」时，注入 stargate-redis 服务
@@ -1567,7 +1569,7 @@ func Generate(full map[string]interface{}, modes []string, envOverride string, o
 	}
 	if opts != nil && opts.IncludeSmtp && opts.UseOwlmailForSmtp {
 		if _, ok := vars["OWLMAIL_IMAGE"]; !ok {
-			vars["OWLMAIL_IMAGE"] = "ghcr.io/soulteary/owlmail:0.13.0"
+			vars["OWLMAIL_IMAGE"] = "ghcr.io/soulteary/owlmail:0.15.0"
 		}
 		vars["SMTP_HOST"] = "owlmail"
 		vars["SMTP_PORT"] = "1025"

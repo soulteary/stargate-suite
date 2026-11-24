@@ -86,6 +86,9 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 
 			env := string(e1)
 			compose := string(c1)
+			if !strings.Contains(compose, "COOKIE_SECURE=${COOKIE_SECURE:-true}") {
+				t.Errorf("%q compose must pass the profile's Cookie Secure setting to Stargate", tc.profile)
+			}
 
 			// PR 6 invariants shared by all profiles: network segmentation
 			// (flat the-gate-network replaced by segmented internal networks)
@@ -119,9 +122,9 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 			// v1 contract line, Stargate on 8080 (not 80), and component-specific
 			// health probes that are available in each runtime image.
 			for _, img := range []string{
-				"ghcr.io/soulteary/stargate:1.2.1",
-				"ghcr.io/soulteary/warden:1.4.2",
-				"ghcr.io/soulteary/herald:1.3.2",
+				"ghcr.io/soulteary/stargate:1.8.0",
+				"ghcr.io/soulteary/warden:1.9.1",
+				"ghcr.io/soulteary/herald:1.9.0",
 			} {
 				if !strings.Contains(compose, img) {
 					t.Errorf("%q compose should pin core image %q (PR8)", tc.profile, img)
@@ -150,6 +153,9 @@ func TestGoldenProfilesByteStable(t *testing.T) {
 
 			switch tc.profile {
 			case policy.Development, policy.Test:
+				if !strings.Contains(env, "COOKIE_SECURE=false") {
+					t.Errorf("%q loopback HTTP profile must set COOKIE_SECURE=false", tc.profile)
+				}
 				if !strings.Contains(compose, "- 127.0.0.1:") {
 					t.Errorf("%q compose should bind exposed ports to loopback (127.0.0.1)", tc.profile)
 				}

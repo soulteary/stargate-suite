@@ -37,9 +37,9 @@ func TestHeraldHMACSignature(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	// HMAC v2: bind method/path/query/timestamp/nonce/service/keyID/body-hash.
-	sig := signHeraldV2("POST", "/v1/otp/challenges", "", "stargate", "", heraldHMACSecret, bodyBytes)
-	setHeraldV2Headers(req, sig)
+	// HMAC v3: bind method/path/query/timestamp/nonce/service/keyID/idempotency/body hashes.
+	sig := signHeraldV3("POST", "/v1/otp/challenges", "", "stargate", "", "", heraldHMACSecret, bodyBytes)
+	setHeraldV3Headers(req, sig)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -55,14 +55,14 @@ func TestHeraldHMACSignature(t *testing.T) {
 		t.Logf("⚠ Rate limited, skipping this test. Status: %d", resp.StatusCode)
 		return
 	}
-	testza.AssertEqual(t, http.StatusOK, resp.StatusCode, "Should return 200 OK with valid HMAC v2 signature")
+	testza.AssertEqual(t, http.StatusOK, resp.StatusCode, "Should return 200 OK with valid HMAC v3 signature")
 
 	var challengeResp HeraldChallengeResponse
 	err = json.NewDecoder(resp.Body).Decode(&challengeResp)
 	testza.AssertNoError(t, err)
 
 	testza.AssertNotNil(t, challengeResp.ChallengeID)
-	t.Logf("✓ Valid HMAC v2 signature accepted: %+v", challengeResp)
+	t.Logf("✓ Valid HMAC v3 signature accepted: %+v", challengeResp)
 }
 
 // TestHeraldHMACSignatureInvalid tests that invalid signatures are rejected
@@ -85,9 +85,9 @@ func TestHeraldHMACSignatureInvalid(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	// v2 headers with a deliberately wrong signature: version is present so the
-	// server evaluates v2 (no v1 fallback) and must reject the bad signature.
-	req.Header.Set("X-Signature-Version", "v2")
+	// v3 headers with a deliberately wrong signature: version is present so the
+	// server evaluates v3 (no v1 fallback) and must reject the bad signature.
+	req.Header.Set("X-Signature-Version", "v3")
 	req.Header.Set("X-Signature", "invalid_signature_12345")
 	req.Header.Set("X-Timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	req.Header.Set("X-Nonce", "e2e-nonce-invalid-sig")
@@ -129,13 +129,13 @@ func TestHeraldHMACSignatureExpired(t *testing.T) {
 	testza.AssertNoError(t, err)
 
 	// Use expired timestamp (6 minutes ago, exceeding the default 60s drift and
-	// 5-minute window). Compute a valid v2 signature over the expired timestamp
+	// 5-minute window). Compute a valid v3 signature over the expired timestamp
 	// so the ONLY failing check is the timestamp drift bound.
 	expiredTimestamp := time.Now().Unix() - 360
 	service := "stargate"
 	nonce := "e2e-nonce-expired"
-	sig := signHeraldV2Fixed("POST", "/v1/otp/challenges", "",
-		strconv.FormatInt(expiredTimestamp, 10), nonce, service, "", heraldHMACSecret, bodyBytes)
+	sig := signHeraldFixed("v3", "POST", "/v1/otp/challenges", "",
+		strconv.FormatInt(expiredTimestamp, 10), nonce, service, "", "", heraldHMACSecret, bodyBytes)
 
 	url := fmt.Sprintf("%s/v1/otp/challenges", heraldURL)
 	req, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
@@ -143,7 +143,7 @@ func TestHeraldHMACSignatureExpired(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Signature-Version", "v2")
+	req.Header.Set("X-Signature-Version", "v3")
 	req.Header.Set("X-Signature", sig)
 	req.Header.Set("X-Timestamp", strconv.FormatInt(expiredTimestamp, 10))
 	req.Header.Set("X-Nonce", nonce)
@@ -173,7 +173,7 @@ func TestHeraldHMACSignatureExpired(t *testing.T) {
 }
 
 // TestHeraldHMACWithXKeyId tests that X-Key-Id header is accepted when present (CLAUDE §6.1 key rotation).
-// When HERALD_HMAC_KEYS is set, Herald uses X-Key-Id to select the key; with only HERALD_HMAC_SECRET, implementations may ignore or accept X-Key-Id.
+// This single-secret fixture uses its only explicit identity, "default".
 func TestHeraldHMACWithXKeyId(t *testing.T) {
 	ensureServicesReady(t)
 
@@ -190,10 +190,9 @@ func TestHeraldHMACWithXKeyId(t *testing.T) {
 	testza.AssertNoError(t, err)
 
 	service := "stargate"
-	// v2 with an explicit X-Key-Id: the keyID is bound into the signature and
-	// used to resolve the secret. With a single HMAC_SECRET, GetHMACSecret
-	// returns that secret for any key id, so an explicit id still verifies.
-	sig := signHeraldV2("POST", "/v1/otp/challenges", "", service, "stargate", heraldHMACSecret, bodyBytes)
+	// v3 binds an explicit key ID. Single-secret mode accepts only the
+	// stable "default" identity; arbitrary key IDs are rejected.
+	sig := signHeraldV3("POST", "/v1/otp/challenges", "", service, "default", "", heraldHMACSecret, bodyBytes)
 
 	url := fmt.Sprintf("%s/v1/otp/challenges", heraldURL)
 	req, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
@@ -201,7 +200,7 @@ func TestHeraldHMACWithXKeyId(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	setHeraldV2Headers(req, sig)
+	setHeraldV3Headers(req, sig)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -224,6 +223,51 @@ func TestHeraldHMACWithXKeyId(t *testing.T) {
 
 	testza.AssertNotNil(t, challengeResp.ChallengeID)
 	t.Logf("✓ Valid HMAC with X-Key-Id accepted: %+v", challengeResp)
+}
+
+// TestHeraldCreationSignatureBinding verifies the released creation contract:
+// legacy v2 signatures cannot create challenges, and v3 binds idempotency even
+// when an intermediary removes the header entirely.
+func TestHeraldCreationSignatureBinding(t *testing.T) {
+	ensureServicesReady(t)
+	body, err := json.Marshal(HeraldChallengeRequest{
+		UserID: "test-signature-binding", Channel: "sms",
+		Destination: "+8613800138000", Purpose: "login",
+	})
+	testza.AssertNoError(t, err)
+	cases := []struct {
+		name, version, signedKey, wireKey, reason string
+	}{
+		{"legacy version", "v2", "", "", "signature_version_required"},
+		{"changed idempotency", "v3", "original", "changed", "invalid_signature"},
+		{"removed idempotency", "v3", "original", "", "invalid_signature"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req, reqErr := http.NewRequest("POST", heraldURL+"/v1/otp/challenges", bytes.NewReader(body))
+			testza.AssertNoError(t, reqErr)
+			req.Header.Set("Content-Type", "application/json")
+			sig := signHeraldV3(req.Method, req.URL.Path, "", "e2e-suite", "", tc.signedKey, heraldHMACSecret, body)
+			sig.Signature = signHeraldFixed(tc.version, req.Method, req.URL.Path, "", sig.Timestamp, sig.Nonce, sig.Service, sig.KeyID, tc.signedKey, heraldHMACSecret, body)
+			setHeraldV3Headers(req, sig)
+			req.Header.Set("X-Signature-Version", tc.version)
+			if tc.wireKey != "" {
+				req.Header.Set("Idempotency-Key", tc.wireKey)
+			}
+			client := &http.Client{Timeout: 10 * time.Second}
+			resp, doErr := client.Do(req)
+			testza.AssertNoError(t, doErr)
+			var failure struct {
+				Reason string `json:"reason"`
+			}
+			decodeErr := json.NewDecoder(resp.Body).Decode(&failure)
+			closeErr := resp.Body.Close()
+			testza.AssertNoError(t, decodeErr)
+			testza.AssertNoError(t, closeErr)
+			testza.AssertEqual(t, http.StatusUnauthorized, resp.StatusCode)
+			testza.AssertEqual(t, tc.reason, failure.Reason)
+		})
+	}
 }
 
 // TestHeraldHMACSignatureMissing tests that missing signature headers are rejected
@@ -327,7 +371,7 @@ func TestWardenAPIKeyInvalid(t *testing.T) {
 
 // TestHeraldAPIKeyRejectedUnderHMACV2 verifies that under REQUEST_AUTH_MODE=hmac_v2
 // (the test/production posture, no downgrade), a bare X-API-Key is rejected: the
-// main endpoints only accept replay-resistant HMAC v2, never API-key auth. This
+// challenge creation requires replay-resistant HMAC v3, never API-key auth. This
 // is the security invariant for Herald v1.1.0 explicit auth with no fallback.
 func TestHeraldAPIKeyRejectedUnderHMACV2(t *testing.T) {
 	ensureServicesReady(t)
@@ -351,7 +395,7 @@ func TestHeraldAPIKeyRejectedUnderHMACV2(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	// Only an API key, no HMAC v2 headers: hmac_v2 mode requires the
+	// Only an API key, no HMAC v3 headers: hmac_v2 mode requires the
 	// X-Signature-Version header and never falls back to API-key auth.
 	req.Header.Set("X-API-Key", heraldAPIKey)
 

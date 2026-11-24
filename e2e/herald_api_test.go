@@ -581,10 +581,10 @@ func TestHeraldHMACAuth(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
-	// HMAC v2: bind method/path/query/timestamp/nonce/service/keyID/body-hash.
+	// HMAC v3: bind method/path/query/timestamp/nonce/service/keyID/idempotency/body hashes.
 	// Single HMAC_SECRET => empty keyID (server resolves the implicit default).
-	sig := signHeraldV2("POST", "/v1/otp/challenges", "", "test-service", "", heraldHMACSecret, bodyBytes)
-	setHeraldV2Headers(req, sig)
+	sig := signHeraldV3("POST", "/v1/otp/challenges", "", "test-service", "", "", heraldHMACSecret, bodyBytes)
+	setHeraldV3Headers(req, sig)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -595,13 +595,13 @@ func TestHeraldHMACAuth(t *testing.T) {
 		}
 	}()
 
-	// HMAC v2 authentication should succeed (replay-resistant, higher priority than API Key)
-	testza.AssertEqual(t, http.StatusOK, resp.StatusCode, "Should return 200 OK with HMAC v2 auth")
+	// HMAC v3 authentication should succeed (replay-resistant, higher priority than API Key)
+	testza.AssertEqual(t, http.StatusOK, resp.StatusCode, "Should return 200 OK with HMAC v3 auth")
 
 	var challengeResp HeraldChallengeResponse
 	err = json.NewDecoder(resp.Body).Decode(&challengeResp)
 	testza.AssertNoError(t, err)
 
 	testza.AssertNotNil(t, challengeResp.ChallengeID)
-	t.Logf("✓ HMAC v2 authentication successful: %+v", challengeResp)
+	t.Logf("✓ HMAC v3 authentication successful: %+v", challengeResp)
 }

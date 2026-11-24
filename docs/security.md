@@ -11,8 +11,9 @@
 - `REQUEST_AUTH_MODE=hmac_v2` is set **explicitly**; there is no implicit fallback
   between API key and HMAC.
 - **HMAC v1 is forbidden by every suite profile** (`HMAC_V1_ENABLED=false`).
-  Migrate callers to HMAC v2 before generating a suite deployment.
-- HMAC v2 uses a signing secret (`HERALD_HMAC_SECRET`) with a bounded clock drift
+  Migrate challenge-creation callers to HMAC v3 for the Herald 1.9 default.
+- HMAC v3 binds `Idempotency-Key`, including its absence, and uses the signing
+  secret (`HERALD_HMAC_SECRET`) with a bounded clock drift
   (`HMAC_MAX_DRIFT`, default 60s) to resist replay.
 
 ### Test verification-code endpoint
@@ -74,8 +75,9 @@ build-provenance attestations. See [release.md](release.md).
 
 - **显式**设置 `REQUEST_AUTH_MODE=hmac_v2`，不在 API Key 与 HMAC 间隐式回退。
 - **所有套件 Profile 均禁止 HMAC v1**（`HMAC_V1_ENABLED=false`）。生成套件部署前，
-  必须先将调用方迁移到 HMAC v2。
-- HMAC v2 使用签名密钥（`HERALD_HMAC_SECRET`）并限制时钟漂移
+  使用默认 Herald 1.9 时，必须将创建 challenge 的调用方迁移到 HMAC v3。
+- HMAC v3 绑定 `Idempotency-Key`（包括未提供时的空值），使用签名密钥
+  （`HERALD_HMAC_SECRET`）并限制时钟漂移
   （`HMAC_MAX_DRIFT`，默认 60s）以抗重放。
 
 ### 测试验证码端点

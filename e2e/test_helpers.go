@@ -346,8 +346,8 @@ func sendVerificationCodeWithEmail(t *testing.T, email string) (string, *ErrorRe
 	return result.ChallengeID, nil
 }
 
-// heraldV2Signature holds the headers required for a Herald HMAC v2 request.
-type heraldV2Signature struct {
+// heraldV3Signature holds the headers required for a Herald HMAC v3 request.
+type heraldV3Signature struct {
 	Signature string
 	Timestamp string
 	Nonce     string
@@ -355,43 +355,14 @@ type heraldV2Signature struct {
 	KeyID     string
 }
 
-// signHeraldV2 computes a Herald HMAC v2 signature over the canonical string:
-//
-//	HERALD-HMAC-V2\n<UPPER(METHOD)>\n<path>\n<query>\n<ts>\n<nonce>\n<service>\n<keyID>\n<hex(sha256(body))>
-//
-// This mirrors herald/internal/auth/hmac_v2.go (v1.1.0) exactly and is
-// cross-verified against the upstream CanonicalRequest.Canonical() field order.
-// With a single HMAC_SECRET (no key map) the server resolves the secret via an
-// implicit "default" key id, so keyID may be empty and no X-Key-Id is sent; the
-// empty keyID is still bound into the signature as the server does.
-func signHeraldV2(method, path, query, service, keyID, secret string, body []byte) heraldV2Signature {
+// signHeraldV3 signs the Herald 1.9 creation contract, including the
+// Idempotency-Key header. Single-secret mode accepts an omitted key ID or
+// "default"; the exact wire value remains part of the signature.
+func signHeraldV3(method, path, query, service, keyID, idempotencyKey, secret string, body []byte) heraldV3Signature {
 	ts := strconv.FormatInt(time.Now().Unix(), 10)
 	nonce := hex.EncodeToString([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
-	bodyHash := sha256.Sum256(body)
-
-	var b strings.Builder
-	b.WriteString("HERALD-HMAC-V2")
-	b.WriteByte('\n')
-	b.WriteString(strings.ToUpper(method))
-	b.WriteByte('\n')
-	b.WriteString(path)
-	b.WriteByte('\n')
-	b.WriteString(query)
-	b.WriteByte('\n')
-	b.WriteString(ts)
-	b.WriteByte('\n')
-	b.WriteString(nonce)
-	b.WriteByte('\n')
-	b.WriteString(service)
-	b.WriteByte('\n')
-	b.WriteString(keyID)
-	b.WriteByte('\n')
-	b.WriteString(hex.EncodeToString(bodyHash[:]))
-
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(b.String()))
-	return heraldV2Signature{
-		Signature: hex.EncodeToString(mac.Sum(nil)),
+	return heraldV3Signature{
+		Signature: signHeraldFixed("v3", method, path, query, ts, nonce, service, keyID, idempotencyKey, secret, body),
 		Timestamp: ts,
 		Nonce:     nonce,
 		Service:   service,
@@ -399,40 +370,27 @@ func signHeraldV2(method, path, query, service, keyID, secret string, body []byt
 	}
 }
 
-// signHeraldV2Fixed is like signHeraldV2 but takes an explicit timestamp and
-// nonce instead of generating them. It is used by negative tests that need to
-// sign over an out-of-drift timestamp so the only failing server check is the
-// timestamp bound (drift is checked before signature verification upstream).
-func signHeraldV2Fixed(method, path, query, ts, nonce, service, keyID, secret string, body []byte) string {
+// signHeraldFixed mirrors the canonical request in Herald's released
+// internal/auth/hmac_v2.go. Version 3 also binds the idempotency header digest,
+// including an absent header; version 2 is retained for downgrade rejection
+// tests. Explicit timestamps/nonces exercise drift and replay checks.
+func signHeraldFixed(version, method, path, query, ts, nonce, service, keyID, idempotencyKey, secret string, body []byte) string {
+	fields := []string{"HERALD-HMAC-" + strings.ToUpper(version), strings.ToUpper(method), path, query, ts, nonce, service, keyID}
+	if version == "v3" {
+		keyHash := sha256.Sum256([]byte(idempotencyKey))
+		fields = append(fields, hex.EncodeToString(keyHash[:]))
+	}
 	bodyHash := sha256.Sum256(body)
-	var b strings.Builder
-	b.WriteString("HERALD-HMAC-V2")
-	b.WriteByte('\n')
-	b.WriteString(strings.ToUpper(method))
-	b.WriteByte('\n')
-	b.WriteString(path)
-	b.WriteByte('\n')
-	b.WriteString(query)
-	b.WriteByte('\n')
-	b.WriteString(ts)
-	b.WriteByte('\n')
-	b.WriteString(nonce)
-	b.WriteByte('\n')
-	b.WriteString(service)
-	b.WriteByte('\n')
-	b.WriteString(keyID)
-	b.WriteByte('\n')
-	b.WriteString(hex.EncodeToString(bodyHash[:]))
-
+	fields = append(fields, hex.EncodeToString(bodyHash[:]))
 	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(b.String()))
+	_, _ = mac.Write([]byte(strings.Join(fields, "\n")))
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-// setHeraldV2Headers applies the v2 auth headers to a request. X-Key-Id is only
-// sent when keyID is non-empty (empty keyID → implicit default on the server).
-func setHeraldV2Headers(req *http.Request, sig heraldV2Signature) {
-	req.Header.Set("X-Signature-Version", "v2")
+// setHeraldV3Headers applies the v3 auth headers. An omitted key ID resolves to
+// the single-secret identity; a supplied key ID is explicitly signed.
+func setHeraldV3Headers(req *http.Request, sig heraldV3Signature) {
+	req.Header.Set("X-Signature-Version", "v3")
 	req.Header.Set("X-Signature", sig.Signature)
 	req.Header.Set("X-Timestamp", sig.Timestamp)
 	req.Header.Set("X-Nonce", sig.Nonce)
@@ -442,11 +400,9 @@ func setHeraldV2Headers(req *http.Request, sig heraldV2Signature) {
 	}
 }
 
-// signHeraldReq signs an already-built Herald request with HMAC v2 using the
-// shared test secret, deriving method/path/query from the request and hashing
-// the provided raw body. It replaces the legacy `X-API-Key` header the tests
-// used to set, since Herald v1.1.0 runs REQUEST_AUTH_MODE=hmac_v2 and never
-// downgrades to API-key auth. Pass nil body for requests without a body.
+// signHeraldReq signs an already-built request with HMAC v3. Callers must set
+// Idempotency-Key before signing. Herald's hmac_v2 auth mode accepts v3 on all
+// authenticated routes and requires it for challenge creation.
 func signHeraldReq(req *http.Request, body []byte) {
 	query := ""
 	if req.URL != nil {
@@ -456,8 +412,8 @@ func signHeraldReq(req *http.Request, body []byte) {
 	if req.URL != nil {
 		path = req.URL.Path
 	}
-	sig := signHeraldV2(req.Method, path, query, "e2e-suite", "", heraldHMACSecret, body)
-	setHeraldV2Headers(req, sig)
+	sig := signHeraldV3(req.Method, path, query, "e2e-suite", "", req.Header.Get("Idempotency-Key"), heraldHMACSecret, body)
+	setHeraldV3Headers(req, sig)
 }
 
 // clearRateLimitKeys clears Herald's Redis-backed state and restarts Stargate

@@ -8,19 +8,21 @@ Layout and how to run. Overview: [../README.md](../README.md).
 
 - e2e_test.go — normal flow
 - error_scenarios_test.go — wrong/expired/locked code, non-whitelist, inactive, rate limits, service down, auth, edge cases
-- v1_failure_contracts_test.go — v1 contracts: strict 2xx readiness, dependency-outage liveness/readiness and recovery, identified HMAC v2 nonce replay rejection, and isolation of the Herald test-code listener
+- v1_failure_contracts_test.go — v1 contracts: strict 2xx readiness, dependency-outage liveness/readiness and recovery, identified HMAC v3 nonce replay rejection, and isolation of the Herald test-code listener
 - auth_test.go, herald_api_test.go, warden_api_test.go, idempotency_test.go, audit_test.go, provider_test.go, metrics_test.go
-- test_helpers.go — ensureServicesReady, sendVerificationCodeWithError, loginWithError, clearRateLimitKeys, stop/start Docker, and the HMAC v2 signing helpers (signHeraldV2 / signHeraldReq / signHeraldV2Fixed)
+- test_helpers.go — ensureServicesReady, sendVerificationCodeWithError, loginWithError, clearRateLimitKeys, stop/start Docker, and the HMAC v3 signing helpers (signHeraldV3 / signHeraldReq / signHeraldFixed), including the Idempotency-Key header
 
-## Service-to-service auth (HMAC v2)
+## Service-to-service auth (HMAC v3)
 
-Herald runs `REQUEST_AUTH_MODE=hmac_v2` (test/production posture), so all Herald
-`/v1/otp/*` calls are signed with HMAC v2, not `X-API-Key`. The signing helpers
-build the canonical string
-`HERALD-HMAC-V2\n<METHOD>\n<path>\n<query>\n<ts>\n<nonce>\n<service>\n<keyid>\n<sha256(body)>`,
-mirroring `herald/internal/auth/hmac_v2.go` exactly. `heraldHMACSecret` must
-match the `HMAC_SECRET` wired by the test profile. API-key requests are expected
-to be **rejected** (see `TestHeraldAPIKeyRejectedUnderHMACV2`).
+Herald 1.9 keeps `REQUEST_AUTH_MODE=hmac_v2` as the configured auth mode and
+requires **v3 signatures for challenge creation**. The E2E clients sign all
+`/v1/otp/*` requests using the released canonical format:
+`HERALD-HMAC-V3\n<METHOD>\n<path>\n<query>\n<ts>\n<nonce>\n<service>\n<keyid>\n<sha256(Idempotency-Key)>\n<sha256(body)>`.
+Set `Idempotency-Key` before signing; an absent header is also hashed and bound.
+`heraldHMACSecret` must match the test profile's `HMAC_SECRET`. With a single
+secret, the explicit key ID is `default`; omitting it uses the same identity.
+The tests verify rejection of v2 creation requests, modified or removed
+idempotency headers, replayed nonces, and API-key-only requests.
 
 ## Herald test verification code
 
@@ -30,7 +32,7 @@ listener (`HERALD_TEST_LISTENER_ADDR`, default `127.0.0.1:8092`) guarded by
 listener is loopback-only inside the container, `getTestCode` reaches it via
 `docker compose exec herald curl` when `HERALD_COMPOSE_DIR` is set (the way
 `scripts/run-e2e.sh` and CI wire it). Resolution order: `HERALD_TEST_CODE_URL`
-(explicit base) → `HERALD_COMPOSE_DIR` (exec) → `heraldURL` fallback.
+(explicit base) → `HERALD_COMPOSE_DIR` (exec) → an error when neither dedicated access path is configured.
 
 ## Test data
 

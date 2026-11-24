@@ -8,18 +8,19 @@
 
 - e2e_test.go — 正常流程
 - error_scenarios_test.go — 错误/过期/锁定验证码、非白名单、非活跃、限流、服务宕机、鉴权、边界
-- v1_failure_contracts_test.go — v1 契约：严格 2xx 就绪判定、依赖故障时的存活/就绪与恢复、带原因的 HMAC v2 nonce 重放拒绝，以及 Herald 测试验证码监听器隔离
+- v1_failure_contracts_test.go — v1 契约：严格 2xx 就绪判定、依赖故障时的存活/就绪与恢复、带原因的 HMAC v3 nonce 重放拒绝，以及 Herald 测试验证码监听器隔离
 - auth_test.go、herald_api_test.go、warden_api_test.go、idempotency_test.go、audit_test.go、provider_test.go、metrics_test.go
-- test_helpers.go — ensureServicesReady、sendVerificationCodeWithError、loginWithError、clearRateLimitKeys、停止/启动 Docker，以及 HMAC v2 签名助手（signHeraldV2 / signHeraldReq / signHeraldV2Fixed）
+- test_helpers.go — ensureServicesReady、sendVerificationCodeWithError、loginWithError、clearRateLimitKeys、停止/启动 Docker，以及 HMAC v3 签名助手（signHeraldV3 / signHeraldReq / signHeraldFixed），签名绑定 Idempotency-Key 请求头
 
-## 服务间鉴权（HMAC v2）
+## 服务间鉴权（HMAC v3）
 
-Herald 运行在 `REQUEST_AUTH_MODE=hmac_v2`（test/production 姿态），因此所有 Herald
-`/v1/otp/*` 调用均使用 HMAC v2 签名，而非 `X-API-Key`。签名助手构造规范串
-`HERALD-HMAC-V2\n<METHOD>\n<path>\n<query>\n<ts>\n<nonce>\n<service>\n<keyid>\n<sha256(body)>`，
-与 `herald/internal/auth/hmac_v2.go` 完全一致。`heraldHMACSecret` 必须与 test
-profile 注入的 `HMAC_SECRET` 一致。API Key 请求预期被**拒绝**（见
-`TestHeraldAPIKeyRejectedUnderHMACV2`）。
+Herald 1.9 的配置模式仍为 `REQUEST_AUTH_MODE=hmac_v2`，创建 challenge 时必须使用
+**v3 签名**。E2E 客户端对所有 `/v1/otp/*` 请求使用已发布版本的规范串：
+`HERALD-HMAC-V3\n<METHOD>\n<path>\n<query>\n<ts>\n<nonce>\n<service>\n<keyid>\n<sha256(Idempotency-Key)>\n<sha256(body)>`。
+先设置 `Idempotency-Key` 再签名；未提供该请求头时也会绑定空值的摘要。
+`heraldHMACSecret` 必须与 test profile 注入的 `HMAC_SECRET` 一致。单密钥模式的显式
+key ID 为 `default`，省略时仍使用该身份。测试会验证拒绝 v2 创建请求、被修改或删除的
+幂等请求头、重放 nonce，以及仅提供 API Key 的请求。
 
 ## Herald 测试验证码
 
@@ -29,7 +30,7 @@ profile 注入的 `HMAC_SECRET` 一致。API Key 请求预期被**拒绝**（见
 loopback 可达，`getTestCode` 在设置了 `HERALD_COMPOSE_DIR` 时通过
 `docker compose exec herald curl` 访问（`scripts/run-e2e.sh` 与 CI 即如此接线）。
 解析顺序：`HERALD_TEST_CODE_URL`（显式 base）→ `HERALD_COMPOSE_DIR`（exec）→
-`heraldURL` 兜底。
+两种专用访问方式均未配置时报错。
 
 ## 测试数据
 

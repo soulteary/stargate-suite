@@ -37,7 +37,7 @@ password, Cookie Secure, HMAC v1, container privileges, and validation mode.
 - **test** — strict validation for CI.
 - **production** — experimental & strict: plaintext passwords, placeholder keys,
   published internal ports, Cookie Secure off, or HMAC v1 are hard errors and
-  can never be bypassed. Herald request authentication is pinned to HMAC v2.
+  can never be bypassed. Herald uses `hmac_v2` auth mode; its 1.9 creation endpoint requires HMAC v3 signatures.
   Supply real secrets via env or repeated `--set`.
 
 ### Start / stop
@@ -108,7 +108,7 @@ go run ./cmd/suite generate --profile production  --output build/prod \
 - **test**——用于 CI 的 strict 校验。
 - **production**——实验性且 strict：明文口令、占位密钥、暴露内部端口、
   Cookie Secure 关闭、HMAC v1 均为硬错误，不可绕过。真实机密经环境变量或多个
-  `--set` 提供；Herald 请求鉴权固定使用 HMAC v2。
+  `--set` 提供；Herald 使用 `hmac_v2` 鉴权模式；1.9 版本的创建端点要求 HMAC v3 签名。
 
 ### 启停
 

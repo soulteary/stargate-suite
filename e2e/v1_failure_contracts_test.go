@@ -19,12 +19,12 @@ import (
 // assert the current security posture against the real v1 services:
 //   - liveness vs readiness are DISTINCT endpoints (a dependency outage must
 //     not flap liveness),
-//   - Herald HMAC v2 nonces are single-use (replay is rejected),
+//   - Herald HMAC v3 nonces are single-use (replay is rejected),
 //   - the Herald test-code endpoint is NEVER reachable on the public :8082
 //     listener (only the dedicated loopback listener serves it).
 //
 // The endpoint/contract details are cross-verified against upstream stable
-// tags (Stargate v1.0.0, Warden v1.1.0, Herald v1.1.0):
+// tags (Stargate v1.8.0, Warden v1.9.1, Herald v1.9.0):
 //   - Stargate: /healthz = SimpleFiberHandler (no deps), /readyz = aggregator.
 //   - Herald:   /livez = no deps, /readyz = Redis ping (503 when down),
 //               /v1/test/code only on the dedicated test listener.
@@ -198,9 +198,9 @@ func waitForExactStatus(url string, want int, timeout time.Duration) (int, strin
 	return status, body
 }
 
-// TestHeraldNonceReplayRejected asserts a v2 nonce is single-use: replaying the
+// TestHeraldNonceReplayRejected asserts a v3 nonce is single-use: replaying the
 // exact same signed request (same timestamp + nonce + signature) must be
-// rejected with a replay reason. This is the anti-replay guarantee of HMAC v2
+// rejected with a replay reason. This is the anti-replay guarantee of HMAC v3
 // (herald/internal/auth/middleware.go verifies the signature, then consumes the
 // nonce via SET NX EX; a second use is not fresh -> replayed_nonce).
 func TestHeraldNonceReplayRejected(t *testing.T) {
@@ -221,14 +221,14 @@ func TestHeraldNonceReplayRejected(t *testing.T) {
 	ts := strconv.FormatInt(time.Now().Unix(), 10)
 	nonce := "e2e-replay-nonce-" + ts
 	service := "stargate"
-	sig := signHeraldV2Fixed("POST", "/v1/otp/challenges", "", ts, nonce, service, "", heraldHMACSecret, bodyBytes)
+	sig := signHeraldFixed("v3", "POST", "/v1/otp/challenges", "", ts, nonce, service, "", "", heraldHMACSecret, bodyBytes)
 
 	doSigned := func() (int, string) {
 		req, reqErr := http.NewRequest("POST", heraldURL+"/v1/otp/challenges", bytes.NewReader(bodyBytes))
 		testza.AssertNoError(t, reqErr)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Accept", "application/json")
-		req.Header.Set("X-Signature-Version", "v2")
+		req.Header.Set("X-Signature-Version", "v3")
 		req.Header.Set("X-Signature", sig)
 		req.Header.Set("X-Timestamp", ts)
 		req.Header.Set("X-Nonce", nonce)
