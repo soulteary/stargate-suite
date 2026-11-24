@@ -2,37 +2,37 @@ schemaVersion: 1
 images:
     herald:
         image: ghcr.io/soulteary/herald
-        version: 1.3.2
-        digest: sha256:ce326c33e9172b10c72a4162f41fec38e418dbddde737ac1b7b4c40e98861efa
+        version: 1.9.0
+        digest: sha256:adc6b044433bea989a69ee422cc4e38d67a2d19cc2512fc70aeac1d284c8eafd
     herald-dingtalk:
         image: ghcr.io/soulteary/herald-dingtalk
-        version: 1.2.6
-        digest: sha256:26d0fbddf24d6baa58d39cf4bb442ba9b4d4453aa30e202c6aa9d3aa15fcda80
+        version: 1.2.8
+        digest: sha256:b153ea584c2c10b2b8756bcf4f81bc327bfd1287e28b7ec3ca7dd0054356f7f0
     herald-smtp:
         image: ghcr.io/soulteary/herald-smtp
-        version: 1.2.6
-        digest: sha256:8a99c047985361655de0231525912a6ddea72c1d94524e848f03af091f32422a
+        version: 1.2.9
+        digest: sha256:407155d868a88ee0a3827f9f21b13ccccf0555afdc4d2f177d7cd93045b39ad0
     herald-totp:
         image: ghcr.io/soulteary/herald-totp
-        version: 1.2.6
-        digest: sha256:cc7b0bf69d1ded078bfbe3b98d9bc57c012e79e64f32962f72659d7ccba7739c
+        version: 2.0.4
+        digest: sha256:01605e742a57227eeae4108c4fca375c78731689c9cead2123561971c94c8f3e
     owlmail:
         image: ghcr.io/soulteary/owlmail
-        version: 0.13.0
-        digest: sha256:cfe1af98c808afe1fb1e59c8ef69db62e9ccd7ba1b28789d60c4f179af8e9925
+        version: 0.15.0
+        digest: sha256:991c52bc090d88e79863d5912a1464215804f272614fd1f8d793117b21f41d53
     protected:
         image: ghcr.io/traefik/whoami
-        version: v1.11
-        digest: sha256:200689790a0a0ea48ca45992e0450bc26ccab5307375b41c84dfc4f2475937ab
+        version: v1.12.0
+        digest: sha256:c4717a8d1f0134a7444e24f881160e033991f23027c6c5a9a3f8fd22e70d1d44
     redis:
         image: redis
-        version: 8.4-alpine
-        digest: sha256:9b74c5d0f445d8a0be8522bcb638c93a6c31dbc7c2d69c4dac4a74ee5f02126a
+        version: 8.10.2-alpine
+        digest: sha256:9f8d2d789b9a1d1e3f283f979aa9cbf393373806472e1ccd460e2f9c869b833b
     stargate:
         image: ghcr.io/soulteary/stargate
-        version: 1.2.1
-        digest: sha256:f0bd403a1d51699b189300dc22ec2199e2f5d40272da2083471dfd9948cb37d6
+        version: 1.8.0
+        digest: sha256:ed77fab2dc3666da3a41321feaff4d999d57e745ccf5236ade9c067125dc5b7c
     warden:
         image: ghcr.io/soulteary/warden
-        version: 1.4.2
-        digest: sha256:bc1fba2a069934253164a535a8b14256fc1758a6ff16b0ad48296cf925638329
+        version: 1.9.1
+        digest: sha256:49773116869a8568dc58f1f68a31527738de56efea29dca8d7efb70531150453

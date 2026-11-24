@@ -26,7 +26,7 @@ Go module: `github.com/soulteary/stargate-suite`. Repo name: **stargate-suite**.
 | [docs/development](docs/development.md) | Local development & testing |
 | [docs/release](docs/release.md) | Release process & supply chain |
 
-Provider images are pinned to v1.2.6 and the optional OwlMail inbox to v0.13.0. Read the [downstream upgrade and rollback notes](docs/downstream-upgrades.md) before reusing existing inbox data.
+Provider images are pinned to DingTalk v1.2.8, SMTP v1.2.9 and TOTP v2.0.4; the optional OwlMail inbox uses v0.15.0. Read the [downstream upgrade and rollback notes](docs/downstream-upgrades.md) before reusing existing inbox data.
 
 ## Structure
 
@@ -118,7 +118,7 @@ cookies remain Secure.
 ## Ports & env
 
 - **Stargate**: no host port — the `stargate` service uses `ports: []` and listens on backend port **8080** inside the container (health: `/healthz` liveness, `/readyz` readiness); it is reachable only via Traefik (see `compose/canonical/docker-compose.yml` and `config/ports.yaml`).
-- **Warden** 8081 (health `/healthcheck`) · **Herald** 8082 (`/healthz`) · **Herald-TOTP** 8084 · **Herald-DingTalk** 8083 · **Herald-SMTP** 8085 · **Redis** 6379 (host ports only when the port is exposed / mapped). Component versions, ports and health paths come from `config/components.yaml` (single source of truth) — current pinned core combo: Stargate `v1.2.1`, Warden `v1.4.2`, Herald `v1.3.2`; optional channel providers are pinned to `v1.2.6`.
+- **Warden** 8081 (health `/healthcheck`) · **Herald** 8082 (`/healthz`) · **Herald-TOTP** 8084 · **Herald-DingTalk** 8083 · **Herald-SMTP** 8085 · **Redis** 6379 (host ports only when the port is exposed / mapped). Component versions, ports and health paths come from `config/components.yaml` (single source of truth) — current pinned core combo: Stargate `v1.8.0`, Warden `v1.9.1`, Herald `v1.9.0`; optional channel providers use DingTalk `v1.2.8`, SMTP `v1.2.9` and TOTP `v2.0.4`.
 - **Web UI** defaults to **8085** (`make serve`), which is the same default port as **herald-smtp**. The default scenarios do not run herald-smtp, so there is no conflict out of the box; but if you enable herald-smtp and also run `make serve` on the same host, the ports collide — change one of them (e.g. `SERVE_PORT` for the Web UI or the herald-smtp host port).
 - Copy `.env.example` → `.env` to override image versions, `AUTH_HOST`, `PASSWORDS`, `WARDEN_API_KEY`, `HERALD_API_KEY`, `HERALD_HMAC_SECRET`.
 

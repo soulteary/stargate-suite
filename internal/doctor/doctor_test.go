@@ -182,7 +182,7 @@ func TestResolveComposeImage(t *testing.T) {
 	cases := map[string]string{
 		"${HERALD_IMAGE:-ghcr.io/soulteary/herald:1.1.0}": "ghcr.io/soulteary/herald:1.1.0",
 		"${IMG-plain:tag}": "plain:tag",
-		"redis:8.4-alpine": "redis:8.4-alpine",
+		"redis:8.10.2-alpine": "redis:8.10.2-alpine",
 		"${NO_DEFAULT}":    "${NO_DEFAULT}",
 	}
 	for in, want := range cases {

@@ -15,7 +15,7 @@ func TestInjectOwlmailUsesVersionedImageVariable(t *testing.T) {
 		t.Fatal("owlmail service was not injected")
 	}
 	image, _ := owlmail["image"].(string)
-	if image != "${OWLMAIL_IMAGE:-ghcr.io/soulteary/owlmail:0.13.0}" {
+	if image != "${OWLMAIL_IMAGE:-ghcr.io/soulteary/owlmail:0.15.0}" {
 		t.Fatalf("owlmail image = %q", image)
 	}
 	if strings.Contains(image, ":latest") {
@@ -28,7 +28,6 @@ func TestStargateSplitOverridesRewriteCurrentCanonicalValues(t *testing.T) {
 		"environment": []interface{}{
 			"WARDEN_URL=${WARDEN_URL:-http://warden:8081}",
 			"HERALD_URL=${HERALD_URL:-http://herald:8082}",
-			"HERALD_TOTP_BASE_URL=${HERALD_TOTP_BASE_URL:-http://herald-totp:8084}",
 		},
 		"labels": []interface{}{
 			"traefik.http.middlewares.stargate-auth.forwardauth.address=http://stargate:8080/_auth",
@@ -41,7 +40,6 @@ func TestStargateSplitOverridesRewriteCurrentCanonicalValues(t *testing.T) {
 	wantEnv := []string{
 		"WARDEN_URL=http://isolated-warden:8081",
 		"HERALD_URL=http://isolated-herald:8082",
-		"HERALD_TOTP_BASE_URL=http://isolated-herald-totp:8084",
 	}
 	for i, want := range wantEnv {
 		if env[i] != want {
