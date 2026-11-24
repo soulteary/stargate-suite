@@ -38,9 +38,13 @@ For the new default, also read the [0.15.0 release and rollback notes](https://g
 - Rollback requires stopping the new process and restoring the complete pre-upgrade snapshot/external state with the old binary or image. Do not share writable state across versions. Reconcile downstream receipts before enabling outbound delivery; preserve new captures separately before restoring a snapshot.
 - Updating the default image does not erase data. Generated Suite Compose does not mount an OwlMail data volume by default; inbox contents in that container remain ephemeral across recreation. Add and back up a deliberate persistent mail-directory mount if retention is required; review the upstream paths and ownership first.
 
+Herald 1.9 requires HMAC v3 for challenge creation while retaining the `hmac_v2` configuration mode. Direct API clients must sign the `Idempotency-Key` digest, including an absent header, before sending the request. The updated E2E signer follows the released [canonical format](https://github.com/soulteary/herald/blob/v1.9.0/internal/auth/hmac_v2.go); the smoke suite checks valid creation, explicit default-key identity, replay rejection, and rejection of v2 or modified/removed idempotency headers.
+
 ## 中文
 
 本次清单与不可变摘要锁采用上表所列的公开版本。TOTP 升为 v2.0.4，Herald v1.9.0 负责后端地址与凭据，Stargate v1.8.0 通过 Herald 代理调用。完整 E2E 工作流必须验证该组合后才能发布 Suite。
+
+Herald 1.9 的创建 challenge 端点要求 HMAC v3，配置模式仍为 `hmac_v2`。直接 API 客户端必须把 `Idempotency-Key` 的摘要（包括请求头未提供时的空值）加入签名，再发送请求。更新后的 E2E 签名助手采用发布版本的规范串；smoke 测试覆盖有效创建、显式 default 密钥身份、nonce 重放拒绝，以及 v2 和幂等请求头被修改或删除时的拒绝。
 
 升级 TOTP 前阅读上游 v2 迁移说明，协调 Herald 与 TOTP 的 HMAC v2 签名和一次性 nonce；保留 Redis 状态、原始加密密钥、配额与重放记录，不混用旧签名客户端。HTTP 路径仍为 /v1，API-key 模式仍受支持。生成器仅将启用开关传给 Stargate，将后端地址和凭据传给 Herald；健康检查使用镜像已有的 wget。此清单更新不会替换正在运行的容器或迁移数据，恢复流量前须执行所选版本的状态与命名空间迁移检查。
 

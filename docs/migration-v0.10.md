@@ -11,6 +11,10 @@
 
 ## English
 
+This guide records the original v0.10 migration. For the current component
+combination, follow [downstream upgrades](downstream-upgrades.md): Herald 1.9
+requires HMAC v3 for challenge creation while keeping `REQUEST_AUTH_MODE=hmac_v2`.
+
 ### Pinned component combination
 
 | Service | v0.9 baseline (drifted) | v0.10 |
@@ -21,7 +25,7 @@
 | herald-dingtalk | `:latest` (drift) | `v1.1.0` |
 
 > Warden `v1.1.0` and the optional herald-totp, herald-dingtalk, and
-> herald-smtp `v1.1.0` releases are the current pinned v1 matrix. Always take
+> herald-smtp `v1.1.0` releases were the initial pinned v1 matrix. Always take
 > exact image versions from `config/components.yaml`.
 
 ### Breaking changes
@@ -78,6 +82,9 @@
 ---
 
 ## 中文
+
+本文记录最初的 v0.10 迁移。当前组件组合请参照[下游升级说明](downstream-upgrades.md)：
+Herald 1.9 创建 challenge 时要求 HMAC v3，配置模式仍为 `REQUEST_AUTH_MODE=hmac_v2`。
 
 ### 锁定的组件组合
 

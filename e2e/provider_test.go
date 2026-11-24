@@ -127,8 +127,8 @@ func TestHeraldProviderRetry(t *testing.T) {
 
 	req1.Header.Set("Content-Type", "application/json")
 	req1.Header.Set("Accept", "application/json")
-	signHeraldReq(req1, bodyBytes)
 	req1.Header.Set("Idempotency-Key", idempotencyKey)
+	signHeraldReq(req1, bodyBytes)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp1, err := client.Do(req1)
@@ -153,8 +153,8 @@ func TestHeraldProviderRetry(t *testing.T) {
 
 	req2.Header.Set("Content-Type", "application/json")
 	req2.Header.Set("Accept", "application/json")
-	signHeraldReq(req2, bodyBytes2)
 	req2.Header.Set("Idempotency-Key", idempotencyKey)
+	signHeraldReq(req2, bodyBytes2)
 
 	time.Sleep(1 * time.Second)
 
