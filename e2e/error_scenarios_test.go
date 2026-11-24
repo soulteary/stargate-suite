@@ -1,7 +1,9 @@
 package e2e
 
 import (
+	"encoding/json"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -59,9 +61,63 @@ func TestInvalidVerificationCode(t *testing.T) {
 	t.Logf("✓ Invalid verification code rejected: %s", errResp.Message)
 }
 
-// TestExpiredVerificationCode tests expired verification code scenarios
-// Note: This test needs to wait for code expiration, which may take a long time
-// Or can be accelerated by modifying Herald's CHALLENGE_EXPIRY config
+// assertUnavailableChallengeRejected verifies Stargate's public rejection
+// contract for a challenge without a matching login context. Pin the language
+// so the assertion does not depend on the stack's default locale.
+func assertUnavailableChallengeRejected(t *testing.T, phone, challengeID, verifyCode string) {
+	t.Helper()
+	form := url.Values{
+		"auth_method":  {"warden"},
+		"phone":        {phone},
+		"challenge_id": {challengeID},
+		"verify_code":  {verifyCode},
+	}
+	req, err := http.NewRequest(http.MethodPost, stargateURL+"/_login", strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatalf("create login request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept-Language", "en")
+	req.Host = authHost
+	req.Header.Set("X-Forwarded-Host", authHost)
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("login request: %v", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Errorf("close login response: %v", err)
+		}
+	}()
+	testza.AssertEqual(t, http.StatusUnauthorized, resp.StatusCode, "Unavailable challenge must return 401")
+	var body struct {
+		Code   int    `json:"code"`
+		Error  string `json:"error"`
+		Reason string `json:"reason"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode login rejection: %v", err)
+	}
+	testza.AssertEqual(t, http.StatusUnauthorized, body.Code)
+	testza.AssertEqual(t, "Verification failed.", body.Error)
+	testza.AssertEqual(t, "", body.Reason, "Missing context must not expose a challenge-specific reason")
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name == "stargate_session_id" {
+			testza.AssertTrue(t, cookie.Value == "" || cookie.MaxAge < 0, "Rejected login must not issue a usable session cookie")
+		}
+	}
+}
+
+// TestExpiredVerificationCode exercises the unavailable-context path with a
+// synthetic expired handle and a real code belonging to a different challenge.
+// It does not wait for or assert Herald's TTL clock.
 func TestExpiredVerificationCode(t *testing.T) {
 	// Wait for services to be ready
 	ensureServicesReady(t)
@@ -69,41 +125,29 @@ func TestExpiredVerificationCode(t *testing.T) {
 	// 使用不同的用户避免限流影响
 	testPhone := "13800138000" // Use admin user
 
-	// Step 1: 发送验证码成功（如果触发限流，跳过此测试）
+	// Step 1: Obtain a live code for the isolated scenario.
 	t.Log("Step 1: Sending verification code...")
 	challengeID, errResp := sendVerificationCodeWithError(t, testPhone)
-	if errResp != nil && errResp.StatusCode == 429 {
-		t.Skip("Rate limit triggered, skipping expired verification code test")
+	if errResp != nil {
+		t.Fatalf("send verification code: status %d: %s", errResp.StatusCode, errResp.Message)
 	}
-	testza.AssertNil(t, errResp, "Should not have error when sending verification code")
-	testza.AssertNotNil(t, challengeID)
+	if challengeID == "" {
+		t.Fatal("send verification code returned an empty challenge ID")
+	}
 
 	// Step 2: Get verification code
 	verifyCode, err := getTestCode(t, challengeID)
-	testza.AssertNoError(t, err)
+	if err != nil {
+		t.Fatalf("get test code: %v", err)
+	}
+	if verifyCode == "" {
+		t.Fatal("test listener returned an empty verification code")
+	}
 
-	// Step 3: Wait for code to expire (default 5 mins, waiting 6 mins here)
-	// Note: In actual tests, may need to adjust wait time or config
-	t.Log("Step 3: Waiting for verification code to expire (this may take a while)...")
-	t.Log("Note: In production, you may want to reduce CHALLENGE_EXPIRY for faster testing")
-
-	// For testing purposes, we attempt to use an obviously expired challenge_id
-	// Or wait for actual expiration (skipping long wait here, testing logic only)
-	// In real scenarios, a shorter expiration time can be set for testing
-
-	// Use a non-existent challenge_id to simulate expiration
+	// No login context exists for this synthetic expired handle. Stargate 1.8
+	// rejects it before calling Herald, without revealing an expiry distinction.
 	expiredChallengeID := "expired_challenge_12345"
-	t.Log("Step 4: Attempting login with expired challenge...")
-	_, errResp = loginWithError(t, testPhone, expiredChallengeID, verifyCode)
-	testza.AssertNotNil(t, errResp)
-	testza.AssertTrue(t, errResp.StatusCode == 400 || errResp.StatusCode == 401,
-		"Should return 400 Bad Request or 401 Unauthorized")
-	// Error message may be "verification service error" or contain expired/invalid hints
-	testza.AssertTrue(t, strings.Contains(errResp.Message, "过期") || strings.Contains(errResp.Message, "expired") ||
-		strings.Contains(errResp.Message, "无效") || strings.Contains(errResp.Message, "错误") ||
-		strings.Contains(errResp.Message, "空"),
-		"Error message should mention expiration or error")
-	t.Logf("✓ Expired verification code rejected: %s", errResp.Message)
+	assertUnavailableChallengeRejected(t, testPhone, expiredChallengeID, verifyCode)
 }
 
 // TestVerificationCodeLocked tests lockout after multiple incorrect codes
@@ -353,16 +397,7 @@ func TestInvalidChallengeID(t *testing.T) {
 	wrongCode := "123456"
 
 	t.Log("Step 1: Attempting to login with invalid challenge_id...")
-	_, errResp := loginWithError(t, testPhone, invalidChallengeID, wrongCode)
-	testza.AssertNotNil(t, errResp)
-	testza.AssertTrue(t, errResp.StatusCode == 400 || errResp.StatusCode == 401,
-		"Should return 400 Bad Request or 401 Unauthorized")
-	// Error message may be "verification service error" or contain expired/invalid hints
-	testza.AssertTrue(t, strings.Contains(errResp.Message, "过期") || strings.Contains(errResp.Message, "无效") ||
-		strings.Contains(errResp.Message, "expired") || strings.Contains(errResp.Message, "invalid") ||
-		strings.Contains(errResp.Message, "错误") || strings.Contains(errResp.Message, "空"),
-		"Error message should mention expired, invalid, or error")
-	t.Logf("✓ Invalid challenge_id rejected: %s", errResp.Message)
+	assertUnavailableChallengeRejected(t, testPhone, invalidChallengeID, wrongCode)
 }
 
 // TestInvalidAuthMethod tests invalid auth method
